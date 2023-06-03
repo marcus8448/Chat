@@ -1,0 +1,18 @@
+[versions]
+annotations = "24.0.1"
+junit = "5.9.3"
+nightconfig = "3.6.6"
+sqlite = "3.42.0.0"
+javafx = "20.0.1"
+
+[libraries]
+annotations = { module = "org.jetbrains:annotations", version.ref = "annotations" }
+nightconfig = { module = "com.electronwill.night-config:toml", version.ref = "nightconfig" }
+sqlite = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite" }
+
+[bundles]
+
+[plugins]
+licenser = { id = "org.cadixdev.licenser", version = "0.6.1" }
+javafx = { id = "org.openjfx.javafxplugin", version = "0.0.14" }
+
