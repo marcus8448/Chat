@@ -18,8 +18,8 @@ package io.github.marcus8448.chat.client.ui;
 
 import io.github.marcus8448.chat.client.ServerAuth;
 import io.github.marcus8448.chat.client.network.AuthenticationData;
-import io.github.marcus8448.chat.core.Result;
 import io.github.marcus8448.chat.client.parse.ParseUtil;
+import io.github.marcus8448.chat.core.Result;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
@@ -37,15 +37,19 @@ public class LoginPrompt {
     private static final String HAVE_ACCOUNT = "Have an account? Log in";
     private static final String SIGN_UP = "Sign up";
     private static final String LOGIN = "Login";
-    public TextField serverAddress;
 
     private Mode mode = Mode.LOGIN;
+
+    public TextField serverAddress;
     public PasswordField passwordField;
     public Button loginButton;
     public Button cancelButton;
     public TextField username;
     public Label failureReason;
     public Label modeSwapText;
+
+    public LoginPrompt() {
+    }
 
     public void login() {
         Result<InetSocketAddress, String> result = ParseUtil.parseServerAddress(this.serverAddress.getText());
@@ -75,7 +79,8 @@ public class LoginPrompt {
                 this.failureReason.setText(auth.unwrapError());
             } else {
                 AuthenticationData unwrap = auth.unwrap();
-                System.out.println("SUCCESS");
+                System.out.println("SUCCESS-");
+                this.notify();
             }
         } else {
             Result<String, String> response = ServerAuth.createAccount(address, username, password);

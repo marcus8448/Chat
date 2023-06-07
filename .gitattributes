@@ -63,7 +63,6 @@
 *.patch    -text
 
 # These files are binary and should be left untouched
-# (binary is a macro for -text -diff)
 *.class         binary
 *.dll           binary
 *.ear           binary
@@ -72,13 +71,8 @@
 *.war           binary
 *.jks           binary
 
-# Common build-tool wrapper scripts ('.cmd' versions are handled by 'Common.gitattributes')
 mvnw            text eol=lf
 gradlew         text eol=lf
-
-#
-# Exclude files from exporting
-#
 
 .gitattributes export-ignore
 .gitignore     export-ignore

@@ -8,10 +8,11 @@ application {
 }
 
 dependencies {
+    implementation(libs.bundles.log4j)
     implementation(project(":core"))
 }
 
 javafx {
     version = libs.versions.javafx.get()
-    modules = listOf("javafx.base", "javafx.controls", "javafx.fxml", "javafx.graphics")
+    modules = listOf("javafx.base", "javafx.controls", "javafx.graphics")
 }

@@ -16,14 +16,11 @@
 
 package io.github.marcus8448.chat.client;
 
-import io.github.marcus8448.chat.client.ui.Baggage;
 import javafx.application.Application;
-import javafx.stage.Stage;
 
 import java.io.IOException;
 
 public class Main {
-    public static Stage primaryStage;
     public static void main(String[] args) throws IOException {
         Application.launch(Client.class);
     }

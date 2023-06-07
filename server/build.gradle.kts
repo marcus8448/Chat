@@ -7,6 +7,7 @@ application {
 }
 
 dependencies {
+    implementation(libs.bundles.log4j)
     implementation(libs.nightconfig)
     implementation(libs.sqlite)
     implementation(project(":core"))
