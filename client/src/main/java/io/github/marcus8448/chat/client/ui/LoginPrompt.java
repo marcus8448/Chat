@@ -17,29 +17,22 @@
 package io.github.marcus8448.chat.client.ui;
 
 import io.github.marcus8448.chat.client.ServerAuth;
-import io.github.marcus8448.chat.core.Constants;
-import io.github.marcus8448.chat.core.network.packet.ServerAuthResponse;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
-import javafx.scene.control.PasswordField;
-import javafx.scene.control.TextField;
+import io.github.marcus8448.chat.client.network.AuthenticationData;
+import io.github.marcus8448.chat.core.Result;
+import io.github.marcus8448.chat.client.parse.ParseUtil;
+import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
+import javafx.stage.StageStyle;
 
-import javax.swing.*;
-import java.io.File;
-import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.security.*;
-import java.security.cert.CertificateException;
 import java.util.Objects;
 
 public class LoginPrompt {
-    private static final String NO_SERVER = "You must enter a server address";
-    private static final String NO_USERNAME = "You must enter a username";
-    private static final String NO_PASSWORD = "You must enter a password";
-    private static final String NO_CREDENTIALS = "You must enter a username and password";
+    private static final String NO_SERVER = "Invalid server: %s";
+    private static final String INVALID_USERNAME = "Invalid username: %s";
+    private static final String INVALID_PASSWORD = "Invalid password: %s";
     private static final String NO_ACCOUNT = "No account? Sign up!";
     private static final String HAVE_ACCOUNT = "Have an account? Log in";
     private static final String SIGN_UP = "Sign up";
@@ -55,32 +48,46 @@ public class LoginPrompt {
     public Label modeSwapText;
 
     public void login() {
-        if (this.username.getText().isBlank()) {
-            if (this.passwordField.getText().isBlank()) {
-                this.failureReason.setText(NO_CREDENTIALS);
-            } else {
-                this.failureReason.setText(NO_USERNAME);
-            }
-        } else if (this.passwordField.getText().isBlank()) {
-            this.failureReason.setText(NO_PASSWORD);
+        Result<InetSocketAddress, String> result = ParseUtil.parseServerAddress(this.serverAddress.getText());
+        if (result.isError()) {
+            this.failureReason.setText(NO_SERVER.formatted(result.unwrapError()));
+            return;
         }
+        InetSocketAddress address = result.unwrap();
 
-        String text = this.serverAddress.getText();
-        int port = Constants.PORT;
-        String[] split = text.split(":");
-        if (split.length == 2) {
-            port = Integer.parseInt(split[split.length - 1]);
-            text = split[0];
+        Result<String, String> res = ParseUtil.validateUsername(this.username.getText());
+        if (res.isError()) {
+            this.failureReason.setText(INVALID_USERNAME.formatted(res.unwrapError()));
+            return;
+        }
+        String username = res.unwrap();
+
+        String password = this.passwordField.getText();
+        Result<Void, String> res1 = ParseUtil.validatePassword(password);
+        if (res1.isError()) {
+            this.failureReason.setText(INVALID_PASSWORD.formatted(res1.unwrapError()));
+            return;
         }
 
         if (mode == Mode.LOGIN) {
-            ServerAuth.auth(InetSocketAddress.createUnresolved(text, port), this.username.getText(), this.passwordField.getText());
-        } else {
-            ServerAuthResponse response = ServerAuth.createAccount(new InetSocketAddress(text, port), this.username.getText(), this.passwordField.getText());
-            JOptionPane.showMessageDialog(null, "Server id: " + response.getServerKey().toString(), "Server id", JOptionPane.INFORMATION_MESSAGE, null);
-            if (!response.isSuccess()) {
-                this.failureReason.setText(response.getFailureReason());
+            Result<AuthenticationData, String> auth = ServerAuth.auth(address, username, password);
+            if (!auth.isOk()) {
+                this.failureReason.setText(auth.unwrapError());
             } else {
+                AuthenticationData unwrap = auth.unwrap();
+                System.out.println("SUCCESS");
+            }
+        } else {
+            Result<String, String> response = ServerAuth.createAccount(address, username, password);
+            if (!response.isOk()) {
+                this.failureReason.setText(response.unwrapError());
+            } else {
+                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+                alert.initStyle(StageStyle.UTILITY);
+                alert.setTitle(response.unwrap());
+                alert.setHeaderText("Account created");
+                alert.setContentText("You may now login with your credentials.");
+                alert.showAndWait();
                 mode = Mode.SIGN_UP;
                 this.changeMode(null);
             }
@@ -88,9 +95,6 @@ public class LoginPrompt {
     }
 
     public void passwordType(KeyEvent keyEvent) {
-        if (Objects.equals(failureReason.getText(), NO_PASSWORD)) {
-            failureReason.setText("");
-        }
         if (keyEvent.getCode() == KeyCode.ENTER) {
             login();
         }
@@ -101,7 +105,7 @@ public class LoginPrompt {
     }
 
     public void usernameTyped(KeyEvent keyEvent) {
-        if (Objects.equals(failureReason.getText(), NO_USERNAME)) {
+        if (Objects.equals(failureReason.getText(), INVALID_USERNAME)) {
             failureReason.setText("");
         }
     }

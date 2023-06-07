@@ -16,36 +16,15 @@
 
 package io.github.marcus8448.chat.client;
 
-import io.github.marcus8448.chat.core.Constants;
+import io.github.marcus8448.chat.client.ui.Baggage;
 import javafx.application.Application;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.scene.layout.AnchorPane;
 import javafx.stage.Stage;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.net.InetAddress;
-import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.util.Objects;
 
-public class Main extends Application {
+public class Main {
     public static Stage primaryStage;
     public static void main(String[] args) throws IOException {
-        Application.launch(Main.class);
-    }
-
-    @Override
-    public void start(Stage primaryStage) throws Exception {
-        Main.primaryStage = primaryStage;
-        AnchorPane root = FXMLLoader.load(Main.class.getClassLoader().getResource("LoginPrompt.fxml"));
-        Scene scene = new Scene(root);
-        primaryStage.setTitle("Login");
-        primaryStage.setScene(scene);
-        primaryStage.show();
+        Application.launch(Client.class);
     }
 }

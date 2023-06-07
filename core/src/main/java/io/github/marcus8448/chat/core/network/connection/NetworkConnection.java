@@ -37,9 +37,10 @@ public class NetworkConnection implements Closeable {
     }
 
     public void send(NetworkedData networkedData) throws IOException {
-        this.output.write(Constants.PACKET_HEADER);
-        this.output.write(PacketType.getType(networkedData).getId());
+        this.output.writeInt(Constants.PACKET_HEADER);
+        this.output.writeInt(PacketType.getType(networkedData).getId());
         networkedData.write(this.output);
+        this.output.flush();
     }
 
     public <Data extends NetworkedData> Packet<Data> receivePacket() throws IOException {
@@ -47,7 +48,19 @@ public class NetworkConnection implements Closeable {
         int id = this.input.readInt();
 
         PacketType<Data> type = (PacketType<Data>) PacketType.getType(id);
+        System.out.println(type);
         return new Packet<>(type, type.create(this.input));
+    }
+
+    public <Data extends NetworkedData> Packet<Data> receivePacket(Class<Data> clazz) throws IOException {
+        this.input.seekToIdentifier(Constants.PACKET_HEADER);
+        int id = this.input.readInt();
+        PacketType<?> type = PacketType.getType(id);
+        if (type.getDataClass() != clazz) {
+            System.out.println("Discarding packet " + type.getDataClass() + ".");
+            return receivePacket(clazz);
+        }
+        return new Packet<>(((PacketType<Data>) type), ((PacketType<Data>) type).create(this.input));
     }
 
     @Override

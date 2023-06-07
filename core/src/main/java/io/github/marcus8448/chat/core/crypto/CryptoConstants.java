@@ -18,13 +18,23 @@ package io.github.marcus8448.chat.core.crypto;
 
 import javax.crypto.Cipher;
 import javax.crypto.NoSuchPaddingException;
+import javax.crypto.SecretKeyFactory;
 import java.security.KeyFactory;
+import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
-import java.security.spec.RSAKeyGenParameterSpec;
 
-public class RSAConstants {
-    public static final KeyFactory KEY_FACTORY;
-    private static final ThreadLocal<Cipher> CIPHER = ThreadLocal.withInitial(() -> { //NOT thread safe - so use local
+public class CryptoConstants {
+    public static final KeyPairGenerator RSA_KEY_GENERATOR;
+    public static final KeyFactory RSA_KEY_FACTORY;
+    public static final SecretKeyFactory PBKDF2_SECRET_KEY_FACTORY;
+    private static final ThreadLocal<Cipher> AES_CIPHER = ThreadLocal.withInitial(() -> { //NOT thread safe - so use local
+        try {
+            return  Cipher.getInstance("AES");
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
+            throw new RuntimeException(e);
+        }
+    });
+    private static final ThreadLocal<Cipher> RSA_CIPHER = ThreadLocal.withInitial(() -> {
         try {
             return  Cipher.getInstance("RSA");
         } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
@@ -32,15 +42,22 @@ public class RSAConstants {
         }
     });
 
-    public static Cipher getCipher() {
-        return CIPHER.get();
+    public static Cipher getRsaCipher() {
+        return RSA_CIPHER.get();
     }
 
     static {
         try {
-            KEY_FACTORY = KeyFactory.getInstance("RSA");
+            RSA_KEY_FACTORY = KeyFactory.getInstance("RSA");
+            RSA_KEY_GENERATOR = KeyPairGenerator.getInstance("RSA");
+            RSA_KEY_GENERATOR.initialize(4096);
+            PBKDF2_SECRET_KEY_FACTORY = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public static Cipher getAesCipher() {
+        return AES_CIPHER.get();
     }
 }

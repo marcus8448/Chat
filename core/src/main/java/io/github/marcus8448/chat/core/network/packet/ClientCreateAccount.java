@@ -16,7 +16,7 @@
 
 package io.github.marcus8448.chat.core.network.packet;
 
-import io.github.marcus8448.chat.core.crypto.RSAConstants;
+import io.github.marcus8448.chat.core.crypto.CryptoConstants;
 import io.github.marcus8448.chat.core.network.NetworkedData;
 import io.github.marcus8448.chat.core.network.connection.ConnectionInput;
 import io.github.marcus8448.chat.core.network.connection.ConnectionOutput;
@@ -59,7 +59,7 @@ public class ClientCreateAccount implements NetworkedData {
         int len = input.readShort();
         byte[] encodedKey = input.readNBytes(len);
         try {
-            this.key = (RSAPublicKey) RSAConstants.KEY_FACTORY.generatePublic(new X509EncodedKeySpec(encodedKey));
+            this.key = (RSAPublicKey) CryptoConstants.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(encodedKey));
         } catch (InvalidKeySpecException e) {
             throw new RuntimeException(e);
         }

@@ -32,21 +32,22 @@ public class PacketType<Data extends NetworkedData> {
     private static final Map<Class<? extends NetworkedData>, PacketType<? extends NetworkedData>> REGISTERED_TYPES = new HashMap<>();
     private static final List<PacketType<? extends NetworkedData>> TYPES = new ArrayList<>();
 
-    public static final PacketType<ClientHello> CLIENT_HELLO = PacketType.create(ClientHello.class, ClientHello::new);
-    public static final PacketType<ClientAuth> CLIENT_AUTH = PacketType.create(ClientAuth.class, ClientAuth::new);
-    public static final PacketType<ClientCreateAccount> CLIENT_CREATE_ACCOUNT = PacketType.create(ClientCreateAccount.class, ClientCreateAccount::new);
-
+    static {
+        PacketTypes.initialize();
+    }
     private static int index = 0;
     private final int id;
+    private final Class<Data> clazz;
     private final Supplier<Data> defaultConstructor;
 
-    public PacketType(int id, Supplier<Data> defaultConstructor) {
+    public PacketType(int id, Class<Data> clazz, Supplier<Data> defaultConstructor) {
         this.id = id;
+        this.clazz = clazz;
         this.defaultConstructor = defaultConstructor;
     }
 
     public static <Data extends NetworkedData> PacketType<Data> create(Class<Data> clazz, Supplier<Data> defaultConstructor) {
-        PacketType<Data> value = new PacketType<>(index++, defaultConstructor);
+        PacketType<Data> value = new PacketType<>(index++, clazz, defaultConstructor);
         REGISTERED_TYPES.put(clazz, value);
         TYPES.add(value);
         return value;
@@ -66,6 +67,10 @@ public class PacketType<Data extends NetworkedData> {
         return serializable;
     }
 
+    public Class<Data> getDataClass() {
+        return clazz;
+    }
+
     public int getId() {
         return this.id;
     }
@@ -74,5 +79,10 @@ public class PacketType<Data extends NetworkedData> {
         Data data = this.defaultConstructor.get();
         data.read(input);
         return data;
+    }
+
+    @Override
+    public String toString() {
+        return "PacketType: " + this.clazz.getSimpleName();
     }
 }

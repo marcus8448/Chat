@@ -18,6 +18,7 @@ package io.github.marcus8448.chat.core.network.connection;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 import java.nio.charset.StandardCharsets;
 
 public class ConnectionOutput extends OutputStream {
@@ -29,6 +30,7 @@ public class ConnectionOutput extends OutputStream {
 
     @Override
     public void write(int b) throws IOException {
+        if (b > 255) throw new UnsupportedEncodingException();
         this.parent.write(b);
     }
 

@@ -16,27 +16,23 @@
 
 package io.github.marcus8448.chat.core.network.packet;
 
-import io.github.marcus8448.chat.core.crypto.RSAConstants;
 import io.github.marcus8448.chat.core.network.NetworkedData;
 import io.github.marcus8448.chat.core.network.connection.ConnectionInput;
 import io.github.marcus8448.chat.core.network.connection.ConnectionOutput;
 import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
-import java.security.interfaces.RSAPublicKey;
-import java.security.spec.InvalidKeySpecException;
-import java.security.spec.X509EncodedKeySpec;
 
 public class ServerAuthResponse implements NetworkedData {
     boolean success;
-    RSAPublicKey serverKey;
     @Nullable String failureReason;
 
     public ServerAuthResponse() {}
 
-    @Contract("_, true, !null -> fail; _, false, null -> fail")
-    public ServerAuthResponse(RSAPublicKey serverKey, boolean success, @Nullable String failureReason) {
+    @Contract("true, !null -> fail; false, null -> fail")
+    public ServerAuthResponse(boolean success, @Nullable String failureReason) {
         if (success) assert failureReason == null;
         else assert failureReason != null;
 
@@ -44,11 +40,13 @@ public class ServerAuthResponse implements NetworkedData {
         this.failureReason = failureReason;
     }
 
+    public ServerAuthResponse(@NotNull String failureReason) {
+        this.success = false;
+        this.failureReason = failureReason;
+    }
+
     @Override
     public void write(ConnectionOutput output) throws IOException {
-        byte[] encoded = serverKey.getEncoded();
-        output.writeShort(encoded.length);
-        output.write(encoded);
         output.write(success ? 1 : 0);
         if (!success) {
             output.writeString(failureReason);
@@ -57,20 +55,10 @@ public class ServerAuthResponse implements NetworkedData {
 
     @Override
     public void read(ConnectionInput input) throws IOException {
-        int len = input.readShort();
-        try {
-            this.serverKey = (RSAPublicKey) RSAConstants.KEY_FACTORY.generatePublic(new X509EncodedKeySpec(input.readNBytes(len)));
-        } catch (InvalidKeySpecException e) {
-            throw new RuntimeException(e);
-        }
         success = input.read() == 1;
         if (!success) {
             failureReason = input.readString();
         }
-    }
-
-    public RSAPublicKey getServerKey() {
-        return serverKey;
     }
 
     public boolean isSuccess() {

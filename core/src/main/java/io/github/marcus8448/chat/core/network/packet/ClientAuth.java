@@ -21,14 +21,15 @@ import io.github.marcus8448.chat.core.network.connection.ConnectionInput;
 import io.github.marcus8448.chat.core.network.connection.ConnectionOutput;
 
 import java.io.IOException;
+import java.security.interfaces.RSAPublicKey;
 
 public class ClientAuth implements NetworkedData {
     private String username;
-    private byte[] password;
+    private byte[] data;
 
-    public ClientAuth(String username, byte[] password) {
+    public ClientAuth(String username, byte[] data) {
         this.username = username;
-        this.password = password;
+        this.data = data;
     }
 
     public ClientAuth() {}
@@ -36,21 +37,21 @@ public class ClientAuth implements NetworkedData {
     @Override
     public void write(ConnectionOutput output) throws IOException {
         output.writeString(this.username);
-        output.writeShort(password.length);
-        output.write(password);
+        output.writeShort(data.length);
+        output.write(data);
     }
 
     @Override
     public void read(ConnectionInput input) throws IOException {
         this.username = input.readString();
-        this.password = input.readNBytes(input.readShort());
+        this.data = input.readNBytes(input.readShort());
     }
 
     public String getUsername() {
         return username;
     }
 
-    public byte[] getPassword() {
-        return password;
+    public byte[] getData() {
+        return data;
     }
 }

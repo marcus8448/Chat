@@ -41,6 +41,7 @@ public class ConnectionInput extends InputStream {
         int p1 = id >> 16 & 0xFF;
         int p2 = id >> 8 & 0xFF;
         int p3 = id & 0xFF;
+        System.out.println("Expecting: " + p0 + "-" + p1 + "-" + p2 + "-" + p3);
         int read = this.read();
         while (true) {
             if (read == -1) throw new EOFException();
@@ -51,6 +52,7 @@ public class ConnectionInput extends InputStream {
                     if (read == p2) {
                         read = this.read();
                         if (read == p3) {
+                            System.out.println("Received packet header.");
                             return;
                         }
                     }

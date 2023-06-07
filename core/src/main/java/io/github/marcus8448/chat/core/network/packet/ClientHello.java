@@ -26,6 +26,14 @@ public class ClientHello implements NetworkedData {
     private String clientBrand;
     private String clientVersion;
 
+    public ClientHello(String clientBrand, String clientVersion) {
+        this.clientBrand = clientBrand;
+        this.clientVersion = clientVersion;
+    }
+
+    public ClientHello() {
+    }
+
     @Override
     public void write(ConnectionOutput output) throws IOException {
         output.writeString(this.clientBrand);
