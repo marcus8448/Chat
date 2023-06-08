@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core;
+package io.github.marcus8448.chat.core.api;
 
 public interface Constants {
     int PORT = 34599;

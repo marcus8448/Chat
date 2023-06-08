@@ -16,13 +16,11 @@
 
 package io.github.marcus8448.chat.server;
 
-import io.github.marcus8448.chat.core.Constants;
-import io.github.marcus8448.chat.core.crypto.CryptoConstants;
+import io.github.marcus8448.chat.core.api.Constants;
+import io.github.marcus8448.chat.core.api.connection.PacketPipeline;
+import io.github.marcus8448.chat.core.api.crypto.CryptoConstants;
 import io.github.marcus8448.chat.core.network.PacketType;
 import io.github.marcus8448.chat.core.network.PacketTypes;
-import io.github.marcus8448.chat.core.network.connection.ConnectionInput;
-import io.github.marcus8448.chat.core.network.connection.ConnectionOutput;
-import io.github.marcus8448.chat.core.network.connection.NetworkConnection;
 import io.github.marcus8448.chat.core.network.packet.*;
 
 import java.io.File;
@@ -37,6 +35,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Objects;
+import java.util.Random;
 
 public class Main {
     private static RSAPublicKey publicKey;
@@ -82,7 +81,7 @@ public class Main {
     }
 
     private static void clientHandler(Socket socket) throws IOException {
-        NetworkConnection connection = new NetworkConnection(socket, new ConnectionInput(socket.getInputStream()), new ConnectionOutput(socket.getOutputStream()));
+        PacketPipeline connection = PacketPipeline.createNetworked(socket);
 
         System.out.println("HANDLE");
         while (!socket.isClosed() && socket.isConnected()) {
@@ -91,11 +90,14 @@ public class Main {
             if (type == PacketTypes.CLIENT_HELLO) {
                 ClientHello hello = (ClientHello) packet.data();
                 if (!Objects.equals(hello.getClientVersion(), Constants.VERSION)) {
-                    connection.send(new ServerAuthResponse(false, "Version mismatch!"));
+                    connection.send(PacketTypes.SERVER_AUTH_RESPONSE, new ServerAuthResponse(false, "Version mismatch!"));
                     connection.close();
                     return;
                 }
-                connection.send(new ServerAuthRequest());
+                Random rand = new Random(); //fixme: secure random
+                byte[] bytes = new byte[64];
+                rand.nextBytes(bytes);
+                connection.send(PacketTypes.SERVER_AUTH_REQUEST, new ServerAuthRequest(publicKey, bytes));
                 Packet<ClientAuth> packet1 = connection.receivePacket();
                 ClientAuth auth = packet1.data();
                 System.out.println(auth.getUsername());
@@ -103,7 +105,7 @@ public class Main {
                 ClientCreateAccount data = (ClientCreateAccount) packet.data();
                 System.out.println(data.getUsername());
                 System.out.println(data.getKey());
-                connection.send(new ServerAuthResponse(true, null));
+                connection.send(PacketTypes.SERVER_AUTH_RESPONSE, new ServerAuthResponse(true, null));
                 connection.close();
                 return;
             }

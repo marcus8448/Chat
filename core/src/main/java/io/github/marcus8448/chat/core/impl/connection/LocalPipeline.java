@@ -14,12 +14,7 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.network;
+package io.github.marcus8448.chat.core.impl.connection;
 
-import io.github.marcus8448.chat.core.api.connection.BinaryOutput;
-
-import java.io.IOException;
-
-public interface NetworkedData {
-    void write(BinaryOutput output) throws IOException;
+public class LocalPipeline {
 }

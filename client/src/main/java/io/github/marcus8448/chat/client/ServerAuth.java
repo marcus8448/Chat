@@ -19,9 +19,10 @@ package io.github.marcus8448.chat.client;
 import io.github.marcus8448.chat.client.network.AuthenticationData;
 import io.github.marcus8448.chat.client.network.ClientNetworking;
 import io.github.marcus8448.chat.core.Result;
-import io.github.marcus8448.chat.core.Constants;
-import io.github.marcus8448.chat.core.crypto.CryptoConstants;
-import io.github.marcus8448.chat.core.network.connection.NetworkConnection;
+import io.github.marcus8448.chat.core.api.Constants;
+import io.github.marcus8448.chat.core.api.connection.PacketPipeline;
+import io.github.marcus8448.chat.core.api.crypto.CryptoConstants;
+import io.github.marcus8448.chat.core.network.PacketTypes;
 import io.github.marcus8448.chat.core.network.packet.*;
 
 import javax.crypto.BadPaddingException;
@@ -62,10 +63,10 @@ public class ServerAuth {
         }
 
         boolean noClose = false;
-        NetworkConnection connect = null;
+        PacketPipeline connect = null;
         try {
             connect = ClientNetworking.connect(address);
-            connect.send(new ClientHello(Constants.VERSION, Constants.VERSION));
+            connect.send(PacketTypes.CLIENT_HELLO, new ClientHello(Constants.VERSION, Constants.VERSION));
 
             Packet<ServerAuthRequest> packet = connect.receivePacket();
             Cipher cipher = CryptoConstants.getRsaCipher();
@@ -74,7 +75,7 @@ public class ServerAuth {
             cipher.init(Cipher.ENCRYPT_MODE, packet.data().getKey());
             byte[] output = cipher.doFinal(bytes);
 
-            connect.send(new ClientAuth(username, output));
+            connect.send(PacketTypes.CLIENT_AUTH, new ClientAuth(username, output));
             Packet<ServerAuthResponse> networkedDataPacket = connect.receivePacket();
             if (networkedDataPacket.data().isSuccess()) {
                 noClose = true;
@@ -105,8 +106,8 @@ public class ServerAuth {
         KeyPair keyPair = CryptoConstants.RSA_KEY_GENERATOR.generateKeyPair();
         System.out.println("gen done");
 
-        try (NetworkConnection connect = ClientNetworking.connect(address)) {
-            connect.send(new ClientCreateAccount(username, (RSAPublicKey) keyPair.getPublic()));
+        try (PacketPipeline connect = ClientNetworking.connect(address)) {
+            connect.send(PacketTypes.CLIENT_CREATE_ACCOUNT, new ClientCreateAccount(username, (RSAPublicKey) keyPair.getPublic()));
             Packet<ServerAuthResponse> packet = connect.receivePacket();
             if (packet.data().isSuccess()) {
                 try {

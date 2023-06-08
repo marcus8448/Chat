@@ -16,34 +16,30 @@
 
 package io.github.marcus8448.chat.core.network.packet;
 
+import io.github.marcus8448.chat.core.api.connection.BinaryInput;
+import io.github.marcus8448.chat.core.api.connection.BinaryOutput;
 import io.github.marcus8448.chat.core.network.NetworkedData;
-import io.github.marcus8448.chat.core.network.connection.ConnectionInput;
-import io.github.marcus8448.chat.core.network.connection.ConnectionOutput;
 
 import java.io.IOException;
 
 public class ClientHello implements NetworkedData {
-    private String clientBrand;
-    private String clientVersion;
+    private final String clientBrand;
+    private final String clientVersion;
 
     public ClientHello(String clientBrand, String clientVersion) {
         this.clientBrand = clientBrand;
         this.clientVersion = clientVersion;
     }
 
-    public ClientHello() {
-    }
-
-    @Override
-    public void write(ConnectionOutput output) throws IOException {
-        output.writeString(this.clientBrand);
-        output.writeString(this.clientVersion);
-    }
-
-    @Override
-    public void read(ConnectionInput input) throws IOException {
+    public ClientHello(BinaryInput input) throws IOException {
         this.clientBrand = input.readString();
         this.clientVersion = input.readString();
+    }
+
+    @Override
+    public void write(BinaryOutput output) throws IOException {
+        output.writeString(this.clientBrand);
+        output.writeString(this.clientVersion);
     }
 
     public String getClientBrand() {

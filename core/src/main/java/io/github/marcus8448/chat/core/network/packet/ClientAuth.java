@@ -16,35 +16,30 @@
 
 package io.github.marcus8448.chat.core.network.packet;
 
+import io.github.marcus8448.chat.core.api.connection.BinaryInput;
+import io.github.marcus8448.chat.core.api.connection.BinaryOutput;
 import io.github.marcus8448.chat.core.network.NetworkedData;
-import io.github.marcus8448.chat.core.network.connection.ConnectionInput;
-import io.github.marcus8448.chat.core.network.connection.ConnectionOutput;
 
 import java.io.IOException;
-import java.security.interfaces.RSAPublicKey;
 
 public class ClientAuth implements NetworkedData {
-    private String username;
-    private byte[] data;
+    private final String username;
+    private final byte[] data;
 
     public ClientAuth(String username, byte[] data) {
         this.username = username;
         this.data = data;
     }
 
-    public ClientAuth() {}
-
-    @Override
-    public void write(ConnectionOutput output) throws IOException {
-        output.writeString(this.username);
-        output.writeShort(data.length);
-        output.write(data);
+    public ClientAuth(BinaryInput input) throws IOException {
+        this.username = input.readString();
+        this.data = input.readByteArray();
     }
 
     @Override
-    public void read(ConnectionInput input) throws IOException {
-        this.username = input.readString();
-        this.data = input.readNBytes(input.readShort());
+    public void write(BinaryOutput output) throws IOException {
+        output.writeString(this.username);
+        output.writeByteArray(this.data);
     }
 
     public String getUsername() {

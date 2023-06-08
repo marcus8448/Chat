@@ -16,12 +16,20 @@
 
 package io.github.marcus8448.chat.client;
 
+import io.github.marcus8448.chat.client.config.Config;
 import javafx.application.Application;
 
+import java.io.File;
 import java.io.IOException;
 
 public class Main {
     public static void main(String[] args) throws IOException {
+        String configF = "chat.json";
+        if (args.length > 0) {
+            configF = args[0];
+        }
+        File configFile = new File(configF);
+        Config config = Config.load(configFile);
         Application.launch(Client.class);
     }
 }

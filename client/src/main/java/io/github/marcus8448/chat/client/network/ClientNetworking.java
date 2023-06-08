@@ -16,20 +16,17 @@
 
 package io.github.marcus8448.chat.client.network;
 
-import io.github.marcus8448.chat.core.network.ConnectionHandler;
-import io.github.marcus8448.chat.core.network.connection.ConnectionInput;
-import io.github.marcus8448.chat.core.network.connection.ConnectionOutput;
-import io.github.marcus8448.chat.core.network.connection.NetworkConnection;
+import io.github.marcus8448.chat.core.api.connection.PacketPipeline;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 
 public class ClientNetworking {
-    public static NetworkConnection connect(InetSocketAddress address) throws IOException {
+    public static PacketPipeline connect(InetSocketAddress address) throws IOException {
         Socket socket = new Socket();
         socket.bind(null);
         socket.connect(address);
-        return new NetworkConnection(socket, new ConnectionInput(socket.getInputStream()), new ConnectionOutput(socket.getOutputStream()));
+        return PacketPipeline.createNetworked(socket);
     }
 }

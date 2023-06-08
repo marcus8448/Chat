@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.crypto;
+package io.github.marcus8448.chat.core.api.crypto;
 
 import javax.crypto.Cipher;
 import javax.crypto.NoSuchPaddingException;

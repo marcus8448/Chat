@@ -16,28 +16,25 @@
 
 package io.github.marcus8448.chat.core.network.packet;
 
+import io.github.marcus8448.chat.core.api.connection.BinaryInput;
+import io.github.marcus8448.chat.core.api.connection.BinaryOutput;
 import io.github.marcus8448.chat.core.network.NetworkedData;
-import io.github.marcus8448.chat.core.network.connection.ConnectionInput;
-import io.github.marcus8448.chat.core.network.connection.ConnectionOutput;
 
 import java.io.IOException;
 
 public class SendMessage implements NetworkedData {
-    private String message;
+    private final String message;
 
-    public SendMessage() {}
+    public SendMessage(BinaryInput input) throws IOException {
+        this.message = input.readString();
+    }
 
     public SendMessage(String message) {
         this.message = message;
     }
 
     @Override
-    public void write(ConnectionOutput output) throws IOException {
+    public void write(BinaryOutput output) throws IOException {
         output.writeString(message);
-    }
-
-    @Override
-    public void read(ConnectionInput input) throws IOException {
-        this.message = input.readString();
     }
 }

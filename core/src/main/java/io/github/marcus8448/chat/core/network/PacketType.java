@@ -16,20 +16,13 @@
 
 package io.github.marcus8448.chat.core.network;
 
-import io.github.marcus8448.chat.core.network.connection.ConnectionInput;
-import io.github.marcus8448.chat.core.network.packet.ClientAuth;
-import io.github.marcus8448.chat.core.network.packet.ClientCreateAccount;
-import io.github.marcus8448.chat.core.network.packet.ClientHello;
+import io.github.marcus8448.chat.core.api.connection.BinaryInput;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Supplier;
 
 public class PacketType<Data extends NetworkedData> {
-    private static final Map<Class<? extends NetworkedData>, PacketType<? extends NetworkedData>> REGISTERED_TYPES = new HashMap<>();
     private static final List<PacketType<? extends NetworkedData>> TYPES = new ArrayList<>();
 
     static {
@@ -38,33 +31,22 @@ public class PacketType<Data extends NetworkedData> {
     private static int index = 0;
     private final int id;
     private final Class<Data> clazz;
-    private final Supplier<Data> defaultConstructor;
+    private final DataDeserializer<Data> deserializer;
 
-    public PacketType(int id, Class<Data> clazz, Supplier<Data> defaultConstructor) {
+    public PacketType(int id, Class<Data> clazz, DataDeserializer<Data> deserializer) {
         this.id = id;
         this.clazz = clazz;
-        this.defaultConstructor = defaultConstructor;
+        this.deserializer = deserializer;
     }
 
-    public static <Data extends NetworkedData> PacketType<Data> create(Class<Data> clazz, Supplier<Data> defaultConstructor) {
-        PacketType<Data> value = new PacketType<>(index++, clazz, defaultConstructor);
-        REGISTERED_TYPES.put(clazz, value);
+    public static <Data extends NetworkedData> PacketType<Data> create(Class<Data> clazz, DataDeserializer<Data> deserializer) {
+        PacketType<Data> value = new PacketType<>(index++, clazz, deserializer);
         TYPES.add(value);
         return value;
     }
 
-    public static PacketType<? extends NetworkedData> getType(NetworkedData networkedData) {
-        return REGISTERED_TYPES.get(networkedData.getClass());
-    }
-
     public static PacketType<? extends NetworkedData> getType(int id) {
         return TYPES.get(id);
-    }
-
-    public static <Data extends NetworkedData> Data read(int id, ConnectionInput input) throws IOException {
-        Data serializable = (Data) getType(id).defaultConstructor.get(); // SAFE: We control the types put into the list.
-        serializable.read(input);
-        return serializable;
     }
 
     public Class<Data> getDataClass() {
@@ -75,14 +57,17 @@ public class PacketType<Data extends NetworkedData> {
         return this.id;
     }
 
-    public Data create(ConnectionInput input) throws IOException {
-        Data data = this.defaultConstructor.get();
-        data.read(input);
-        return data;
+    public Data create(BinaryInput input) throws IOException {
+        return this.deserializer.readFromNetwork(input);
     }
 
     @Override
     public String toString() {
         return "PacketType: " + this.clazz.getSimpleName();
+    }
+
+    @FunctionalInterface
+    public interface DataDeserializer<D extends NetworkedData> {
+        D readFromNetwork(BinaryInput input) throws IOException;
     }
 }

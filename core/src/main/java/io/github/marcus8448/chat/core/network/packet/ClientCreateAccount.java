@@ -16,10 +16,10 @@
 
 package io.github.marcus8448.chat.core.network.packet;
 
-import io.github.marcus8448.chat.core.crypto.CryptoConstants;
+import io.github.marcus8448.chat.core.api.connection.BinaryInput;
+import io.github.marcus8448.chat.core.api.connection.BinaryOutput;
+import io.github.marcus8448.chat.core.api.crypto.CryptoConstants;
 import io.github.marcus8448.chat.core.network.NetworkedData;
-import io.github.marcus8448.chat.core.network.connection.ConnectionInput;
-import io.github.marcus8448.chat.core.network.connection.ConnectionOutput;
 
 import java.io.IOException;
 import java.security.interfaces.RSAPublicKey;
@@ -27,14 +27,22 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 
 public class ClientCreateAccount implements NetworkedData {
-    private RSAPublicKey key;
-    private String username;
-
-    public ClientCreateAccount() {}
+    private final RSAPublicKey key;
+    private final String username;
 
     public ClientCreateAccount(String username, RSAPublicKey key) {
         this.username = username;
         this.key = key;
+    }
+
+    public ClientCreateAccount(BinaryInput input) throws IOException {
+        this.username = input.readString();
+        byte[] encodedKey = input.readByteArray();
+        try {
+            this.key = (RSAPublicKey) CryptoConstants.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(encodedKey));
+        } catch (InvalidKeySpecException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public String getUsername() {
@@ -46,22 +54,8 @@ public class ClientCreateAccount implements NetworkedData {
     }
 
     @Override
-    public void write(ConnectionOutput output) throws IOException {
+    public void write(BinaryOutput output) throws IOException {
         output.writeString(this.username);
-        byte[] encoded = this.key.getEncoded();
-        output.writeShort(encoded.length);
-        output.write(encoded);
-    }
-
-    @Override
-    public void read(ConnectionInput input) throws IOException {
-        this.username = input.readString();
-        int len = input.readShort();
-        byte[] encodedKey = input.readNBytes(len);
-        try {
-            this.key = (RSAPublicKey) CryptoConstants.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(encodedKey));
-        } catch (InvalidKeySpecException e) {
-            throw new RuntimeException(e);
-        }
+        output.writeByteArray(this.key.getEncoded());
     }
 }

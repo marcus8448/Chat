@@ -16,9 +16,10 @@
 
 package io.github.marcus8448.chat.core.network.packet;
 
+import io.github.marcus8448.chat.core.Result;
+import io.github.marcus8448.chat.core.api.connection.BinaryInput;
+import io.github.marcus8448.chat.core.api.connection.BinaryOutput;
 import io.github.marcus8448.chat.core.network.NetworkedData;
-import io.github.marcus8448.chat.core.network.connection.ConnectionInput;
-import io.github.marcus8448.chat.core.network.connection.ConnectionOutput;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -26,46 +27,44 @@ import org.jetbrains.annotations.Nullable;
 import java.io.IOException;
 
 public class ServerAuthResponse implements NetworkedData {
-    boolean success;
-    @Nullable String failureReason;
+    private final Result<Void, String> result;
 
-    public ServerAuthResponse() {}
-
-    @Contract("true, !null -> fail; false, null -> fail")
-    public ServerAuthResponse(boolean success, @Nullable String failureReason) {
-        if (success) assert failureReason == null;
-        else assert failureReason != null;
-
-        this.success = success;
-        this.failureReason = failureReason;
-    }
-
-    public ServerAuthResponse(@NotNull String failureReason) {
-        this.success = false;
-        this.failureReason = failureReason;
-    }
-
-    @Override
-    public void write(ConnectionOutput output) throws IOException {
-        output.write(success ? 1 : 0);
-        if (!success) {
-            output.writeString(failureReason);
+    public ServerAuthResponse(BinaryInput input) throws IOException {
+        if (input.readBoolean()) {
+            this.result = Result.ok(null);
+        } else {
+            this.result = Result.error(input.readString());
         }
     }
 
+    @Contract("true, !null -> fail; false, null -> fail")
+    public ServerAuthResponse(boolean success, @Nullable String failureReason) {
+        if (success) {
+            assert failureReason == null;
+            this.result = Result.ok(null);
+        } else {
+            assert failureReason != null;
+            this.result = Result.error(failureReason);
+        }
+    }
+
+    public ServerAuthResponse(@NotNull String failureReason) {
+        this.result = Result.error(failureReason);
+    }
+
     @Override
-    public void read(ConnectionInput input) throws IOException {
-        success = input.read() == 1;
-        if (!success) {
-            failureReason = input.readString();
+    public void write(BinaryOutput output) throws IOException {
+        output.writeBoolean(result.isOk());
+        if (result.isError()) {
+            output.writeString(result.unwrapError());
         }
     }
 
     public boolean isSuccess() {
-        return success;
+        return this.result.isOk();
     }
 
     public String getFailureReason() {
-        return failureReason;
+        return this.result.unwrapError();
     }
 }

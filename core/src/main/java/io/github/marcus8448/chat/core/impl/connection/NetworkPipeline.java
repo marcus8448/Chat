@@ -14,53 +14,55 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.network.connection;
+package io.github.marcus8448.chat.core.impl.connection;
 
-import io.github.marcus8448.chat.core.Constants;
-import io.github.marcus8448.chat.core.network.PacketType;
+import io.github.marcus8448.chat.core.api.Constants;
+import io.github.marcus8448.chat.core.api.connection.BinaryInput;
+import io.github.marcus8448.chat.core.api.connection.BinaryOutput;
+import io.github.marcus8448.chat.core.api.connection.PacketPipeline;
 import io.github.marcus8448.chat.core.network.NetworkedData;
+import io.github.marcus8448.chat.core.network.PacketType;
 import io.github.marcus8448.chat.core.network.packet.Packet;
+import org.jetbrains.annotations.NotNull;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.net.Socket;
 
-public class NetworkConnection implements Closeable {
+public class NetworkPipeline implements PacketPipeline {
     private final Socket socket;
-    protected ConnectionInput input;
-    protected ConnectionOutput output;
+    private final BinaryInput input;
+    private final BinaryOutput output;
 
-    public NetworkConnection(Socket socket, ConnectionInput input, ConnectionOutput output) {
+    public NetworkPipeline(@NotNull Socket socket) throws IOException {
         this.socket = socket;
-        this.input = input;
-        this.output = output;
+        this.input = BinaryInput.stream(socket.getInputStream());
+        this.output = BinaryOutput.stream(socket.getOutputStream());
     }
 
-    public void send(NetworkedData networkedData) throws IOException {
+    @Override
+    public <Data extends NetworkedData> void send(PacketType<Data> type, Data networkedData) throws IOException {
         this.output.writeInt(Constants.PACKET_HEADER);
-        this.output.writeInt(PacketType.getType(networkedData).getId());
+        this.output.writeShort(type.getId());
         networkedData.write(this.output);
-        this.output.flush();
     }
 
+    @Override
     public <Data extends NetworkedData> Packet<Data> receivePacket() throws IOException {
         this.input.seekToIdentifier(Constants.PACKET_HEADER);
-        int id = this.input.readInt();
-
-        PacketType<Data> type = (PacketType<Data>) PacketType.getType(id);
-        System.out.println(type);
+        PacketType<Data> type = (PacketType<Data>) PacketType.getType(this.input.readShort());
         return new Packet<>(type, type.create(this.input));
     }
 
+    @Override
     public <Data extends NetworkedData> Packet<Data> receivePacket(Class<Data> clazz) throws IOException {
         this.input.seekToIdentifier(Constants.PACKET_HEADER);
-        int id = this.input.readInt();
-        PacketType<?> type = PacketType.getType(id);
+        PacketType<?> type = PacketType.getType(this.input.readShort());
+        Packet<?> packet = new Packet<>(type, type.create(this.input));
         if (type.getDataClass() != clazz) {
-            System.out.println("Discarding packet " + type.getDataClass() + ".");
+            System.out.println("DISCARD");
             return receivePacket(clazz);
         }
-        return new Packet<>(((PacketType<Data>) type), ((PacketType<Data>) type).create(this.input));
+        return (Packet<Data>) packet;
     }
 
     @Override
