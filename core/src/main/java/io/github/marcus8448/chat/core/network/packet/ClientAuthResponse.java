@@ -22,16 +22,16 @@ import io.github.marcus8448.chat.core.network.NetworkedData;
 
 import java.io.IOException;
 
-public class ClientAuth implements NetworkedData {
+public class ClientAuthResponse implements NetworkedData {
     private final String username;
     private final byte[] data;
 
-    public ClientAuth(String username, byte[] data) {
+    public ClientAuthResponse(String username, byte[] data) {
         this.username = username;
         this.data = data;
     }
 
-    public ClientAuth(BinaryInput input) throws IOException {
+    public ClientAuthResponse(BinaryInput input) throws IOException {
         this.username = input.readString();
         this.data = input.readByteArray();
     }

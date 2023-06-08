@@ -16,15 +16,12 @@
 
 package io.github.marcus8448.chat.client.ui;
 
-import io.github.marcus8448.chat.client.ServerAuth;
-import io.github.marcus8448.chat.client.network.AuthenticationData;
 import io.github.marcus8448.chat.client.util.ParseUtil;
 import io.github.marcus8448.chat.core.Result;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
 import javafx.scene.input.MouseEvent;
-import javafx.stage.StageStyle;
 
 import java.net.InetSocketAddress;
 import java.util.Objects;
@@ -74,28 +71,28 @@ public class LoginPrompt {
         }
 
         if (mode == Mode.LOGIN) {
-            Result<AuthenticationData, String> auth = ServerAuth.auth(address, username, password);
-            if (!auth.isOk()) {
-                this.failureReason.setText(auth.unwrapError());
-            } else {
-                AuthenticationData unwrap = auth.unwrap();
-                System.out.println("SUCCESS-");
-                this.notify();
-            }
+//            Result<AuthenticationData, String> auth = ServerAuth.auth(address, username, password);
+//            if (!auth.isOk()) {
+//                this.failureReason.setText(auth.unwrapError());
+//            } else {
+//                AuthenticationData unwrap = auth.unwrap();
+//                System.out.println("SUCCESS-");
+//                this.notify();
+//            }
         } else {
-            Result<String, String> response = ServerAuth.createAccount(address, username, password);
-            if (!response.isOk()) {
-                this.failureReason.setText(response.unwrapError());
-            } else {
-                Alert alert = new Alert(Alert.AlertType.INFORMATION);
-                alert.initStyle(StageStyle.UTILITY);
-                alert.setTitle(response.unwrap());
-                alert.setHeaderText("Account created");
-                alert.setContentText("You may now login with your credentials.");
-                alert.showAndWait();
-                mode = Mode.SIGN_UP;
-                this.changeMode(null);
-            }
+//            Result<String, String> response = ServerAuth.createAccount(address, username, password);
+//            if (!response.isOk()) {
+//                this.failureReason.setText(response.unwrapError());
+//            } else {
+//                Alert alert = new Alert(Alert.AlertType.INFORMATION);
+//                alert.initStyle(StageStyle.UTILITY);
+//                alert.setTitle(response.unwrap());
+//                alert.setHeaderText("Account created");
+//                alert.setContentText("You may now login with your credentials.");
+//                alert.showAndWait();
+//                mode = Mode.SIGN_UP;
+//                this.changeMode(null);
+//            }
         }
     }
 

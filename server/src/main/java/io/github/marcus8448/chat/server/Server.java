@@ -18,7 +18,6 @@ package io.github.marcus8448.chat.server;
 
 import io.github.marcus8448.chat.core.room.ChatRoom;
 import io.github.marcus8448.chat.core.user.User;
-import org.sqlite.JDBC;
 
 import java.io.Closeable;
 import java.io.File;

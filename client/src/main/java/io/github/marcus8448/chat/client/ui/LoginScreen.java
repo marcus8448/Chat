@@ -18,11 +18,18 @@ package io.github.marcus8448.chat.client.ui;
 
 import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.config.Account;
+import io.github.marcus8448.chat.client.network.AuthenticationData;
+import io.github.marcus8448.chat.client.network.ClientNetworking;
 import io.github.marcus8448.chat.client.util.JfxUtil;
+import io.github.marcus8448.chat.core.Result;
 import io.github.marcus8448.chat.core.api.Constants;
+import io.github.marcus8448.chat.core.api.connection.PacketPipeline;
 import io.github.marcus8448.chat.core.api.crypto.CryptoConstants;
+import io.github.marcus8448.chat.core.network.PacketTypes;
+import io.github.marcus8448.chat.core.network.packet.*;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
+import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.AnchorPane;
@@ -34,12 +41,22 @@ import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import org.jetbrains.annotations.NotNull;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.io.File;
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.security.InvalidKeyException;
 import java.security.PublicKey;
+import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.List;
@@ -57,6 +74,7 @@ public class LoginScreen {
     private final ComboBox<Account> accountBox;
     private final TextField hostname = new TextField("127.0.0.1");
     private final TextField port = new TextField(String.valueOf(Constants.PORT));
+    private final Label failureReason = new Label();
     private final Stage stage;
 
     public LoginScreen(Client client, Stage stage) {
@@ -71,7 +89,11 @@ public class LoginScreen {
         vBox.getChildren().add(this.createAccountSelection());
         vBox.getChildren().add(this.createPasswordInput());
 
-        AnchorPane spacing = new AnchorPane();
+        this.failureReason.setPrefWidth(MAX);
+        this.failureReason.setAlignment(Pos.TOP_RIGHT);
+        HBox spacing = new HBox(this.failureReason);
+        HBox.setHgrow(this.failureReason, Priority.ALWAYS);
+        spacing.setPadding(PADDING_HOR);
         VBox.setVgrow(spacing, Priority.ALWAYS);
         vBox.getChildren().add(spacing);
 
@@ -80,7 +102,7 @@ public class LoginScreen {
         Scene scene = new Scene(vBox);
 
         stage.setWidth(400);
-        stage.setHeight(230);
+        stage.setHeight(250);
         stage.setResizable(true);
         stage.setScene(scene);
     }
@@ -148,9 +170,104 @@ public class LoginScreen {
 
     private void login() {
         System.out.println("LOGIN");
-        this.stage.close();
-        ChatView chatView = new ChatView(this.client, this.stage);
-        this.stage.show();
+        if (this.accountBox.getSelectionModel().isEmpty()) {
+            this.failureReason.setText("You must select an account");
+            return;
+        }
+        if (this.passwordField.getText().isBlank()) {
+            this.failureReason.setText("You must enter a password.");
+            return;
+        }
+        String hostname = this.hostname.getText();
+        if (hostname.isBlank()) {
+            this.failureReason.setText("Invalid hostname");
+            return;
+        }
+        int port;
+        try {
+            port = Integer.parseInt(this.port.getText());
+            if (port <= 0 || port > 0xFFFF) {
+                this.failureReason.setText("Invalid port");
+                return;
+            }
+        } catch (NumberFormatException ignored) {
+            this.failureReason.setText("Invalid port");
+            return;
+        }
+        InetSocketAddress address = new InetSocketAddress(hostname, port);
+        Account account = this.accountBox.getSelectionModel().getSelectedItem();
+        SecretKeySpec aesKey;
+        try {
+            aesKey = new SecretKeySpec(CryptoConstants.PBKDF2_SECRET_KEY_FACTORY.generateSecret(new PBEKeySpec(this.passwordField.getText().toCharArray(), account.username().getBytes(StandardCharsets.UTF_8), 65536, 256)).getEncoded(), "AES");
+        } catch (InvalidKeySpecException e) {
+            this.failureReason.setText("Invalid account/password");
+            e.printStackTrace();
+            return;
+        }
+
+        RSAPublicKey publicKey = account.publicKey();
+        Cipher aesCipher = CryptoConstants.getAesCipher();
+        try {
+            aesCipher.init(Cipher.DECRYPT_MODE, aesKey);
+        } catch (InvalidKeyException e) {
+            this.failureReason.setText("Failed to initialize AES cipher");
+            e.printStackTrace();
+            return;
+        }
+        byte[] bytes;
+        try {
+            bytes = aesCipher.doFinal(account.privateKey());
+        } catch (IllegalBlockSizeException | BadPaddingException e) {
+            this.failureReason.setText("Incorrect username/password");
+            e.printStackTrace();
+            return;
+        }
+        RSAPrivateKey privateKey;
+        try {
+            privateKey = (RSAPrivateKey) CryptoConstants.RSA_KEY_FACTORY.generatePrivate(new PKCS8EncodedKeySpec(bytes));
+        } catch (InvalidKeySpecException e) {
+            this.failureReason.setText("Incorrect username/password");
+            e.printStackTrace();
+            return;
+        }
+
+        boolean noClose = false;
+        PacketPipeline connect = null;
+        try {
+            connect = ClientNetworking.connect(address);
+            connect.send(PacketTypes.CLIENT_HELLO, new ClientHello(Constants.VERSION, Constants.VERSION, (RSAPublicKey) publicKey));
+
+            Packet<ServerAuthRequest> packet = connect.receivePacket();
+            Cipher cipher = CryptoConstants.getRsaCipher();
+            cipher.init(Cipher.DECRYPT_MODE, privateKey);
+            byte[] b = cipher.doFinal(packet.data().getAuthData());
+            RSAPublicKey serverKey = packet.data().getServerKey();
+            cipher.init(Cipher.ENCRYPT_MODE, serverKey);
+            byte[] output = cipher.doFinal(b);
+
+            connect.send(PacketTypes.CLIENT_AUTH, new ClientAuthResponse(account.username(), output));
+            Packet<ServerAuthResponse> networkedDataPacket = connect.receivePacket();
+            if (networkedDataPacket.data().isSuccess()) {
+                noClose = true;
+                this.client.setIdentity(serverKey, privateKey, publicKey);
+                this.stage.close();
+                ChatView chatView = new ChatView(this.client, this.stage);
+                this.stage.show();
+            } else {
+                this.failureReason.setText(networkedDataPacket.data().getFailureReason());
+            }
+        } catch (IOException e) {
+            this.failureReason.setText("Failed to connect to server");
+        } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
+            this.failureReason.setText("Encryption failure");
+        } finally {
+            if (!noClose && connect != null) {
+                try {
+                    connect.close();
+                } catch (IOException ignored) {
+                }
+            }
+        }
     }
 
     private @NotNull HBox createButtons() {

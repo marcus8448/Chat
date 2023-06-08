@@ -26,6 +26,8 @@ import org.jetbrains.annotations.NotNull;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.Socket;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 
 public interface PacketPipeline extends Closeable {
     @Contract(value = "_ -> new", pure = true)

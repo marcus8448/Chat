@@ -18,28 +18,44 @@ package io.github.marcus8448.chat.core.network.packet;
 
 import io.github.marcus8448.chat.core.api.connection.BinaryInput;
 import io.github.marcus8448.chat.core.api.connection.BinaryOutput;
+import io.github.marcus8448.chat.core.api.crypto.CryptoConstants;
 import io.github.marcus8448.chat.core.network.NetworkedData;
 
 import java.io.IOException;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
 
 public class ClientHello implements NetworkedData {
     private final String clientBrand;
     private final String clientVersion;
+    private final RSAPublicKey key;
 
-    public ClientHello(String clientBrand, String clientVersion) {
+    public ClientHello(String clientBrand, String clientVersion, RSAPublicKey key) {
         this.clientBrand = clientBrand;
         this.clientVersion = clientVersion;
+        this.key = key;
     }
 
     public ClientHello(BinaryInput input) throws IOException {
         this.clientBrand = input.readString();
         this.clientVersion = input.readString();
+        try {
+            this.key = (RSAPublicKey) CryptoConstants.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(input.readByteArray()));
+        } catch (InvalidKeySpecException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
     public void write(BinaryOutput output) throws IOException {
         output.writeString(this.clientBrand);
         output.writeString(this.clientVersion);
+        output.writeByteArray(this.key.getEncoded());
+    }
+
+    public RSAPublicKey getKey() {
+        return key;
     }
 
     public String getClientBrand() {

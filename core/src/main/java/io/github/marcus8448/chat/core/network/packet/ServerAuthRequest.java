@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 
 public class ServerAuthRequest implements NetworkedData {
     private final RSAPublicKey key;
@@ -37,7 +38,7 @@ public class ServerAuthRequest implements NetworkedData {
 
     public ServerAuthRequest(BinaryInput input) throws IOException {
         try {
-            this.key = (RSAPublicKey) CryptoConstants.RSA_KEY_FACTORY.generatePublic(new PKCS8EncodedKeySpec(input.readByteArray()));
+            this.key = (RSAPublicKey) CryptoConstants.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(input.readByteArray()));
         } catch (InvalidKeySpecException e) {
             throw new RuntimeException(e);
         }
@@ -50,7 +51,7 @@ public class ServerAuthRequest implements NetworkedData {
         output.writeByteArray(this.authData);
     }
 
-    public RSAPublicKey getKey() {
+    public RSAPublicKey getServerKey() {
         return key;
     }
 

@@ -22,14 +22,15 @@ import javafx.application.Application;
 import javafx.stage.Stage;
 
 import java.io.File;
-import java.security.interfaces.RSAPrivateCrtKey;
+import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 
 public class Client extends Application {
     public Config config;
 
-    private RSAPrivateCrtKey privateKey;
+    private RSAPrivateKey privateKey;
     private RSAPublicKey serverPubKey;
+    private RSAPublicKey publicKey;
 
     public Client() {
         this.config = Config.load(new File("chat.json"));
@@ -39,5 +40,11 @@ public class Client extends Application {
     public void start(Stage primaryStage) throws Exception {
         LoginScreen loginScreen = new LoginScreen(this, primaryStage);
         primaryStage.show();
+    }
+
+    public void setIdentity(RSAPublicKey serverKey, RSAPrivateKey privateKey, RSAPublicKey publicKey) {
+        this.privateKey = privateKey;
+        this.serverPubKey = serverKey;
+        this.publicKey = publicKey;
     }
 }

@@ -23,17 +23,22 @@ import io.github.marcus8448.chat.core.network.PacketType;
 import io.github.marcus8448.chat.core.network.PacketTypes;
 import io.github.marcus8448.chat.core.network.packet.*;
 
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
 import java.io.File;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.nio.file.Files;
+import java.security.InvalidKeyException;
 import java.security.KeyPair;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
+import java.util.Arrays;
 import java.util.Objects;
 import java.util.Random;
 
@@ -67,7 +72,7 @@ public class Main {
                     Socket accepted = socket.accept();
                     new Thread(() -> {
                         try {
-                            clientHandler(accepted);
+                            loginHandler(accepted);
                         } catch (Exception e) {
                             e.printStackTrace();
                         }
@@ -80,7 +85,7 @@ public class Main {
         }
     }
 
-    private static void clientHandler(Socket socket) throws IOException {
+    private static void loginHandler(Socket socket) throws IOException, IllegalBlockSizeException, BadPaddingException {
         PacketPipeline connection = PacketPipeline.createNetworked(socket);
 
         System.out.println("HANDLE");
@@ -97,17 +102,32 @@ public class Main {
                 Random rand = new Random(); //fixme: secure random
                 byte[] bytes = new byte[64];
                 rand.nextBytes(bytes);
-                connection.send(PacketTypes.SERVER_AUTH_REQUEST, new ServerAuthRequest(publicKey, bytes));
-                Packet<ClientAuth> packet1 = connection.receivePacket();
-                ClientAuth auth = packet1.data();
-                System.out.println(auth.getUsername());
-            } else if (type == PacketTypes.CLIENT_CREATE_ACCOUNT) {
-                ClientCreateAccount data = (ClientCreateAccount) packet.data();
-                System.out.println(data.getUsername());
-                System.out.println(data.getKey());
-                connection.send(PacketTypes.SERVER_AUTH_RESPONSE, new ServerAuthResponse(true, null));
-                connection.close();
-                return;
+                Cipher rsaCipher = CryptoConstants.getRsaCipher();
+                try {
+                    rsaCipher.init(Cipher.ENCRYPT_MODE, hello.getKey());
+                } catch (InvalidKeyException e) {
+                    throw new RuntimeException(e);
+                }
+
+                try {
+                    connection.send(PacketTypes.SERVER_AUTH_REQUEST, new ServerAuthRequest(publicKey, rsaCipher.doFinal(bytes)));
+                } catch (IllegalBlockSizeException | BadPaddingException e) {
+                    throw new RuntimeException(e);
+                }
+
+                Packet<ClientAuthResponse> packet1 = connection.receivePacket();
+                ClientAuthResponse auth = packet1.data();
+                try {
+                    rsaCipher.init(Cipher.DECRYPT_MODE, privateKey);
+                } catch (InvalidKeyException e) {
+                    throw new RuntimeException(e);
+                }
+                byte[] bytes1 = rsaCipher.doFinal(auth.getData());
+
+                if (Arrays.equals(bytes1, bytes)) {
+                    connection.send(PacketTypes.SERVER_AUTH_RESPONSE, new ServerAuthResponse(true, null));
+                    System.out.println(auth.getUsername());
+                }
             }
         }
     }
