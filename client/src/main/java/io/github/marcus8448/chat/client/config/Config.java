@@ -18,27 +18,55 @@ package io.github.marcus8448.chat.client.config;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.InstanceCreator;
 import com.google.gson.JsonSyntaxException;
 import com.google.gson.annotations.Expose;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
 
 public class Config {
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping()
+            .excludeFieldsWithoutExposeAnnotation()
+            .registerTypeAdapter(ObservableList.class,
+                    (InstanceCreator<Object>) type -> FXCollections.observableArrayList())
+            .registerTypeAdapter(Account.class, new Account.Serializer())
+            .create();
 
     @Expose
     private int lastAccount = 0;
 
-    private final List<Account> accounts = new ArrayList<>();
+    @Expose
+    private final ObservableList<Account> accounts = FXCollections.observableArrayList();
+
+    private boolean isLoading = true;
+
+    private File configFile = null;
+
+    private Config() {
+    }
+
+    private void save() {
+        if (!this.isLoading) {
+            try (FileWriter writer = new FileWriter(configFile)) {
+                GSON.toJson(this, writer);
+                writer.flush();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
 
     public static Config load(File configFile) {
         if (configFile.exists()) {
             try (Reader reader = new FileReader(configFile)) {
-                return GSON.fromJson(reader, Config.class);
+                Config config = GSON.fromJson(reader, Config.class);
+                config.isLoading = false;
+                config.configFile = configFile;
+                return config;
             } catch (IOException e) {
                 throw new RuntimeException(e);
             } catch (JsonSyntaxException e) {
@@ -61,12 +89,28 @@ public class Config {
             }
         }
         Config config = new Config();
-        try (FileWriter writer = new FileWriter(configFile)) {
-            GSON.toJson(config, writer);
-            writer.flush();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        config.isLoading = false;
+        config.configFile = configFile;
+        config.save();
         return config;
+    }
+
+    public ObservableList<Account> getAccounts() {
+        return accounts;
+    }
+
+    public void setLastAccount(int lastAccount) {
+        this.lastAccount = lastAccount;
+        this.save();
+    }
+
+    public void addAccount(Account account) {
+        this.accounts.add(account);
+        this.save();
+    }
+
+    public void removeAccount(Account account) {
+        this.accounts.remove(account);
+        this.save();
     }
 }

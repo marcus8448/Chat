@@ -16,16 +16,29 @@
 
 package io.github.marcus8448.chat.client.util;
 
+import io.github.marcus8448.chat.client.config.Account;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.util.StringConverter;
 
 import java.util.Locale;
 
 public class JfxUtil {
     public static final int BUTTON_HEIGHT = 25;
     public static final int BUTTON_WIDTH = 70;
+    public static final StringConverter<Account> ACCOUNT_STRING_CONVERTER = new StringConverter<>() {
+        @Override
+        public String toString(Account object) {
+            return object == null ? "" : object.username() + " [" + JfxUtil.keyId(object.publicKey().getEncoded()) + "]";
+        }
+
+        @Override
+        public Account fromString(String string) {
+            return null;
+        }
+    };
 
     public static void buttonPressCallback(Node button, Runnable r) {
         button.setOnKeyPressed(enterKeyCallback(r));
@@ -40,6 +53,7 @@ public class JfxUtil {
     }
 
     public static String keyId(byte[] key) {
-        return (Integer.toHexString(key[0] << 24 | (key[1] & 0xFF) << 16 | (key[2] & 0xFF) << 8 | key[3] & 0xFF) + Integer.toHexString(key[4] << 24 | (key[5] & 0xFF) << 16 | (key[6] & 0xFF) << 8 | key[7] & 0xFF)).toUpperCase(Locale.ROOT);
+        int len = key.length - 10;
+        return (Integer.toHexString(key[len - 8] << 24 | (key[len - 7] & 0xFF) << 16 | (key[len - 6] & 0xFF) << 8 | key[len - 5] & 0xFF) + Integer.toHexString(key[len - 4] << 24 | (key[len - 3] & 0xFF) << 16 | (key[len - 2] & 0xFF) << 8 | key[len - 1] & 0xFF)).toUpperCase(Locale.ROOT);
     }
 }

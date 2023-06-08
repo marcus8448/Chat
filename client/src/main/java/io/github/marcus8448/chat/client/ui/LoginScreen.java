@@ -20,9 +20,8 @@ import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.config.Account;
 import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.core.api.Constants;
+import io.github.marcus8448.chat.core.api.crypto.CryptoConstants;
 import javafx.application.Platform;
-import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -33,10 +32,16 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Paint;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
-import javafx.util.StringConverter;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.security.PublicKey;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.Base64;
 import java.util.List;
 
 public class LoginScreen {
@@ -48,18 +53,17 @@ public class LoginScreen {
 
     private final Client client;
 
-    private final ObservableList<Account> accounts;
-
     private final PasswordField passwordField = new PasswordField();
     private final ComboBox<Account> accountBox;
     private final TextField hostname = new TextField("127.0.0.1");
     private final TextField port = new TextField(String.valueOf(Constants.PORT));
+    private final Stage stage;
 
     public LoginScreen(Client client, Stage stage) {
         this.client = client;
-        this.client.accounts.add(new Account("hello_there", new byte[0], new byte[] {23, 123, 59, 26, 100, 38, 76, 23, 98, 120}));
-        this.accounts = FXCollections.observableArrayList(this.client.accounts);
-        this.accountBox = new ComboBox<>(this.accounts);
+        this.stage = stage;
+        this.stage.setTitle("Login");
+        this.accountBox = new ComboBox<>(this.client.config.getAccounts());
         VBox vBox = new VBox();
 
         vBox.getChildren().add(this.createMenuBar());
@@ -82,6 +86,9 @@ public class LoginScreen {
     }
 
     private void createAccount() {
+        Stage stage = new Stage();
+        CreateAccountScreen createAccountScreen = new CreateAccountScreen(this.client, stage);
+        stage.showAndWait();
     }
 
     private void importAccount() {
@@ -89,22 +96,61 @@ public class LoginScreen {
         chooser.setTitle("Import account");
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Chat account", "*.account"));
         List<File> files = chooser.showOpenMultipleDialog(this.accountBox.getScene().getWindow());
+        if (files == null) {
+            return;
+        }
 
+        for (File file : files) {
+            try {
+                String s = Files.readString(file.toPath());
+                if (s.startsWith("chat-account/")) {
+                    String[] split = s.substring(13).split("\n");
+                    if (split.length >= 3) {
+                        try {
+                            String username = split[0];
+                            byte[] privateKey = Base64.getDecoder().decode(split[1]);
+                            byte[] publicKey = Base64.getDecoder().decode(split[2]);
+                            PublicKey publicKey1 = null;
+                            try {
+                                publicKey1 = CryptoConstants.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(publicKey));
+                            } catch (InvalidKeySpecException e) {
+                                Alert alert = new Alert(Alert.AlertType.ERROR, "Invalid account key!");
+                                alert.showAndWait();
+                                continue;
+                            }
+
+                            Account account = new Account(username, privateKey, (RSAPublicKey) publicKey1);
+                            this.client.config.addAccount(account);
+                        } catch (IllegalArgumentException ignored) {
+                            Alert alert = new Alert(Alert.AlertType.ERROR, "Failed to deserialize account!");
+                            alert.showAndWait();
+                        }
+                    }
+                }
+            } catch (IOException e) {
+                Alert alert = new Alert(Alert.AlertType.ERROR, "Failed to read account file!");
+                alert.showAndWait();
+            }
+        }
     }
 
     private void exportAccount() {
         Stage stage = new Stage();
         ExportAccountScreen screen = new ExportAccountScreen(client, stage);
         stage.showAndWait();
+    }
 
-        FileChooser chooser = new FileChooser();
-        chooser.setTitle("Export account");
-        chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Chat account", "*.account"));
-        File file = chooser.showSaveDialog(this.accountBox.getScene().getWindow());
+    private void editAccount() {
+        Stage stage = new Stage();
+        EditAccountScreen screen = new EditAccountScreen(client, stage);
+        stage.showAndWait();
     }
 
     private void login() {
         System.out.println("LOGIN");
+        this.stage.close();
+        ChatView chatView = new ChatView(this.client, this.stage);
+        this.stage.show();
     }
 
     private @NotNull HBox createButtons() {
@@ -155,18 +201,7 @@ public class LoginScreen {
         accountLabel.setPadding(PADDING_HOR);
         this.accountBox.setMaxWidth(MAX);
         this.accountBox.setPadding(PADDING_HOR);
-//        this.accountBox.setCellFactory(AccountCell::new);
-        this.accountBox.setConverter(new StringConverter<>() {
-            @Override
-            public String toString(Account object) {
-                return object == null ? "" : object.username() + " [" + JfxUtil.keyId(object.publicKey()) + "]";
-            }
-
-            @Override
-            public Account fromString(String string) {
-                return null;
-            }
-        });
+        this.accountBox.setConverter(JfxUtil.ACCOUNT_STRING_CONVERTER);
 
         HBox accountSelection = new HBox(accountLabel, this.accountBox);
         accountSelection.setPadding(PADDING_CORE);
@@ -200,16 +235,25 @@ public class LoginScreen {
     private @NotNull MenuBar createMenuBar() {
         MenuItem create = new MenuItem("Create");
         create.setOnAction(e -> this.createAccount());
+        MenuItem edit = new MenuItem("Edit");
+        edit.setOnAction(e -> this.editAccount());
         MenuItem importAc = new MenuItem("Import");
         importAc.setOnAction(e -> this.importAccount());
         MenuItem export = new MenuItem("Export");
         export.setOnAction(e -> this.exportAccount());
-        Menu account = new Menu("Account", null, create, importAc, export);
+        Menu file = new Menu("File", null, importAc, export);
+        Menu account = new Menu("Account", null, create, edit);
         MenuItem about = new MenuItem("About");
+        about.setOnAction(e -> this.about());
 
         Menu help = new Menu("Help", null, about);
-        MenuBar menuBar = new MenuBar(account, help);
+        MenuBar menuBar = new MenuBar(file, account, help);
         VBox.setVgrow(menuBar, Priority.NEVER);
         return menuBar;
+    }
+
+    private void about() {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION, "Chat");
+        alert.showAndWait();
     }
 }

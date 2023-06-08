@@ -18,7 +18,7 @@ package io.github.marcus8448.chat.client.ui;
 
 import io.github.marcus8448.chat.client.ServerAuth;
 import io.github.marcus8448.chat.client.network.AuthenticationData;
-import io.github.marcus8448.chat.client.parse.ParseUtil;
+import io.github.marcus8448.chat.client.util.ParseUtil;
 import io.github.marcus8448.chat.core.Result;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;

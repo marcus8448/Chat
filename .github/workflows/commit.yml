@@ -34,7 +34,7 @@ jobs:
           arguments: build
 
       - name: Test
-        id: build
+        id: test
         uses: gradle/gradle-build-action@v2
         with:
           arguments: test

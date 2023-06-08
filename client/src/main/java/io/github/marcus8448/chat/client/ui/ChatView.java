@@ -37,6 +37,9 @@ public class ChatView {
         Scene scene = new Scene(vBox, 900, 600);
         vBox.setPrefHeight(600);
         vBox.setPrefWidth(900);
+        stage.setWidth(900);
+        stage.setHeight(600);
+        stage.setTitle("Chat");
         MenuBar bar = new MenuBar(
                 new Menu("Menu", null,
                         new Menu("a"),
@@ -97,6 +100,5 @@ public class ChatView {
         vBox.getChildren().add(hBox);
 
         stage.setScene(scene);
-        stage.show();
     }
 }

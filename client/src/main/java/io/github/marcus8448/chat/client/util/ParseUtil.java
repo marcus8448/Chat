@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.client.parse;
+package io.github.marcus8448.chat.client.util;
 
 import io.github.marcus8448.chat.core.Result;
 import io.github.marcus8448.chat.core.api.Constants;
