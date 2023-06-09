@@ -18,19 +18,27 @@ package io.github.marcus8448.chat.client;
 
 import io.github.marcus8448.chat.client.config.Config;
 import io.github.marcus8448.chat.client.ui.LoginScreen;
+import io.github.marcus8448.chat.core.api.connection.PacketPipeline;
+import io.github.marcus8448.chat.core.api.crypto.CryptoConstants;
+import io.github.marcus8448.chat.core.user.User;
 import javafx.application.Application;
 import javafx.stage.Stage;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 
 public class Client extends Application {
     public Config config;
 
+    private PacketPipeline pipeline;
     private RSAPrivateKey privateKey;
-    private RSAPublicKey serverPubKey;
     private RSAPublicKey publicKey;
+    private RSAPublicKey serverPubKey;
 
     public Client() {
         this.config = Config.load(new File("chat.json"));
@@ -42,9 +50,25 @@ public class Client extends Application {
         primaryStage.show();
     }
 
-    public void setIdentity(RSAPublicKey serverKey, RSAPrivateKey privateKey, RSAPublicKey publicKey) {
+    public void setIdentity(PacketPipeline pipeline, RSAPublicKey serverKey, RSAPrivateKey privateKey, RSAPublicKey publicKey) {
+        this.pipeline = pipeline;
         this.privateKey = privateKey;
         this.serverPubKey = serverKey;
         this.publicKey = publicKey;
+    }
+
+    public RSAPublicKey getPublicKey() {
+        return publicKey;
+    }
+
+    public byte[] signMessage(String contents) {
+        Signature rsaSignature = CryptoConstants.getRsaSignature();
+        try {
+            rsaSignature.initSign(this.privateKey);
+            rsaSignature.update(contents.getBytes(StandardCharsets.UTF_8));
+            return rsaSignature.sign();
+        } catch (InvalidKeyException | SignatureException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -32,9 +32,9 @@ public record Account(String username, byte[] privateKey, RSAPublicKey publicKey
         public Account deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
             try {
                 JsonObject obj = json.getAsJsonObject();
-            String username = obj.get("username").getAsString();
-            byte[] privateKey = Base64.getDecoder().decode(obj.get("private_key").getAsString());
-            byte[] publicKeyE = Base64.getDecoder().decode(obj.get("public_key").getAsString());
+                String username = obj.get("username").getAsString();
+                byte[] privateKey = Base64.getDecoder().decode(obj.get("private_key").getAsString());
+                byte[] publicKeyE = Base64.getDecoder().decode(obj.get("public_key").getAsString());
                 return new Account(username, privateKey, (RSAPublicKey) CryptoConstants.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(publicKeyE)));
             } catch (Exception e) {
                 throw new JsonParseException(e);

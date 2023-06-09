@@ -22,6 +22,7 @@ import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.client.util.ParseUtil;
 import io.github.marcus8448.chat.core.Result;
 import io.github.marcus8448.chat.core.api.crypto.CryptoConstants;
+import io.github.marcus8448.chat.core.util.Utils;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -35,6 +36,8 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Paint;
 import javafx.stage.Stage;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -49,6 +52,8 @@ import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 
 public class CreateAccountScreen {
+    private static final Logger LOGGER = LogManager.getLogger();
+
     private static final String INVALID_USERNAME = "Invalid username: %s";
     private static final String INVALID_PASSWORD = "Invalid password: %s";
 
@@ -145,16 +150,13 @@ public class CreateAccountScreen {
             this.failureReason.setText(INVALID_PASSWORD.formatted(result.unwrapError()));
             return;
         }
-        System.out.println("generating key");
-        KeyPair keyPair = CryptoConstants.RSA_KEY_GENERATOR.generateKeyPair();
-        System.out.println("gen done");
 
         SecretKey encode = null;
         try {
             encode = new SecretKeySpec(CryptoConstants.PBKDF2_SECRET_KEY_FACTORY.generateSecret(new PBEKeySpec(password.toCharArray(), username.getBytes(StandardCharsets.UTF_8), 65536, 256)).getEncoded(), "AES");
         } catch (InvalidKeySpecException e) {
             this.failureReason.setText("Failed to calculate password hash.");
-            e.printStackTrace();
+            LOGGER.error("PBKDF2 key derivation failure", e);
             return;
         }
         Cipher aesCipher = CryptoConstants.getAesCipher();
@@ -162,15 +164,19 @@ public class CreateAccountScreen {
             aesCipher.init(Cipher.ENCRYPT_MODE, encode);
         } catch (InvalidKeyException e) {
             this.failureReason.setText("Failed to initialize AES cipher.");
-            e.printStackTrace();
+            LOGGER.error("AES cipher initialization failed", e);
             return;
         }
+
+        LOGGER.debug("Generating RSA keypair");
+        KeyPair keyPair = CryptoConstants.RSA_KEY_GENERATOR.generateKeyPair();
+        LOGGER.debug("Keypair generation done (id: {})", Utils.keyId(keyPair.getPublic().getEncoded()));
         byte[] bytes = null;
         try {
             bytes = aesCipher.doFinal(keyPair.getPrivate().getEncoded());
         } catch (IllegalBlockSizeException | BadPaddingException e) {
             this.failureReason.setText("Failed encrypt private key.");
-            e.printStackTrace();
+            LOGGER.error("Private key encryption failure", e);
             return;
         }
         this.client.config.addAccount(new Account(username, bytes, (RSAPublicKey) keyPair.getPublic()));

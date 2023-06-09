@@ -8,6 +8,7 @@ application {
 }
 
 dependencies {
+    implementation(libs.jmetro)
     implementation(libs.bundles.log4j)
     implementation(project(":core"))
 }

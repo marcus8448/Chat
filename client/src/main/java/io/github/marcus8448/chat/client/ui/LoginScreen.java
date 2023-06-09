@@ -17,6 +17,7 @@
 package io.github.marcus8448.chat.client.ui;
 
 import io.github.marcus8448.chat.client.Client;
+import io.github.marcus8448.chat.client.Main;
 import io.github.marcus8448.chat.client.config.Account;
 import io.github.marcus8448.chat.client.network.AuthenticationData;
 import io.github.marcus8448.chat.client.network.ClientNetworking;
@@ -39,6 +40,8 @@ import javafx.scene.layout.VBox;
 import javafx.scene.paint.Paint;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import javax.crypto.BadPaddingException;
@@ -62,6 +65,8 @@ import java.util.Base64;
 import java.util.List;
 
 public class LoginScreen {
+    private static final Logger LOGGER = LogManager.getLogger();
+
     private static final int PADDING = 12;
     private static final int MAX = Integer.MAX_VALUE;
 
@@ -108,21 +113,25 @@ public class LoginScreen {
     }
 
     private void createAccount() {
+        LOGGER.info("Opening account creation screen");
         Stage stage = new Stage();
         CreateAccountScreen createAccountScreen = new CreateAccountScreen(this.client, stage);
         stage.showAndWait();
     }
 
     private void importAccount() {
+        LOGGER.info("Importing account");
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Import account");
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Chat account", "*.account"));
         List<File> files = chooser.showOpenMultipleDialog(this.accountBox.getScene().getWindow());
         if (files == null) {
+            LOGGER.debug("No files selected for import");
             return;
         }
 
         for (File file : files) {
+            LOGGER.debug("Importing account from file: {}", file);
             try {
                 String s = Files.readString(file.toPath());
                 if (s.startsWith("chat-account/")) {
@@ -136,6 +145,7 @@ public class LoginScreen {
                             try {
                                 publicKey1 = CryptoConstants.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(publicKey));
                             } catch (InvalidKeySpecException e) {
+                                LOGGER.error("Failed to deserialize public key", e);
                                 Alert alert = new Alert(Alert.AlertType.ERROR, "Invalid account key!");
                                 alert.showAndWait();
                                 continue;
@@ -143,13 +153,15 @@ public class LoginScreen {
 
                             Account account = new Account(username, privateKey, (RSAPublicKey) publicKey1);
                             this.client.config.addAccount(account);
-                        } catch (IllegalArgumentException ignored) {
+                        } catch (IllegalArgumentException e) {
+                            LOGGER.error("Invalid file encoding", e);
                             Alert alert = new Alert(Alert.AlertType.ERROR, "Failed to deserialize account!");
                             alert.showAndWait();
                         }
                     }
                 }
             } catch (IOException e) {
+                LOGGER.error("Failed to read account file", e);
                 Alert alert = new Alert(Alert.AlertType.ERROR, "Failed to read account file!");
                 alert.showAndWait();
             }
@@ -157,19 +169,21 @@ public class LoginScreen {
     }
 
     private void exportAccount() {
+        LOGGER.info("Opening account export screen");
         Stage stage = new Stage();
         ExportAccountScreen screen = new ExportAccountScreen(client, stage);
         stage.showAndWait();
     }
 
     private void editAccount() {
+        LOGGER.info("Opening account edit screen");
         Stage stage = new Stage();
         EditAccountScreen screen = new EditAccountScreen(client, stage);
         stage.showAndWait();
     }
 
     private void login() {
-        System.out.println("LOGIN");
+        LOGGER.info("Attempting to login");
         if (this.accountBox.getSelectionModel().isEmpty()) {
             this.failureReason.setText("You must select an account");
             return;
@@ -196,12 +210,14 @@ public class LoginScreen {
         }
         InetSocketAddress address = new InetSocketAddress(hostname, port);
         Account account = this.accountBox.getSelectionModel().getSelectedItem();
+
+        LOGGER.debug("All required fields supplied");
         SecretKeySpec aesKey;
         try {
             aesKey = new SecretKeySpec(CryptoConstants.PBKDF2_SECRET_KEY_FACTORY.generateSecret(new PBEKeySpec(this.passwordField.getText().toCharArray(), account.username().getBytes(StandardCharsets.UTF_8), 65536, 256)).getEncoded(), "AES");
         } catch (InvalidKeySpecException e) {
             this.failureReason.setText("Invalid account/password");
-            e.printStackTrace();
+            LOGGER.error("Failed to generate AES secret", e);
             return;
         }
 
@@ -211,7 +227,7 @@ public class LoginScreen {
             aesCipher.init(Cipher.DECRYPT_MODE, aesKey);
         } catch (InvalidKeyException e) {
             this.failureReason.setText("Failed to initialize AES cipher");
-            e.printStackTrace();
+            LOGGER.error("Failed to initialize AES cipher with key", e);
             return;
         }
         byte[] bytes;
@@ -219,7 +235,7 @@ public class LoginScreen {
             bytes = aesCipher.doFinal(account.privateKey());
         } catch (IllegalBlockSizeException | BadPaddingException e) {
             this.failureReason.setText("Incorrect username/password");
-            e.printStackTrace();
+            LOGGER.error("Private key decryption failed", e);
             return;
         }
         RSAPrivateKey privateKey;
@@ -227,7 +243,7 @@ public class LoginScreen {
             privateKey = (RSAPrivateKey) CryptoConstants.RSA_KEY_FACTORY.generatePrivate(new PKCS8EncodedKeySpec(bytes));
         } catch (InvalidKeySpecException e) {
             this.failureReason.setText("Incorrect username/password");
-            e.printStackTrace();
+            LOGGER.error("Private key derivation failed", e);
             return;
         }
 
@@ -235,7 +251,7 @@ public class LoginScreen {
         PacketPipeline connect = null;
         try {
             connect = ClientNetworking.connect(address);
-            connect.send(PacketTypes.CLIENT_HELLO, new ClientHello(Constants.VERSION, Constants.VERSION, (RSAPublicKey) publicKey));
+            connect.send(PacketTypes.CLIENT_HELLO, new ClientHello(Constants.VERSION, Constants.VERSION, publicKey));
 
             Packet<ServerAuthRequest> packet = connect.receivePacket();
             Cipher cipher = CryptoConstants.getRsaCipher();
@@ -249,17 +265,20 @@ public class LoginScreen {
             Packet<ServerAuthResponse> networkedDataPacket = connect.receivePacket();
             if (networkedDataPacket.data().isSuccess()) {
                 noClose = true;
-                this.client.setIdentity(serverKey, privateKey, publicKey);
+                this.client.setIdentity(connect, serverKey, privateKey, publicKey);
                 this.stage.close();
                 ChatView chatView = new ChatView(this.client, this.stage);
                 this.stage.show();
             } else {
+                LOGGER.error("Server denied connection: {}", networkedDataPacket.data().getFailureReason());
                 this.failureReason.setText(networkedDataPacket.data().getFailureReason());
             }
         } catch (IOException e) {
-            this.failureReason.setText("Failed to connect to server");
+            LOGGER.error("Communication I/O error", e);
+            this.failureReason.setText("Failed to connect to server: " + e.getMessage());
         } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
-            this.failureReason.setText("Encryption failure");
+            LOGGER.error("Generic connection crypto failure", e);
+            this.failureReason.setText("Encryption failure: " + e.getMessage());
         } finally {
             if (!noClose && connect != null) {
                 try {
@@ -314,8 +333,9 @@ public class LoginScreen {
     }
 
     private @NotNull HBox createAccountSelection() {
-        Label accountLabel = new Label("Account    ");
+        Label accountLabel = new Label("Account");
         accountLabel.setPadding(PADDING_HOR);
+        accountLabel.setMinWidth(77);
         this.accountBox.setMaxWidth(MAX);
         this.accountBox.setPadding(PADDING_HOR);
         this.accountBox.setConverter(JfxUtil.ACCOUNT_STRING_CONVERTER);

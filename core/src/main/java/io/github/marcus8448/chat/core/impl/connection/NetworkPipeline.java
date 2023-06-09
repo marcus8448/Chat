@@ -23,12 +23,16 @@ import io.github.marcus8448.chat.core.api.connection.PacketPipeline;
 import io.github.marcus8448.chat.core.network.NetworkedData;
 import io.github.marcus8448.chat.core.network.PacketType;
 import io.github.marcus8448.chat.core.network.packet.Packet;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.net.Socket;
 
 public class NetworkPipeline implements PacketPipeline {
+    private static final Logger LOGGER = LogManager.getLogger();
+
     private final Socket socket;
     private final BinaryInput input;
     private final BinaryOutput output;
@@ -41,6 +45,7 @@ public class NetworkPipeline implements PacketPipeline {
 
     @Override
     public <Data extends NetworkedData> void send(PacketType<Data> type, Data networkedData) throws IOException {
+        LOGGER.debug("Sending packet {}", type.getDataClass().getName());
         this.output.writeInt(Constants.PACKET_HEADER);
         this.output.writeShort(type.getId());
         networkedData.write(this.output);
@@ -50,6 +55,7 @@ public class NetworkPipeline implements PacketPipeline {
     public <Data extends NetworkedData> Packet<Data> receivePacket() throws IOException {
         this.input.seekToIdentifier(Constants.PACKET_HEADER);
         PacketType<Data> type = (PacketType<Data>) PacketType.getType(this.input.readShort());
+        LOGGER.debug("Received packet {}", type.getDataClass().getName());
         return new Packet<>(type, type.create(this.input));
     }
 
@@ -59,9 +65,10 @@ public class NetworkPipeline implements PacketPipeline {
         PacketType<?> type = PacketType.getType(this.input.readShort());
         Packet<?> packet = new Packet<>(type, type.create(this.input));
         if (type.getDataClass() != clazz) {
-            System.out.println("DISCARD");
+            LOGGER.debug("Discarding packet {}", type.getDataClass().getName());
             return receivePacket(clazz);
         }
+        LOGGER.debug("Received packet {}", type.getDataClass().getName());
         return (Packet<Data>) packet;
     }
 

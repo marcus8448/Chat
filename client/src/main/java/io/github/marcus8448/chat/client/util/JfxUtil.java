@@ -17,13 +17,13 @@
 package io.github.marcus8448.chat.client.util;
 
 import io.github.marcus8448.chat.client.config.Account;
+import io.github.marcus8448.chat.core.util.Utils;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyEvent;
+import javafx.scene.text.Text;
 import javafx.util.StringConverter;
-
-import java.util.Locale;
 
 public class JfxUtil {
     public static final int BUTTON_HEIGHT = 25;
@@ -31,7 +31,7 @@ public class JfxUtil {
     public static final StringConverter<Account> ACCOUNT_STRING_CONVERTER = new StringConverter<>() {
         @Override
         public String toString(Account object) {
-            return object == null ? "" : object.username() + " [" + JfxUtil.keyId(object.publicKey().getEncoded()) + "]";
+            return object == null ? "" : object.username() + " [" + Utils.keyId(object.publicKey().getEncoded()) + "]";
         }
 
         @Override
@@ -52,8 +52,9 @@ public class JfxUtil {
         };
     }
 
-    public static String keyId(byte[] key) {
-        int len = key.length - 10;
-        return (Integer.toHexString(key[len - 8] << 24 | (key[len - 7] & 0xFF) << 16 | (key[len - 6] & 0xFF) << 8 | key[len - 5] & 0xFF) + Integer.toHexString(key[len - 4] << 24 | (key[len - 3] & 0xFF) << 16 | (key[len - 2] & 0xFF) << 8 | key[len - 1] & 0xFF)).toUpperCase(Locale.ROOT);
+    private static final Text TEXT_HOLDER = new Text();
+    public static double getTextWidth(String text) {
+        TEXT_HOLDER.setText(text);
+        return TEXT_HOLDER.getBoundsInLocal().getWidth();
     }
 }

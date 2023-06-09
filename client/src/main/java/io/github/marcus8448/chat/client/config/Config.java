@@ -23,12 +23,15 @@ import com.google.gson.JsonSyntaxException;
 import com.google.gson.annotations.Expose;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
 public class Config {
+    private static final Logger LOGGER = LogManager.getLogger();
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping()
             .excludeFieldsWithoutExposeAnnotation()
             .registerTypeAdapter(ObservableList.class,
@@ -51,16 +54,20 @@ public class Config {
 
     private void save() {
         if (!this.isLoading) {
+            LOGGER.trace("Saving config file");
             try (FileWriter writer = new FileWriter(configFile)) {
                 GSON.toJson(this, writer);
                 writer.flush();
             } catch (IOException e) {
-                e.printStackTrace();
+                LOGGER.error("Failed to save config file: ", e);
             }
+        } else {
+            LOGGER.warn("Not saving config file as it is still loading");
         }
     }
 
     public static Config load(File configFile) {
+        LOGGER.trace("Loading configuration file");
         if (configFile.exists()) {
             try (Reader reader = new FileReader(configFile)) {
                 Config config = GSON.fromJson(reader, Config.class);
@@ -68,9 +75,11 @@ public class Config {
                 config.configFile = configFile;
                 return config;
             } catch (IOException e) {
+                LOGGER.fatal("Failed to open config file", e);
                 throw new RuntimeException(e);
             } catch (JsonSyntaxException e) {
                 try {
+                    LOGGER.warn("Failed to load existing config file", e);
                     Path old = new File(configFile.getParentFile(), "chat.json.old").toPath();
                     try {
                         Files.delete(old);
@@ -80,14 +89,17 @@ public class Config {
                     try {
                         Files.delete(configFile.toPath());
                     } catch (IOException exc) {
-                        RuntimeException runtimeException = new RuntimeException(exc);
-                        runtimeException.addSuppressed(ex);
-                        runtimeException.addSuppressed(e);
-                        throw runtimeException;
+                        RuntimeException exception = new RuntimeException(exc);
+                        exception.addSuppressed(ex);
+                        exception.addSuppressed(e);
+                        LOGGER.fatal("Failed to refresh config file", ex);
+                        LOGGER.fatal(exc);
+                        throw exception;
                     }
                 }
             }
         }
+        LOGGER.warn("Failed to find existing config file - generating a new one");
         Config config = new Config();
         config.isLoading = false;
         config.configFile = configFile;

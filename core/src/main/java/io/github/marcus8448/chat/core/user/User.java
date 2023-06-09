@@ -16,8 +16,14 @@
 
 package io.github.marcus8448.chat.core.user;
 
+import io.github.marcus8448.chat.core.util.Utils;
+import org.jetbrains.annotations.Nullable;
+
 import java.security.interfaces.RSAPublicKey;
 import java.util.UUID;
 
-public record User(UUID uuid, String username, RSAPublicKey key) {
+public record User(String username, RSAPublicKey key, byte @Nullable [] base64Icon) {
+    public String usernameAndId() {
+        return this.username() + " [" + Utils.keyId(this.key.getEncoded()) + "]";
+    }
 }

@@ -22,6 +22,7 @@ import javax.crypto.SecretKeyFactory;
 import java.security.KeyFactory;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
+import java.security.Signature;
 
 public class CryptoConstants {
     public static final KeyPairGenerator RSA_KEY_GENERATOR;
@@ -29,15 +30,22 @@ public class CryptoConstants {
     public static final SecretKeyFactory PBKDF2_SECRET_KEY_FACTORY;
     private static final ThreadLocal<Cipher> AES_CIPHER = ThreadLocal.withInitial(() -> { //NOT thread safe - so use local
         try {
-            return  Cipher.getInstance("AES");
+            return Cipher.getInstance("AES");
         } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
             throw new RuntimeException(e);
         }
     });
     private static final ThreadLocal<Cipher> RSA_CIPHER = ThreadLocal.withInitial(() -> {
         try {
-            return  Cipher.getInstance("RSA");
+            return Cipher.getInstance("RSA");
         } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
+            throw new RuntimeException(e);
+        }
+    });
+    private static final ThreadLocal<Signature> RSA_SIGNATURE = ThreadLocal.withInitial(() -> {
+        try {
+            return Signature.getInstance("SHA256withRSA");
+        } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
     });
@@ -59,5 +67,9 @@ public class CryptoConstants {
 
     public static Cipher getAesCipher() {
         return AES_CIPHER.get();
+    }
+
+    public static Signature getRsaSignature() {
+        return RSA_SIGNATURE.get();
     }
 }

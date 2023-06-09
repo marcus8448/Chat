@@ -17,6 +17,9 @@
 package io.github.marcus8448.chat.client.ui;
 
 import io.github.marcus8448.chat.client.Client;
+import io.github.marcus8448.chat.client.ui.cell.MessageCell;
+import io.github.marcus8448.chat.core.message.Message;
+import io.github.marcus8448.chat.core.user.User;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
@@ -41,15 +44,16 @@ public class ChatView {
         stage.setHeight(600);
         stage.setTitle("Chat");
         MenuBar bar = new MenuBar(
-                new Menu("Menu", null,
-                        new Menu("a"),
+                new Menu("File", null,
+                        new MenuItem("Preferences"),
                         new SeparatorMenuItem(),
-                        new Menu("b")
+                        new MenuItem("Log out"),
+                        new MenuItem("Exit")
                 ),
-                new Menu("2", null,
-                        new Menu("v"),
+                new Menu("Help", null,
+                        new MenuItem("v"),
                         new SeparatorMenuItem(),
-                        new Menu("d")
+                        new MenuItem("d")
                 )
         );
         VBox.setVgrow(bar, Priority.NEVER);
@@ -58,18 +62,27 @@ public class ChatView {
         ObservableList<String> channels = FXCollections.observableArrayList("a", "a", "a", "a");
         ListView<String> leftPane = new ListView<>(channels);
 
-        ObservableList<String> messages = FXCollections.observableArrayList("a", "a", "a", "a");
-        ListView<String> centerContent = new ListView<>(messages);
+        ObservableList<Message> messages = FXCollections.observableArrayList();
+        ListView<Message> centerContent = new ListView<>(messages);
+        centerContent.setCellFactory(l -> new MessageCell(this.client));
+        messages.add(new Message(System.currentTimeMillis(), new User("my_username", this.client.getPublicKey(), null), new byte[0], "Hello there"));
+        centerContent.setEditable(true);
 
-        TextArea messageBox = new TextArea("Message");
+        TextArea messageBox = new TextArea();
+        messageBox.setPromptText("Type your message here");
         messageBox.setPrefRowCount(1);
+        messageBox.setWrapText(true);
         Button sendButton = new Button();
         HBox messageSendBox = new HBox(messageBox, sendButton);
         messageSendBox.setPadding(new Insets(3.0, 3.0, 3.0, 3.0));
         sendButton.setMaxHeight(10000);
-        sendButton.setPrefWidth(sendButton.getHeight());
+        sendButton.heightProperty().addListener(o -> {
+            sendButton.setPrefWidth(sendButton.getHeight());
+            sendButton.setMinWidth(sendButton.getHeight());
+        });
+
         HBox.setHgrow(messageBox, Priority.ALWAYS);
-        HBox.setHgrow(sendButton, Priority.NEVER);
+        HBox.setHgrow(sendButton, Priority.SOMETIMES);
 
         VBox centerPane = new VBox(centerContent, messageSendBox);
         VBox.setVgrow(centerContent, Priority.ALWAYS);
