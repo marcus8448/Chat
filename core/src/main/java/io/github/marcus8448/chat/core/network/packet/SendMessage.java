@@ -24,17 +24,21 @@ import java.io.IOException;
 
 public class SendMessage implements NetworkedData {
     private final String message;
+    private final byte[] checksum;
 
     public SendMessage(BinaryInput input) throws IOException {
         this.message = input.readString();
+        this.checksum = input.readByteArray();
     }
 
-    public SendMessage(String message) {
+    public SendMessage(String message, byte[] checksum) {
         this.message = message;
+        this.checksum = checksum;
     }
 
     @Override
     public void write(BinaryOutput output) throws IOException {
         output.writeString(message);
+        output.writeByteArray(this.checksum);
     }
 }

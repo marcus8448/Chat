@@ -19,12 +19,13 @@ package io.github.marcus8448.chat.client.ui.cell;
 import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.core.message.Message;
-import javafx.application.Platform;
-import javafx.scene.Node;
+import io.github.marcus8448.chat.core.util.Utils;
 import javafx.scene.control.Label;
 import javafx.scene.control.ListCell;
 import javafx.scene.control.TextArea;
+import javafx.scene.control.Tooltip;
 import javafx.scene.input.KeyCode;
+import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -58,43 +59,26 @@ public class MessageCell extends ListCell<Message> {
             }
         });
 
-        this.editArea.textProperty().addListener((o, old, newStr) -> {
-            int i = 0;
-            StringBuilder builder = new StringBuilder();
-            for (char c : newStr.toCharArray()) {
-                if (c == '\n') {
-                    i++;
-                    builder.setLength(0);
-                } else {
-                    builder.append(c);
-                    if (JfxUtil.getTextWidth(builder.toString()) >= this.editArea.getLayoutBounds().getWidth()) {
-                        i++;
-                        builder.setLength(0);
-                    }
-                }
-            }
-            this.editArea.setPrefRowCount(i);
-        });
+        this.editArea.textProperty().addListener((o, old, newStr) -> changed(newStr));
         this.editArea.setWrapText(true);
-        this.editArea.setPrefRowCount(1);
         this.editArea.setPromptText("Edit message");
-    }
-
-    private byte[] signEdit() {
-        return null;
     }
 
     @Override
     protected void updateItem(Message item, boolean empty) {
         super.updateItem(item, empty);
-        this.setText(null);
         if (!empty && item != null) {
-            boolean equals = client.getPublicKey().equals(item.author().key());
-            System.out.println("EQ");
+            boolean equals = this.client.getPublicKey().equals(item.author().key());
             this.setEditable(equals);
             this.messageContents.setText(item.contents());
             this.authorName.setText(item.author().usernameAndId());
+            this.authorName.setOnMouseClicked(this::openAuthor);
+            this.authorName.setTooltip(new Tooltip(Utils.toHexString(item.author().key().getEncoded()).substring(64, 192)));
         }
+    }
+
+    private void openAuthor(MouseEvent mouseEvent) {
+
     }
 
     @Override
@@ -114,10 +98,32 @@ public class MessageCell extends ListCell<Message> {
     @Override
     public void startEdit() {
         super.startEdit();
-        System.out.println("STEDIT");
         if (!isEditing()) return;
-        this.setGraphic(this.editArea);
-        this.editArea.setDisable(false);
         this.editArea.setText(this.getItem().contents());
+        this.editArea.setDisable(false);
+        this.setGraphic(this.editArea);
+    }
+
+    private void changed(String s) {
+        int i = 1;
+        StringBuilder builder = new StringBuilder("javax");
+        double width = this.editArea.getLayoutBounds().getWidth();
+        if (width == 0.0) {
+            width = this.hBox.getWidth();
+        }
+        System.out.println(width);
+        for (char c : s.toCharArray()) {
+            if (c == '\n') {
+                i++;
+                builder.setLength(5);
+            } else {
+                builder.append(c);
+                if (JfxUtil.getTextWidth(builder.toString()) >= width) {
+                    i++;
+                    builder.setLength(5);
+                }
+            }
+        }
+        this.editArea.setPrefRowCount(i);
     }
 }

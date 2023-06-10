@@ -21,9 +21,14 @@ import io.github.marcus8448.chat.core.network.packet.*;
 public interface PacketTypes {
     PacketType<ClientHello> CLIENT_HELLO = PacketType.create(ClientHello.class, ClientHello::new);
     PacketType<ClientAuthResponse> CLIENT_AUTH = PacketType.create(ClientAuthResponse.class, ClientAuthResponse::new);
-    PacketType<SendMessage> SEND_MESSAGE = PacketType.create(SendMessage.class, SendMessage::new);
     PacketType<ServerAuthRequest> SERVER_AUTH_REQUEST = PacketType.create(ServerAuthRequest.class, ServerAuthRequest::new);
     PacketType<ServerAuthResponse> SERVER_AUTH_RESPONSE = PacketType.create(ServerAuthResponse.class, ServerAuthResponse::new);
+
+    PacketType<SendMessage> SEND_MESSAGE = PacketType.create(SendMessage.class, SendMessage::new);
+    PacketType<EmptyRequest> CLIENT_REQUEST_ONLINE = PacketType.create(EmptyRequest.class, EmptyRequest::new);
+    PacketType<EmptyRequest> CLIENT_REQUEST_CHANNELS = PacketType.create(EmptyRequest.class, EmptyRequest::new);
+    PacketType<EmptyRequest> CLIENT_JOIN_CHANNEL = PacketType.create(EmptyRequest.class, EmptyRequest::new);
+    PacketType<EmptyRequest> CLIENT_CREATE_CHANNEL = PacketType.create(EmptyRequest.class, EmptyRequest::new);
 
     static void initialize() {}
 }
