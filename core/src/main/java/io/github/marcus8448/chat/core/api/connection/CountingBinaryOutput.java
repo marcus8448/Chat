@@ -14,25 +14,10 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.impl.connection;
+package io.github.marcus8448.chat.core.api.connection;
 
-import java.io.IOException;
-import java.io.InputStream;
+public interface CountingBinaryOutput extends BinaryOutput {
+    int getCount();
 
-public class InputStreamInput extends BaseBinaryInput {
-    private final InputStream parent;
-
-    public InputStreamInput(InputStream parent) {
-        this.parent = parent;
-    }
-
-    @Override
-    public int readByte() throws IOException {
-        return this.parent.read();
-    }
-
-    @Override
-    public void close() throws IOException {
-        this.parent.close();
-    }
+    void clearCount();
 }

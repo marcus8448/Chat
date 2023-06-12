@@ -14,19 +14,22 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.client.network;
-
-import io.github.marcus8448.chat.core.api.connection.PacketPipeline;
+package io.github.marcus8448.chat.core.impl.connection;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
-import java.net.Socket;
 
-public class ClientNetworking {
-    public static PacketPipeline connect(InetSocketAddress address) throws IOException {
-        Socket socket = new Socket();
-        socket.bind(null);
-        socket.connect(address);
-        return PacketPipeline.createNetworked(socket);
+public class FixedBinaryInput extends BaseBinaryInput {
+    public FixedBinaryInput(byte[] bytes) {
+
+    }
+
+    @Override
+    public int readByte() throws IOException {
+        return 0;
+    }
+
+    @Override
+    public void close() throws IOException {
+
     }
 }

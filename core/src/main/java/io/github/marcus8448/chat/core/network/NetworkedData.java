@@ -17,9 +17,19 @@
 package io.github.marcus8448.chat.core.network;
 
 import io.github.marcus8448.chat.core.api.connection.BinaryOutput;
+import io.github.marcus8448.chat.core.api.connection.CountingBinaryOutput;
 
 import java.io.IOException;
 
 public interface NetworkedData {
+    default int calculateLength() {
+        try (CountingBinaryOutput output = BinaryOutput.counting()) {
+            this.write(output);
+            return output.getCount();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     void write(BinaryOutput output) throws IOException;
 }

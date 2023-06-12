@@ -28,27 +28,9 @@ public class CryptoConstants {
     public static final KeyPairGenerator RSA_KEY_GENERATOR;
     public static final KeyFactory RSA_KEY_FACTORY;
     public static final SecretKeyFactory PBKDF2_SECRET_KEY_FACTORY;
-    private static final ThreadLocal<Cipher> AES_CIPHER = ThreadLocal.withInitial(() -> { //NOT thread safe - so use local
-        try {
-            return Cipher.getInstance("AES");
-        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
-            throw new RuntimeException(e);
-        }
-    });
-    private static final ThreadLocal<Cipher> RSA_CIPHER = ThreadLocal.withInitial(() -> {
-        try {
-            return Cipher.getInstance("RSA");
-        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
-            throw new RuntimeException(e);
-        }
-    });
-    private static final ThreadLocal<Signature> RSA_SIGNATURE = ThreadLocal.withInitial(() -> {
-        try {
-            return Signature.getInstance("SHA256withRSA");
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-    });
+    private static final ThreadLocal<Cipher> AES_CIPHER = ThreadLocal.withInitial(CryptoConstants::createAesCipher);
+    private static final ThreadLocal<Cipher> RSA_CIPHER = ThreadLocal.withInitial(CryptoConstants::createRsaCipher);
+    private static final ThreadLocal<Signature> RSA_SIGNATURE = ThreadLocal.withInitial(CryptoConstants::createRsaSignature);
 
     public static Cipher getRsaCipher() {
         return RSA_CIPHER.get();
@@ -71,5 +53,29 @@ public class CryptoConstants {
 
     public static Signature getRsaSignature() {
         return RSA_SIGNATURE.get();
+    }
+
+    public static Cipher createAesCipher() { //NOT thread safe - so use local
+        try {
+            return Cipher.getInstance("AES");
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static Cipher createRsaCipher() {
+        try {
+            return Cipher.getInstance("RSA");
+        } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static Signature createRsaSignature() {
+        try {
+            return Signature.getInstance("SHA256withRSA");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

@@ -16,7 +16,6 @@
 
 package io.github.marcus8448.chat.core.impl.connection;
 
-import io.github.marcus8448.chat.core.api.Constants;
 import io.github.marcus8448.chat.core.api.connection.BinaryInput;
 import io.github.marcus8448.chat.core.api.connection.BinaryOutput;
 import io.github.marcus8448.chat.core.api.connection.PacketPipeline;
@@ -33,27 +32,33 @@ import java.net.Socket;
 public class NetworkPipeline implements PacketPipeline {
     private static final Logger LOGGER = LogManager.getLogger();
 
-    private final Socket socket;
+    private final int packetId;
     private final BinaryInput input;
     private final BinaryOutput output;
+    private DataTransformer transformer = DataTransformer.NO_TRANSFORM;
 
-    public NetworkPipeline(@NotNull Socket socket) throws IOException {
-        this.socket = socket;
+    public NetworkPipeline(int packetId, @NotNull Socket socket) throws IOException {
+        this.packetId = packetId;
         this.input = BinaryInput.stream(socket.getInputStream());
         this.output = BinaryOutput.stream(socket.getOutputStream());
     }
 
     @Override
+    public void setDataTransformer(DataTransformer transformer) {
+        this.transformer = transformer;
+    }
+
+    @Override
     public <Data extends NetworkedData> void send(PacketType<Data> type, Data networkedData) throws IOException {
         LOGGER.debug("Sending packet {}", type.getDataClass().getName());
-        this.output.writeInt(Constants.PACKET_HEADER);
+        this.output.writeInt(this.packetId);
         this.output.writeShort(type.getId());
         networkedData.write(this.output);
     }
 
     @Override
     public <Data extends NetworkedData> Packet<Data> receivePacket() throws IOException {
-        this.input.seekToIdentifier(Constants.PACKET_HEADER);
+        this.input.seekToIdentifier(this.packetId);
         PacketType<Data> type = (PacketType<Data>) PacketType.getType(this.input.readShort());
         LOGGER.debug("Received packet {}", type.getDataClass().getName());
         return new Packet<>(type, type.create(this.input));
@@ -61,7 +66,7 @@ public class NetworkPipeline implements PacketPipeline {
 
     @Override
     public <Data extends NetworkedData> Packet<Data> receivePacket(Class<Data> clazz) throws IOException {
-        this.input.seekToIdentifier(Constants.PACKET_HEADER);
+        this.input.seekToIdentifier(this.packetId);
         PacketType<?> type = PacketType.getType(this.input.readShort());
         Packet<?> packet = new Packet<>(type, type.create(this.input));
         if (type.getDataClass() != clazz) {
@@ -70,12 +75,5 @@ public class NetworkPipeline implements PacketPipeline {
         }
         LOGGER.debug("Received packet {}", type.getDataClass().getName());
         return (Packet<Data>) packet;
-    }
-
-    @Override
-    public void close() throws IOException {
-        this.socket.close();
-        this.input.close();
-        this.output.close();
     }
 }

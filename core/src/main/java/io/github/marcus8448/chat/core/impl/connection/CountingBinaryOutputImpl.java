@@ -16,23 +16,32 @@
 
 package io.github.marcus8448.chat.core.impl.connection;
 
+import io.github.marcus8448.chat.core.api.connection.CountingBinaryOutput;
+
 import java.io.IOException;
-import java.io.InputStream;
 
-public class InputStreamInput extends BaseBinaryInput {
-    private final InputStream parent;
+public class CountingBinaryOutputImpl extends BaseBinaryOutput implements CountingBinaryOutput {
+    private int len = 0;
 
-    public InputStreamInput(InputStream parent) {
-        this.parent = parent;
+    @Override
+    public void writeByte(int b) throws IOException {
+        this.len++;
+    }
+
+    public int getLen() {
+        return len;
     }
 
     @Override
-    public int readByte() throws IOException {
-        return this.parent.read();
+    public void close() throws IOException {}
+
+    @Override
+    public int getCount() {
+        return this.len;
     }
 
     @Override
-    public void close() throws IOException {
-        this.parent.close();
+    public void clearCount() {
+        this.len = 0;
     }
 }

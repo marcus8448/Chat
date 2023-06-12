@@ -16,6 +16,7 @@
 
 package io.github.marcus8448.chat.core.api.connection;
 
+import io.github.marcus8448.chat.core.impl.connection.FixedBinaryInput;
 import io.github.marcus8448.chat.core.impl.connection.InputStreamInput;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
@@ -28,6 +29,10 @@ public interface BinaryInput extends Closeable {
     @Contract(value = "_ -> new", pure = true)
     static @NotNull BinaryInput stream(InputStream inputStream) {
         return new InputStreamInput(inputStream);
+    }
+
+    static BinaryInput wrap(byte[] bytes) {
+        return new FixedBinaryInput(bytes);
     }
 
     int readByte() throws IOException;

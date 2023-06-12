@@ -14,12 +14,21 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.client.network;
+package io.github.marcus8448.chat.core.impl.connection;
 
-import io.github.marcus8448.chat.core.api.connection.PacketPipeline;
+public class FixedBinaryOutput extends BaseBinaryOutput {
+    private final byte[] wrap;
+    private int pos = 0;
 
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
+    public FixedBinaryOutput(byte[] wrap) {
+        this.wrap = wrap;
+    }
 
-public record AuthenticationData(RSAPrivateKey myPrivateKey, RSAPublicKey serverPublicKey, PacketPipeline connection) {
+    @Override
+    public void writeByte(int b) {
+        this.wrap[pos++] = (byte) b;
+    }
+
+    @Override
+    public void close() {}
 }

@@ -14,25 +14,8 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.impl.connection;
+package io.github.marcus8448.chat.core;
 
-import java.io.IOException;
-import java.io.InputStream;
-
-public class InputStreamInput extends BaseBinaryInput {
-    private final InputStream parent;
-
-    public InputStreamInput(InputStream parent) {
-        this.parent = parent;
-    }
-
-    @Override
-    public int readByte() throws IOException {
-        return this.parent.read();
-    }
-
-    @Override
-    public void close() throws IOException {
-        this.parent.close();
-    }
+// valhalla :(
+public record IntPair<O>(int left, O right) {
 }

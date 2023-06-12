@@ -86,7 +86,7 @@ public class Main {
     }
 
     private static void loginHandler(Socket socket) throws IOException, IllegalBlockSizeException, BadPaddingException {
-        PacketPipeline connection = PacketPipeline.createNetworked(socket);
+        PacketPipeline connection = PacketPipeline.createNetworked(Constants.PACKET_HEADER, socket);
 
         System.out.println("HANDLE");
         while (!socket.isClosed() && socket.isConnected()) {
@@ -96,7 +96,7 @@ public class Main {
                 ClientHello hello = (ClientHello) packet.data();
                 if (!Objects.equals(hello.getClientVersion(), Constants.VERSION)) {
                     connection.send(PacketTypes.SERVER_AUTH_RESPONSE, new ServerAuthResponse(false, "Version mismatch!"));
-                    connection.close();
+                    socket.close();
                     return;
                 }
                 Random rand = new Random(); //fixme: secure random

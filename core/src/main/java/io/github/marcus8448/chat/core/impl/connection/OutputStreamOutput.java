@@ -16,15 +16,11 @@
 
 package io.github.marcus8448.chat.core.impl.connection;
 
-import io.github.marcus8448.chat.core.api.connection.BinaryOutput;
-import org.jetbrains.annotations.NotNull;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
-import java.nio.charset.StandardCharsets;
 
-public class OutputStreamOutput implements BinaryOutput {
+public class OutputStreamOutput extends BaseBinaryOutput {
     private final OutputStream parent;
 
     public OutputStreamOutput(OutputStream parent) {
@@ -36,79 +32,9 @@ public class OutputStreamOutput implements BinaryOutput {
         if (b > 255) throw new UnsupportedEncodingException();
         this.parent.write(b);
     }
-    
-    @Override
-    public void writeShort(int value) throws IOException {
-        this.writeByte(value >> 8 & 0xFF);
-        this.writeByte(value & 0xFF);
-    }
-
-    @Override
-    public void writeBoolean(boolean b) throws IOException {
-        this.writeByte(b ? 1 : 0);
-    }
-
-    @Override
-    public void writeInt(int value) throws IOException { //probably some signed-ness shenanigans here
-        this.writeByte(value >> 24 & 0xFF);
-        this.writeByte(value >> 16 & 0xFF);
-        this.writeByte(value >> 8 & 0xFF);
-        this.writeByte(value & 0xFF);
-    }
-
-    @Override
-    public void writeByteArray(byte @NotNull [] bytes) throws IOException {
-        this.writeShort(bytes.length);
-        this.writeByteArray(bytes.length, bytes);
-    }
-
-    @Override
-    public void writeByteArray(int len, byte @NotNull [] bytes) throws IOException {
-        assert len == bytes.length;
-        this.parent.write(bytes);
-    }
-
-    @Override
-    public void writeIntArray(int @NotNull [] ints) throws IOException {
-        this.writeShort(ints.length);
-        this.writeIntArray(ints.length, ints);
-    }
-
-    @Override
-    public void writeIntArray(int len, int @NotNull [] ints) throws IOException {
-        assert ints.length == len;
-        for (int i : ints) {
-            this.writeInt(i);
-        }
-    }
-
-    @Override
-    public void writeString(@NotNull String s) throws IOException {
-        byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
-        this.writeByteArray(bytes);
-    }
-
-    @Override
-    public void writeString(int len, @NotNull String s) throws IOException {
-        byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
-        assert bytes.length == len;
-        this.writeByteArray(len, bytes);
-    }
-
 
     @Override
     public void close() throws IOException {
         this.parent.close();
     }
-
-//    public void writeLong(long value) throws IOException {
-//        this.writeByte((int) (value >> 56 & 0xFF));
-//        this.writeByte((int) (value >> 48 & 0xFF));
-//        this.writeByte((int) (value >> 40 & 0xFF));
-//        this.writeByte((int) (value >> 32 & 0xFF));
-//        this.writeByte((int) (value >> 24 & 0xFF));
-//        this.writeByte((int) (value >> 16 & 0xFF));
-//        this.writeByte((int) (value >> 8 & 0xFF));
-//        this.writeByte((int) (value & 0xFF));
-//    }
 }

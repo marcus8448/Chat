@@ -17,12 +17,8 @@
 package io.github.marcus8448.chat.client.ui;
 
 import io.github.marcus8448.chat.client.Client;
-import io.github.marcus8448.chat.client.Main;
 import io.github.marcus8448.chat.client.config.Account;
-import io.github.marcus8448.chat.client.network.AuthenticationData;
-import io.github.marcus8448.chat.client.network.ClientNetworking;
 import io.github.marcus8448.chat.client.util.JfxUtil;
-import io.github.marcus8448.chat.core.Result;
 import io.github.marcus8448.chat.core.api.Constants;
 import io.github.marcus8448.chat.core.api.connection.PacketPipeline;
 import io.github.marcus8448.chat.core.api.crypto.CryptoConstants;
@@ -52,6 +48,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.security.InvalidKeyException;
@@ -247,10 +244,12 @@ public class LoginScreen {
             return;
         }
 
-        boolean noClose = false;
         PacketPipeline connect = null;
         try {
-            connect = ClientNetworking.connect(address);
+            Socket socket = new Socket();
+            socket.bind(null);
+            socket.connect(address);
+            connect = PacketPipeline.createNetworked(Constants.PACKET_HEADER, socket);
             connect.send(PacketTypes.CLIENT_HELLO, new ClientHello(Constants.VERSION, Constants.VERSION, publicKey));
 
             Packet<ServerAuthRequest> packet = connect.receivePacket();
@@ -264,7 +263,6 @@ public class LoginScreen {
             connect.send(PacketTypes.CLIENT_AUTH, new ClientAuthResponse(account.username(), output));
             Packet<ServerAuthResponse> networkedDataPacket = connect.receivePacket();
             if (networkedDataPacket.data().isSuccess()) {
-                noClose = true;
                 this.client.setIdentity(connect, serverKey, privateKey, publicKey);
                 this.stage.close();
                 ChatView chatView = new ChatView(this.client, this.stage);
@@ -279,13 +277,6 @@ public class LoginScreen {
         } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
             LOGGER.error("Generic connection crypto failure", e);
             this.failureReason.setText("Encryption failure: " + e.getMessage());
-        } finally {
-            if (!noClose && connect != null) {
-                try {
-                    connect.close();
-                } catch (IOException ignored) {
-                }
-            }
         }
     }
 
