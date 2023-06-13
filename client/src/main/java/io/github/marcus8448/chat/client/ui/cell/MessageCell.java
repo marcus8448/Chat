@@ -18,14 +18,13 @@ package io.github.marcus8448.chat.client.ui.cell;
 
 import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.util.JfxUtil;
+import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.message.Message;
 import io.github.marcus8448.chat.core.util.Utils;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.TextArea;
-import javafx.scene.control.Tooltip;
+import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
+import javafx.scene.layout.Background;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -62,6 +61,14 @@ public class MessageCell extends ListCell<Message> {
         this.editArea.textProperty().addListener((o, old, newStr) -> changed(newStr));
         this.editArea.setWrapText(true);
         this.editArea.setPromptText("Edit message");
+
+        MenuItem edit = new MenuItem("Edit");
+        edit.setOnAction(e -> this.startEdit());
+        MenuItem history = new MenuItem("History...");
+        history.setOnAction(e -> {
+        });
+        ContextMenu contextMenu = new ContextMenu(edit, history);
+        this.setContextMenu(contextMenu);
     }
 
     @Override
@@ -73,7 +80,13 @@ public class MessageCell extends ListCell<Message> {
             this.messageContents.setText(item.contents());
             this.authorName.setText(item.author().usernameAndId());
             this.authorName.setOnMouseClicked(this::openAuthor);
-            this.authorName.setTooltip(new Tooltip(Utils.toHexString(item.author().key().getEncoded()).substring(64, 192)));
+            if (item.verifyChecksum()) {
+                this.setBackground(Background.EMPTY);
+                this.authorName.setTooltip(new Tooltip(CryptoHelper.sha256Hash(item.author().key().getEncoded())));
+            } else {
+                this.setBackground(Background.fill(JfxUtil.NOT_VERIFIED_COLOUR));
+                this.authorName.setTooltip(new Tooltip("NOT VERIFIED: " + CryptoHelper.sha256Hash(item.author().key().getEncoded())));
+            }
         }
     }
 
@@ -106,21 +119,22 @@ public class MessageCell extends ListCell<Message> {
 
     private void changed(String s) {
         int i = 1;
-        StringBuilder builder = new StringBuilder("javax");
+        StringBuilder builder = new StringBuilder("ABC");
         double width = this.editArea.getLayoutBounds().getWidth();
         if (width == 0.0) {
             width = this.hBox.getWidth();
         }
+        width -= this.hBox.getPadding().getLeft() + this.hBox.getPadding().getRight();
         System.out.println(width);
         for (char c : s.toCharArray()) {
             if (c == '\n') {
                 i++;
-                builder.setLength(5);
+                builder.setLength(3);
             } else {
                 builder.append(c);
                 if (JfxUtil.getTextWidth(builder.toString()) >= width) {
                     i++;
-                    builder.setLength(5);
+                    builder.setLength(3);
                 }
             }
         }

@@ -19,17 +19,18 @@ package io.github.marcus8448.chat.core.impl.connection;
 import java.io.IOException;
 
 public class FixedBinaryInput extends BaseBinaryInput {
-    public FixedBinaryInput(byte[] bytes) {
+    private final byte[] bytes;
+    private int pos = 0;
 
+    public FixedBinaryInput(byte[] bytes) {
+        this.bytes = bytes;
     }
 
     @Override
     public int readByte() throws IOException {
-        return 0;
+        return this.bytes[this.pos++];
     }
 
     @Override
-    public void close() throws IOException {
-
-    }
+    public void close() {}
 }

@@ -28,7 +28,4 @@ public class FixedBinaryOutput extends BaseBinaryOutput {
     public void writeByte(int b) {
         this.wrap[pos++] = (byte) b;
     }
-
-    @Override
-    public void close() {}
 }

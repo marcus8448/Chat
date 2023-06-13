@@ -24,24 +24,12 @@ public class CountingBinaryOutputImpl extends BaseBinaryOutput implements Counti
     private int len = 0;
 
     @Override
-    public void writeByte(int b) throws IOException {
+    public void writeByte(int b) {
         this.len++;
     }
-
-    public int getLen() {
-        return len;
-    }
-
-    @Override
-    public void close() throws IOException {}
 
     @Override
     public int getCount() {
         return this.len;
-    }
-
-    @Override
-    public void clearCount() {
-        this.len = 0;
     }
 }

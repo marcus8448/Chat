@@ -17,25 +17,24 @@
 package io.github.marcus8448.chat.client.config;
 
 import com.google.gson.*;
-import io.github.marcus8448.chat.core.api.crypto.CryptoConstants;
+import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 
 import java.lang.reflect.Type;
+import java.security.PublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 
-public record Account(String username, byte[] privateKey, RSAPublicKey publicKey) {
-    // PRIVATE KEY IS ENCRYPTED, PUBLIC IS NOT
+public record Account(String username, RSAPublicKey publicKey, AccountData.EncryptedAccountData data) {
     public static class Serializer implements JsonSerializer<Account>, JsonDeserializer<Account> {
-
         @Override
         public Account deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
             try {
                 JsonObject obj = json.getAsJsonObject();
                 String username = obj.get("username").getAsString();
-                byte[] privateKey = Base64.getDecoder().decode(obj.get("private_key").getAsString());
-                byte[] publicKeyE = Base64.getDecoder().decode(obj.get("public_key").getAsString());
-                return new Account(username, privateKey, (RSAPublicKey) CryptoConstants.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(publicKeyE)));
+                PublicKey publicKey = CryptoHelper.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(Base64.getDecoder().decode(obj.get("public_key").getAsString())));
+                AccountData.EncryptedAccountData data = context.deserialize(obj.get("data"), AccountData.EncryptedAccountData.class);
+                return new Account(username, (RSAPublicKey) publicKey, data);
             } catch (Exception e) {
                 throw new JsonParseException(e);
             }
@@ -45,8 +44,8 @@ public record Account(String username, byte[] privateKey, RSAPublicKey publicKey
         public JsonElement serialize(Account src, Type typeOfSrc, JsonSerializationContext context) {
             JsonObject obj = new JsonObject();
             obj.addProperty("username", src.username());
-            obj.addProperty("private_key", Base64.getEncoder().encodeToString(src.privateKey));
             obj.addProperty("public_key", Base64.getEncoder().encodeToString(src.publicKey.getEncoded()));
+            obj.add("data", context.serialize(src.data));
             return obj;
         }
     }

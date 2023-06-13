@@ -16,8 +16,12 @@
 
 package io.github.marcus8448.chat.core.api.connection;
 
-public interface CountingBinaryOutput extends BinaryOutput {
-    int getCount();
+import io.github.marcus8448.chat.core.impl.connection.CountingBinaryOutputImpl;
 
-    void clearCount();
+public interface CountingBinaryOutput extends BinaryOutput {
+    static CountingBinaryOutput counting() {
+        return new CountingBinaryOutputImpl();
+    }
+
+    int getCount(); //number of bytes written
 }

@@ -16,7 +16,7 @@
 
 package io.github.marcus8448.chat.core.message;
 
-import io.github.marcus8448.chat.core.api.crypto.CryptoConstants;
+import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.user.User;
 
 import java.nio.charset.StandardCharsets;
@@ -26,13 +26,14 @@ import java.security.Signature;
 import java.security.SignatureException;
 
 public record Message(long timestamp, User author, byte[] checksum, String contents) {
+    private static final ThreadLocal<Signature> RSA_SIGNATURE = ThreadLocal.withInitial(CryptoHelper::createRsaSignature);
     public static Message create(long timestamp, User author, PrivateKey privateKey, String contents) {
-        Signature rsaSignature = CryptoConstants.getRsaSignature();
         byte[] checksum;
         try {
-            rsaSignature.initSign(privateKey);
-            rsaSignature.update(contents.getBytes(StandardCharsets.UTF_8));
-            checksum = rsaSignature.sign();
+            Signature signature = RSA_SIGNATURE.get();
+            signature.initSign(privateKey);
+            signature.update(contents.getBytes(StandardCharsets.UTF_8));
+            checksum = signature.sign();
         } catch (InvalidKeyException | SignatureException e) {
             throw new RuntimeException(e);
         }
@@ -40,11 +41,11 @@ public record Message(long timestamp, User author, byte[] checksum, String conte
     }
 
     public boolean verifyChecksum() {
-        Signature rsaSignature = CryptoConstants.getRsaSignature();
+        Signature signature = RSA_SIGNATURE.get();
         try {
-            rsaSignature.initVerify(this.author.key());
-            rsaSignature.update(this.contents.getBytes(StandardCharsets.UTF_8));
-            return rsaSignature.verify(this.checksum);
+            signature.initVerify(this.author.key());
+            signature.update(this.contents.getBytes(StandardCharsets.UTF_8));
+            return signature.verify(this.checksum);
         } catch (InvalidKeyException | SignatureException e) {
             return false;
         }

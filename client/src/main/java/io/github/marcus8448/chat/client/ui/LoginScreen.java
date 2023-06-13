@@ -18,10 +18,14 @@ package io.github.marcus8448.chat.client.ui;
 
 import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.config.Account;
+import io.github.marcus8448.chat.client.config.AccountData;
+import io.github.marcus8448.chat.client.config.Config;
 import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.core.api.Constants;
+import io.github.marcus8448.chat.core.api.connection.BinaryInput;
+import io.github.marcus8448.chat.core.api.connection.BinaryOutput;
 import io.github.marcus8448.chat.core.api.connection.PacketPipeline;
-import io.github.marcus8448.chat.core.api.crypto.CryptoConstants;
+import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.network.PacketTypes;
 import io.github.marcus8448.chat.core.network.packet.*;
 import javafx.application.Platform;
@@ -33,7 +37,6 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Paint;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import org.apache.logging.log4j.LogManager;
@@ -46,6 +49,7 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.spec.PBEKeySpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -129,37 +133,16 @@ public class LoginScreen {
 
         for (File file : files) {
             LOGGER.debug("Importing account from file: {}", file);
-            try {
-                String s = Files.readString(file.toPath());
-                if (s.startsWith("chat-account/")) {
-                    String[] split = s.substring(13).split("\n");
-                    if (split.length >= 3) {
-                        try {
-                            String username = split[0];
-                            byte[] privateKey = Base64.getDecoder().decode(split[1]);
-                            byte[] publicKey = Base64.getDecoder().decode(split[2]);
-                            PublicKey publicKey1 = null;
-                            try {
-                                publicKey1 = CryptoConstants.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(publicKey));
-                            } catch (InvalidKeySpecException e) {
-                                LOGGER.error("Failed to deserialize public key", e);
-                                Alert alert = new Alert(Alert.AlertType.ERROR, "Invalid account key!");
-                                alert.showAndWait();
-                                continue;
-                            }
-
-                            Account account = new Account(username, privateKey, (RSAPublicKey) publicKey1);
-                            this.client.config.addAccount(account);
-                        } catch (IllegalArgumentException e) {
-                            LOGGER.error("Invalid file encoding", e);
-                            Alert alert = new Alert(Alert.AlertType.ERROR, "Failed to deserialize account!");
-                            alert.showAndWait();
-                        }
-                    }
-                }
+            try (FileReader reader = new FileReader(file)) {
+                Account account = Config.GSON.fromJson(reader, Account.class);
+                this.client.config.addAccount(account);
             } catch (IOException e) {
                 LOGGER.error("Failed to read account file", e);
                 Alert alert = new Alert(Alert.AlertType.ERROR, "Failed to read account file!");
+                alert.showAndWait();
+            } catch (Exception e) {
+                LOGGER.error("Failed to parse account file", e);
+                Alert alert = new Alert(Alert.AlertType.ERROR, "Failed to parse account file!");
                 alert.showAndWait();
             }
         }
@@ -211,7 +194,7 @@ public class LoginScreen {
         LOGGER.debug("All required fields supplied");
         SecretKeySpec aesKey;
         try {
-            aesKey = new SecretKeySpec(CryptoConstants.PBKDF2_SECRET_KEY_FACTORY.generateSecret(new PBEKeySpec(this.passwordField.getText().toCharArray(), account.username().getBytes(StandardCharsets.UTF_8), 65536, 256)).getEncoded(), "AES");
+            aesKey = new SecretKeySpec(CryptoHelper.PBKDF2_SECRET_KEY_FACTORY.generateSecret(new PBEKeySpec(this.passwordField.getText().toCharArray(), account.username().getBytes(StandardCharsets.UTF_8), 65536, 256)).getEncoded(), "AES");
         } catch (InvalidKeySpecException e) {
             this.failureReason.setText("Invalid account/password");
             LOGGER.error("Failed to generate AES secret", e);
@@ -219,7 +202,7 @@ public class LoginScreen {
         }
 
         RSAPublicKey publicKey = account.publicKey();
-        Cipher aesCipher = CryptoConstants.getAesCipher();
+        Cipher aesCipher = CryptoHelper.createAesCipher();
         try {
             aesCipher.init(Cipher.DECRYPT_MODE, aesKey);
         } catch (InvalidKeyException e) {
@@ -227,34 +210,26 @@ public class LoginScreen {
             LOGGER.error("Failed to initialize AES cipher with key", e);
             return;
         }
-        byte[] bytes;
+        AccountData accountData;
         try {
-            bytes = aesCipher.doFinal(account.privateKey());
-        } catch (IllegalBlockSizeException | BadPaddingException e) {
+            accountData = account.data().decrypt(aesCipher);
+        } catch (IllegalBlockSizeException | BadPaddingException | InvalidKeySpecException e) {
             this.failureReason.setText("Incorrect username/password");
-            LOGGER.error("Private key decryption failed", e);
-            return;
-        }
-        RSAPrivateKey privateKey;
-        try {
-            privateKey = (RSAPrivateKey) CryptoConstants.RSA_KEY_FACTORY.generatePrivate(new PKCS8EncodedKeySpec(bytes));
-        } catch (InvalidKeySpecException e) {
-            this.failureReason.setText("Incorrect username/password");
-            LOGGER.error("Private key derivation failed", e);
+            LOGGER.error("Account data decryption failed", e);
             return;
         }
 
-        PacketPipeline connect = null;
+        PacketPipeline connect;
         try {
             Socket socket = new Socket();
             socket.bind(null);
             socket.connect(address);
-            connect = PacketPipeline.createNetworked(Constants.PACKET_HEADER, socket);
+            connect = PacketPipeline.createBasic(Constants.PACKET_HEADER, BinaryInput.stream(socket.getInputStream()), BinaryOutput.stream(socket.getOutputStream()));
             connect.send(PacketTypes.CLIENT_HELLO, new ClientHello(Constants.VERSION, Constants.VERSION, publicKey));
 
             Packet<ServerAuthRequest> packet = connect.receivePacket();
-            Cipher cipher = CryptoConstants.getRsaCipher();
-            cipher.init(Cipher.DECRYPT_MODE, privateKey);
+            Cipher cipher = CryptoHelper.createRsaCipher();
+            cipher.init(Cipher.DECRYPT_MODE, accountData.privateKey());
             byte[] b = cipher.doFinal(packet.data().getAuthData());
             RSAPublicKey serverKey = packet.data().getServerKey();
             cipher.init(Cipher.ENCRYPT_MODE, serverKey);
@@ -263,7 +238,7 @@ public class LoginScreen {
             connect.send(PacketTypes.CLIENT_AUTH, new ClientAuthResponse(account.username(), output));
             Packet<ServerAuthResponse> networkedDataPacket = connect.receivePacket();
             if (networkedDataPacket.data().isSuccess()) {
-                this.client.setIdentity(connect, serverKey, privateKey, publicKey);
+                this.client.setIdentity(connect, serverKey, publicKey, accountData);
                 this.stage.close();
                 ChatView chatView = new ChatView(this.client, this.stage);
                 this.stage.show();
@@ -282,7 +257,7 @@ public class LoginScreen {
 
     private @NotNull HBox createButtons() {
         Label createAccountPrompt = new Label("No account? Create one!");
-        createAccountPrompt.setTextFill(Paint.valueOf("#21a7ff"));
+        createAccountPrompt.setTextFill(JfxUtil.LINK_COLOUR);
         createAccountPrompt.setPadding(new Insets(0.0, 0.0, 0.0, PADDING / 2.0));
         JfxUtil.buttonPressCallback(createAccountPrompt, this::createAccount);
         AnchorPane spacing2 = new AnchorPane();

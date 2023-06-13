@@ -18,11 +18,11 @@ package io.github.marcus8448.chat.client.ui;
 
 import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.config.Account;
+import io.github.marcus8448.chat.client.config.AccountData;
 import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.client.util.ParseUtil;
 import io.github.marcus8448.chat.core.Result;
-import io.github.marcus8448.chat.core.api.crypto.CryptoConstants;
-import io.github.marcus8448.chat.core.util.Utils;
+import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -34,7 +34,6 @@ import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
-import javafx.scene.paint.Paint;
 import javafx.stage.Stage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -48,8 +47,10 @@ import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.KeyPair;
+import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
+import java.util.HashMap;
 
 public class CreateAccountScreen {
     private static final Logger LOGGER = LogManager.getLogger();
@@ -102,7 +103,7 @@ public class CreateAccountScreen {
         this.failureReason.setAlignment(Pos.CENTER_RIGHT);
         this.failureReason.setPrefWidth(10000);
         this.failureReason.setPadding(paddingH);
-        this.failureReason.setTextFill(Paint.valueOf("#ee1100"));
+        this.failureReason.setTextFill(JfxUtil.FAILURE_COLOUR);
         VBox.setVgrow(this.failureReason, Priority.NEVER);
         vBox.getChildren().add(this.failureReason);
 
@@ -151,15 +152,15 @@ public class CreateAccountScreen {
             return;
         }
 
-        SecretKey encode = null;
+        SecretKey encode;
         try {
-            encode = new SecretKeySpec(CryptoConstants.PBKDF2_SECRET_KEY_FACTORY.generateSecret(new PBEKeySpec(password.toCharArray(), username.getBytes(StandardCharsets.UTF_8), 65536, 256)).getEncoded(), "AES");
+            encode = new SecretKeySpec(CryptoHelper.PBKDF2_SECRET_KEY_FACTORY.generateSecret(new PBEKeySpec(password.toCharArray(), username.getBytes(StandardCharsets.UTF_8), 65536, 256)).getEncoded(), "AES");
         } catch (InvalidKeySpecException e) {
             this.failureReason.setText("Failed to calculate password hash.");
             LOGGER.error("PBKDF2 key derivation failure", e);
             return;
         }
-        Cipher aesCipher = CryptoConstants.getAesCipher();
+        Cipher aesCipher = CryptoHelper.createAesCipher();
         try {
             aesCipher.init(Cipher.ENCRYPT_MODE, encode);
         } catch (InvalidKeyException e) {
@@ -169,17 +170,13 @@ public class CreateAccountScreen {
         }
 
         LOGGER.debug("Generating RSA keypair");
-        KeyPair keyPair = CryptoConstants.RSA_KEY_GENERATOR.generateKeyPair();
-        LOGGER.debug("Keypair generation done (id: {})", Utils.keyId(keyPair.getPublic().getEncoded()));
-        byte[] bytes = null;
+        KeyPair keyPair = CryptoHelper.RSA_KEY_GENERATOR.generateKeyPair();
+        LOGGER.debug("Keypair generation done (id: {})", CryptoHelper.sha256Hash(keyPair.getPublic().getEncoded()));
         try {
-            bytes = aesCipher.doFinal(keyPair.getPrivate().getEncoded());
+            this.client.config.addAccount(new Account(username, (RSAPublicKey) keyPair.getPublic(), new AccountData((RSAPrivateKey) keyPair.getPrivate(), new HashMap<>()).encrypt(aesCipher)));
         } catch (IllegalBlockSizeException | BadPaddingException e) {
-            this.failureReason.setText("Failed encrypt private key.");
-            LOGGER.error("Private key encryption failure", e);
-            return;
+            throw new RuntimeException(e);
         }
-        this.client.config.addAccount(new Account(username, bytes, (RSAPublicKey) keyPair.getPublic()));
 
         this.stage.close();
     }

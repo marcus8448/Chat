@@ -18,31 +18,48 @@ package io.github.marcus8448.chat.client.ui;
 
 import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.config.Account;
+import io.github.marcus8448.chat.client.config.AccountData;
 import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.client.util.ParseUtil;
 import io.github.marcus8448.chat.core.Result;
+import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
-import javafx.scene.paint.Paint;
+import javafx.scene.layout.*;
 import javafx.stage.Stage;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.Cipher;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.spec.InvalidKeySpecException;
 
 public class EditAccountScreen {
+    private static final Logger LOGGER = LogManager.getLogger();
+
     private static final String INVALID_USERNAME = "Invalid username: %s";
     private static final String INVALID_PASSWORD = "Invalid password: %s";
 
     private static final int PADDING = 12;
     private static final int BUTTON_HEIGHT = 25;
+    private static final String PASSWORD_NOT_MATCHING = "Passwords do not match";
 
     private final Client client;
     private final ComboBox<Account> accounts;
     private final TextField username = new TextField();
+    private final PasswordField passwordField = new PasswordField();
+    private final CheckBox changePassword = new CheckBox("Change password?");
+    private final PasswordField newPasswordField = new PasswordField();
+    private final PasswordField newPasswordField2 = new PasswordField();
     private final Label failureReason = new Label();
     private final Stage stage;
 
@@ -77,7 +94,8 @@ public class EditAccountScreen {
         });
 
         HBox accountSelection = new HBox(accountLabel, this.accounts);
-        accountSelection.setPadding(new Insets(PADDING, PADDING, PADDING / 2.0, PADDING));
+        Insets padding = new Insets(PADDING, PADDING, PADDING / 2.0, PADDING);
+        accountSelection.setPadding(padding);
         HBox.setHgrow(accountLabel, Priority.NEVER);
         HBox.setHgrow(this.accounts, Priority.ALWAYS);
         VBox.setVgrow(accountSelection, Priority.NEVER);
@@ -91,16 +109,73 @@ public class EditAccountScreen {
         this.username.setPrefHeight(25);
 
         HBox usernameChange = new HBox(usernameLabel, this.username);
-        usernameChange.setPadding(new Insets(PADDING, PADDING, PADDING / 2.0, PADDING));
+        usernameChange.setPadding(padding);
         HBox.setHgrow(usernameLabel, Priority.NEVER);
         HBox.setHgrow(this.username, Priority.ALWAYS);
         VBox.setVgrow(usernameChange, Priority.NEVER);
         vBox.getChildren().add(usernameChange);
 
+        Label passwordLabel = new Label("Password");
+        passwordLabel.setPadding(paddingH);
+        this.passwordField.setPromptText("Password");
+        this.passwordField.setMaxWidth(1289908123);
+        this.passwordField.setPadding(paddingH);
+        this.passwordField.setPrefHeight(25);
+
+        HBox password = new HBox(passwordLabel, this.passwordField);
+        password.setPadding(padding);
+        HBox.setHgrow(passwordLabel, Priority.NEVER);
+        HBox.setHgrow(this.passwordField, Priority.ALWAYS);
+        VBox.setVgrow(password, Priority.NEVER);
+        vBox.getChildren().add(password);
+
+        Label newPasswordLabel = new Label("New Password");
+        newPasswordLabel.setPadding(paddingH);
+        this.newPasswordField.setPromptText("Password");
+        this.newPasswordField.setMaxWidth(1289908123);
+        this.newPasswordField.setPadding(paddingH);
+        this.newPasswordField.setPrefHeight(25);
+
+        HBox newPassword = new HBox(newPasswordLabel, this.newPasswordField);
+        newPassword.setPadding(padding);
+        HBox.setHgrow(newPasswordLabel, Priority.NEVER);
+        HBox.setHgrow(this.newPasswordField, Priority.ALWAYS);
+        VBox.setVgrow(newPassword, Priority.NEVER);
+        VBox.setVgrow(this.changePassword, Priority.NEVER);
+        vBox.getChildren().add(this.changePassword);
+        this.changePassword.setPadding(padding);
+        vBox.getChildren().add(newPassword);
+
+        Label newPasswordLabel2 = new Label("New Password (again)");
+        newPasswordLabel2.setPadding(paddingH);
+        this.newPasswordField2.setPromptText("Password (repeat)");
+        this.newPasswordField2.setMaxWidth(1289908123);
+        this.newPasswordField2.setPadding(paddingH);
+        this.newPasswordField2.setPrefHeight(25);
+
+        HBox newPassword2 = new HBox(newPasswordLabel2, this.newPasswordField2);
+        newPassword2.setPadding(padding);
+        HBox.setHgrow(newPasswordLabel2, Priority.NEVER);
+        HBox.setHgrow(this.newPasswordField2, Priority.ALWAYS);
+        VBox.setVgrow(newPassword2, Priority.NEVER);
+        vBox.getChildren().add(newPassword2);
+
+        this.changePassword.setOnAction(e -> {
+            if (this.changePassword.isSelected()) {
+                newPassword.setDisable(false);
+                newPassword2.setDisable(false);
+            } else {
+                newPassword.setDisable(true);
+                newPassword2.setDisable(true);
+            }
+        });
+        newPassword.setDisable(true);
+        newPassword2.setDisable(true);
+
         this.failureReason.setAlignment(Pos.CENTER_RIGHT);
         this.failureReason.setPrefWidth(10000);
         this.failureReason.setPadding(paddingH);
-        this.failureReason.setTextFill(Paint.valueOf("#ee1100"));
+        this.failureReason.setTextFill(JfxUtil.FAILURE_COLOUR);
         VBox.setVgrow(this.failureReason, Priority.NEVER);
         vBox.getChildren().add(this.failureReason);
 
@@ -122,7 +197,7 @@ public class EditAccountScreen {
         JfxUtil.buttonPressCallback(delete, this::deleteAccount);
         JfxUtil.buttonPressCallback(save, this::updateAccount);
 
-        HBox buttons = new HBox(cancel, spacing2, save);
+        HBox buttons = new HBox(cancel, delete, spacing2, save);
         buttons.setPadding(paddingCore);
         HBox.setHgrow(spacing2, Priority.ALWAYS);
         HBox.setHgrow(cancel, Priority.NEVER);
@@ -133,8 +208,9 @@ public class EditAccountScreen {
         Scene scene = new Scene(vBox);
 
         stage.setWidth(400);
-        stage.setHeight(175);
+        stage.setHeight(350);
         stage.setResizable(true);
+        stage.setTitle("Edit Account");
         stage.setScene(scene);
     }
 
@@ -158,6 +234,7 @@ public class EditAccountScreen {
             this.failureReason.setText("You must select an account");
             return;
         }
+        Account selectedAccount = this.accounts.getSelectionModel().getSelectedItem();
 
         Result<String, String> res = ParseUtil.validateUsername(this.username.getText());
         if (res.isError()) {
@@ -166,12 +243,80 @@ public class EditAccountScreen {
         }
         String username = res.unwrap();
 
-        Account selectedItem = this.accounts.getSelectionModel().getSelectedItem();
-        this.accounts.getSelectionModel().clearSelection();
+        SecretKey secretKey;
+        String oldPassword = this.passwordField.getText();
+        String newPassword;
+        if (this.changePassword.isSelected()) {
+            String text = this.newPasswordField.getText();
+            var result = ParseUtil.validatePassword(text);
+            if (result.isError()) {
+                this.failureReason.setText(INVALID_PASSWORD.formatted(result.unwrapError()));
+                return;
+            }
+            if (!text.equals(this.newPasswordField2.getText())) {
+                this.failureReason.setText(PASSWORD_NOT_MATCHING);
+                return;
+            }
+            newPassword = text;
+        } else {
+            newPassword = oldPassword;
+        }
 
-        Account account = new Account(username, selectedItem.privateKey(), selectedItem.publicKey());
+        try {
+            secretKey = new SecretKeySpec(CryptoHelper.PBKDF2_SECRET_KEY_FACTORY.generateSecret(new PBEKeySpec(oldPassword.toCharArray(), selectedAccount.username().getBytes(StandardCharsets.UTF_8), 65536, 256)).getEncoded(), "AES");
+        } catch (InvalidKeySpecException e) {
+            this.failureReason.setText("Failed to calculate password hash.");
+            LOGGER.error("PBKDF2 key derivation failure", e);
+            return;
+        }
+
+        Cipher aesCipher = CryptoHelper.createAesCipher();
+        try {
+            aesCipher.init(Cipher.DECRYPT_MODE, secretKey);
+        } catch (InvalidKeyException e) {
+            this.failureReason.setText("Failed to initialize AES cipher.");
+            LOGGER.error("AES cipher initialization failed", e);
+            return;
+        }
+
+        AccountData decrypt;
+        try {
+            decrypt = selectedAccount.data().decrypt(aesCipher);
+        } catch (IllegalBlockSizeException | BadPaddingException | InvalidKeySpecException e) {
+            this.failureReason.setText("Incorrect password");
+            LOGGER.error("AES data decryption failed", e);
+            return;
+        }
+
+        try {
+            secretKey = new SecretKeySpec(CryptoHelper.PBKDF2_SECRET_KEY_FACTORY.generateSecret(new PBEKeySpec(newPassword.toCharArray(), username.getBytes(StandardCharsets.UTF_8), 65536, 256)).getEncoded(), "AES");
+        } catch (InvalidKeySpecException e) {
+            this.failureReason.setText("Failed to calculate password hash.");
+            LOGGER.error("PBKDF2 key derivation failure", e);
+            return;
+        }
+
+        try {
+            aesCipher.init(Cipher.ENCRYPT_MODE, secretKey);
+        } catch (InvalidKeyException e) {
+            this.failureReason.setText("Failed to initialize AES cipher.");
+            LOGGER.error("AES cipher initialization failed", e);
+            return;
+        }
+
+        AccountData.EncryptedAccountData newData;
+        try {
+            newData = decrypt.encrypt(aesCipher);
+        } catch (IllegalBlockSizeException | BadPaddingException e) {
+            this.failureReason.setText("Failed to encrypt account data.");
+            LOGGER.error("Failed to encrypt account data", e);
+            return;
+        }
+
+        this.accounts.getSelectionModel().clearSelection();
+        Account account = new Account(username, selectedAccount.publicKey(), newData);
         this.client.config.addAccount(account);
-        this.client.config.removeAccount(selectedItem);
+        this.client.config.removeAccount(selectedAccount);
         this.accounts.getSelectionModel().select(account);
 
         this.stage.close();

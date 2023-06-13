@@ -32,9 +32,4 @@ public class OutputStreamOutput extends BaseBinaryOutput {
         if (b > 255) throw new UnsupportedEncodingException();
         this.parent.write(b);
     }
-
-    @Override
-    public void close() throws IOException {
-        this.parent.close();
-    }
 }

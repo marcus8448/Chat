@@ -16,25 +16,21 @@
 
 package io.github.marcus8448.chat.core.api.crypto;
 
+import io.github.marcus8448.chat.core.util.Utils;
+
 import javax.crypto.Cipher;
 import javax.crypto.NoSuchPaddingException;
 import javax.crypto.SecretKeyFactory;
-import java.security.KeyFactory;
-import java.security.KeyPairGenerator;
-import java.security.NoSuchAlgorithmException;
-import java.security.Signature;
+import java.nio.charset.StandardCharsets;
+import java.security.*;
+import java.util.Base64;
+import java.util.Locale;
 
-public class CryptoConstants {
+public class CryptoHelper {
     public static final KeyPairGenerator RSA_KEY_GENERATOR;
     public static final KeyFactory RSA_KEY_FACTORY;
     public static final SecretKeyFactory PBKDF2_SECRET_KEY_FACTORY;
-    private static final ThreadLocal<Cipher> AES_CIPHER = ThreadLocal.withInitial(CryptoConstants::createAesCipher);
-    private static final ThreadLocal<Cipher> RSA_CIPHER = ThreadLocal.withInitial(CryptoConstants::createRsaCipher);
-    private static final ThreadLocal<Signature> RSA_SIGNATURE = ThreadLocal.withInitial(CryptoConstants::createRsaSignature);
-
-    public static Cipher getRsaCipher() {
-        return RSA_CIPHER.get();
-    }
+    private static final MessageDigest SHA256_DIGEST = createSha256Digest();
 
     static {
         try {
@@ -45,14 +41,6 @@ public class CryptoConstants {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public static Cipher getAesCipher() {
-        return AES_CIPHER.get();
-    }
-
-    public static Signature getRsaSignature() {
-        return RSA_SIGNATURE.get();
     }
 
     public static Cipher createAesCipher() { //NOT thread safe - so use local
@@ -77,5 +65,17 @@ public class CryptoConstants {
         } catch (NoSuchAlgorithmException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    private static MessageDigest createSha256Digest() {
+        try {
+            return MessageDigest.getInstance("SHA256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static String sha256Hash(byte[] key) {
+        return Utils.toHexString(SHA256_DIGEST.digest(key)).toUpperCase(Locale.ROOT);
     }
 }

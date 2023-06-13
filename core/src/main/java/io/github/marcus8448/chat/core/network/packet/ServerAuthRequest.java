@@ -18,13 +18,12 @@ package io.github.marcus8448.chat.core.network.packet;
 
 import io.github.marcus8448.chat.core.api.connection.BinaryInput;
 import io.github.marcus8448.chat.core.api.connection.BinaryOutput;
-import io.github.marcus8448.chat.core.api.crypto.CryptoConstants;
+import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.network.NetworkedData;
 
 import java.io.IOException;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
-import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 
 public class ServerAuthRequest implements NetworkedData {
@@ -38,7 +37,7 @@ public class ServerAuthRequest implements NetworkedData {
 
     public ServerAuthRequest(BinaryInput input) throws IOException {
         try {
-            this.key = (RSAPublicKey) CryptoConstants.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(input.readByteArray()));
+            this.key = (RSAPublicKey) CryptoHelper.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(input.readByteArray()));
         } catch (InvalidKeySpecException e) {
             throw new RuntimeException(e);
         }

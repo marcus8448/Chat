@@ -27,51 +27,42 @@ import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
-import java.net.Socket;
 
-public class NetworkPipeline implements PacketPipeline {
+public class BasicNetworkPipeline implements PacketPipeline {
     private static final Logger LOGGER = LogManager.getLogger();
 
-    private final int packetId;
+    private final int packetHeader;
     private final BinaryInput input;
     private final BinaryOutput output;
-    private DataTransformer transformer = DataTransformer.NO_TRANSFORM;
 
-    public NetworkPipeline(int packetId, @NotNull Socket socket) throws IOException {
-        this.packetId = packetId;
-        this.input = BinaryInput.stream(socket.getInputStream());
-        this.output = BinaryOutput.stream(socket.getOutputStream());
-    }
-
-    @Override
-    public void setDataTransformer(DataTransformer transformer) {
-        this.transformer = transformer;
+    public BasicNetworkPipeline(int packetHeader, @NotNull BinaryInput input, @NotNull BinaryOutput output) throws IOException {
+        this.packetHeader = packetHeader;
+        this.input = input;
+        this.output = output;
     }
 
     @Override
     public <Data extends NetworkedData> void send(PacketType<Data> type, Data networkedData) throws IOException {
         LOGGER.debug("Sending packet {}", type.getDataClass().getName());
-        this.output.writeInt(this.packetId);
+        this.output.writeInt(this.packetHeader);
         this.output.writeShort(type.getId());
         networkedData.write(this.output);
     }
 
     @Override
     public <Data extends NetworkedData> Packet<Data> receivePacket() throws IOException {
-        this.input.seekToIdentifier(this.packetId);
+        this.input.seekToIdentifier(this.packetHeader);
         PacketType<Data> type = (PacketType<Data>) PacketType.getType(this.input.readShort());
         LOGGER.debug("Received packet {}", type.getDataClass().getName());
         return new Packet<>(type, type.create(this.input));
     }
 
     @Override
-    public <Data extends NetworkedData> Packet<Data> receivePacket(Class<Data> clazz) throws IOException {
-        this.input.seekToIdentifier(this.packetId);
-        PacketType<?> type = PacketType.getType(this.input.readShort());
-        Packet<?> packet = new Packet<>(type, type.create(this.input));
-        if (type.getDataClass() != clazz) {
+    public <Data extends NetworkedData> Packet<Data> receivePacket(PacketType<Data> type) throws IOException {
+        Packet<NetworkedData> packet = this.receivePacket();
+        if (packet.type() != type) {
             LOGGER.debug("Discarding packet {}", type.getDataClass().getName());
-            return receivePacket(clazz);
+            return this.receivePacket(type);
         }
         LOGGER.debug("Received packet {}", type.getDataClass().getName());
         return (Packet<Data>) packet;

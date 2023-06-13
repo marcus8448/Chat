@@ -17,11 +17,15 @@
 package io.github.marcus8448.chat.server;
 
 import io.github.marcus8448.chat.core.api.Constants;
+import io.github.marcus8448.chat.core.api.connection.BinaryInput;
+import io.github.marcus8448.chat.core.api.connection.BinaryOutput;
 import io.github.marcus8448.chat.core.api.connection.PacketPipeline;
-import io.github.marcus8448.chat.core.api.crypto.CryptoConstants;
+import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.network.PacketType;
 import io.github.marcus8448.chat.core.network.PacketTypes;
 import io.github.marcus8448.chat.core.network.packet.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -43,22 +47,27 @@ import java.util.Objects;
 import java.util.Random;
 
 public class Main {
+    private static final Logger LOGGER = LogManager.getLogger();
+
     private static RSAPublicKey publicKey;
     private static RSAPrivateKey privateKey;
     public static void main(String[] args) throws IOException, InvalidKeySpecException {
+        LOGGER.info("Loading Chat Server v{}", Constants.VERSION);
         File pubKF = new File("public.key");
         File privKF = new File("private.key");
         if (!pubKF.exists() || !privKF.exists()) {
+            LOGGER.warn("No existing server keypair found. Generating...");
             pubKF.delete();
             privKF.delete();
-            KeyPair keyPair = CryptoConstants.RSA_KEY_GENERATOR.generateKeyPair();
+            KeyPair keyPair = CryptoHelper.RSA_KEY_GENERATOR.generateKeyPair();
             publicKey = (RSAPublicKey) keyPair.getPublic();
             privateKey = (RSAPrivateKey) keyPair.getPrivate();
+            LOGGER.info("Server keypair successfully generated. ID: {}", CryptoHelper.sha256Hash(keyPair.getPublic().getEncoded()));
             Files.write(pubKF.toPath(), publicKey.getEncoded());
             Files.write(privKF.toPath(), privateKey.getEncoded());
         } else {
-            publicKey = (RSAPublicKey) CryptoConstants.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(Files.readAllBytes(pubKF.toPath())));
-            privateKey = (RSAPrivateKey) CryptoConstants.RSA_KEY_FACTORY.generatePrivate(new PKCS8EncodedKeySpec(Files.readAllBytes(privKF.toPath())));
+            publicKey = (RSAPublicKey) CryptoHelper.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(Files.readAllBytes(pubKF.toPath())));
+            privateKey = (RSAPrivateKey) CryptoHelper.RSA_KEY_FACTORY.generatePrivate(new PKCS8EncodedKeySpec(Files.readAllBytes(privKF.toPath())));
         }
         Thread connectionHandler = new Thread(() -> connectHandler(Constants.PORT), "Connection Handler");
         connectionHandler.start();
@@ -86,7 +95,7 @@ public class Main {
     }
 
     private static void loginHandler(Socket socket) throws IOException, IllegalBlockSizeException, BadPaddingException {
-        PacketPipeline connection = PacketPipeline.createNetworked(Constants.PACKET_HEADER, socket);
+        PacketPipeline connection = PacketPipeline.createBasic(Constants.PACKET_HEADER, BinaryInput.stream(socket.getInputStream()), BinaryOutput.stream(socket.getOutputStream()));
 
         System.out.println("HANDLE");
         while (!socket.isClosed() && socket.isConnected()) {
@@ -102,7 +111,7 @@ public class Main {
                 Random rand = new Random(); //fixme: secure random
                 byte[] bytes = new byte[64];
                 rand.nextBytes(bytes);
-                Cipher rsaCipher = CryptoConstants.getRsaCipher();
+                Cipher rsaCipher = CryptoHelper.createRsaCipher();
                 try {
                     rsaCipher.init(Cipher.ENCRYPT_MODE, hello.getKey());
                 } catch (InvalidKeyException e) {

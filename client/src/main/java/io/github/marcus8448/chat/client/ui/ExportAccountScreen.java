@@ -18,6 +18,7 @@ package io.github.marcus8448.chat.client.ui;
 
 import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.config.Account;
+import io.github.marcus8448.chat.client.config.Config;
 import io.github.marcus8448.chat.client.util.JfxUtil;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -93,12 +94,7 @@ public class ExportAccountScreen {
         }
 
         try (Writer writer = new FileWriter(file)) {
-            writer.write("chat-account/");
-            writer.write(selected.username());
-            writer.write('\n');
-            writer.write(Base64.getEncoder().encodeToString(selected.privateKey()));
-            writer.write('\n');
-            writer.write(Base64.getEncoder().encodeToString(selected.publicKey().getEncoded()));
+            Config.GSON.toJson(selected, writer);
             writer.flush();
         } catch (IOException e) {
             throw new RuntimeException(e);

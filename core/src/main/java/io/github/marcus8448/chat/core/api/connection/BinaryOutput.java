@@ -16,17 +16,15 @@
 
 package io.github.marcus8448.chat.core.api.connection;
 
-import io.github.marcus8448.chat.core.impl.connection.CountingBinaryOutputImpl;
 import io.github.marcus8448.chat.core.impl.connection.FixedBinaryOutput;
 import io.github.marcus8448.chat.core.impl.connection.OutputStreamOutput;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
 
-public interface BinaryOutput extends Closeable {
+public interface BinaryOutput {
     @Contract(value = "_ -> new", pure = true)
     static @NotNull BinaryOutput stream(OutputStream outputStream) {
         return new OutputStreamOutput(outputStream);
@@ -35,10 +33,6 @@ public interface BinaryOutput extends Closeable {
     @Contract(value = "_ -> new", pure = true)
     static @NotNull BinaryOutput buffer(byte[] wrapped) {
         return new FixedBinaryOutput(wrapped);
-    }
-
-    static CountingBinaryOutput counting() {
-        return new CountingBinaryOutputImpl();
     }
 
     void writeByte(int b) throws IOException;

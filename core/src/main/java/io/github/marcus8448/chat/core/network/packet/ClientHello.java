@@ -18,7 +18,7 @@ package io.github.marcus8448.chat.core.network.packet;
 
 import io.github.marcus8448.chat.core.api.connection.BinaryInput;
 import io.github.marcus8448.chat.core.api.connection.BinaryOutput;
-import io.github.marcus8448.chat.core.api.crypto.CryptoConstants;
+import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.network.NetworkedData;
 
 import java.io.IOException;
@@ -41,7 +41,7 @@ public class ClientHello implements NetworkedData {
         this.clientBrand = input.readString();
         this.clientVersion = input.readString();
         try {
-            this.key = (RSAPublicKey) CryptoConstants.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(input.readByteArray()));
+            this.key = (RSAPublicKey) CryptoHelper.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(input.readByteArray()));
         } catch (InvalidKeySpecException e) {
             throw new RuntimeException(e);
         }

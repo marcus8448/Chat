@@ -29,14 +29,18 @@ import org.apache.logging.log4j.Logger;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.interfaces.RSAPublicKey;
+import java.util.HashMap;
+import java.util.Map;
 
 public class Config {
     private static final Logger LOGGER = LogManager.getLogger();
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping()
+    public static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping()
             .excludeFieldsWithoutExposeAnnotation()
             .registerTypeAdapter(ObservableList.class,
                     (InstanceCreator<Object>) type -> FXCollections.observableArrayList())
             .registerTypeAdapter(Account.class, new Account.Serializer())
+            .registerTypeAdapter(AccountData.EncryptedAccountData.class, AccountData.EncryptedAccountData.Serializer.INSTANCE)
             .create();
 
     @Expose
@@ -44,6 +48,8 @@ public class Config {
 
     @Expose
     private final ObservableList<Account> accounts = FXCollections.observableArrayList();
+
+    private final Map<RSAPublicKey, String> knownUsers = new HashMap<>();
 
     private boolean isLoading = true;
 

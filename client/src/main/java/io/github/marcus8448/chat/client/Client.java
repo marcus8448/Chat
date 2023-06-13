@@ -16,11 +16,11 @@
 
 package io.github.marcus8448.chat.client;
 
+import io.github.marcus8448.chat.client.config.AccountData;
 import io.github.marcus8448.chat.client.config.Config;
 import io.github.marcus8448.chat.client.ui.LoginScreen;
 import io.github.marcus8448.chat.core.api.connection.PacketPipeline;
-import io.github.marcus8448.chat.core.api.crypto.CryptoConstants;
-import io.github.marcus8448.chat.core.user.User;
+import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import javafx.application.Application;
 import javafx.stage.Stage;
 
@@ -50,11 +50,11 @@ public class Client extends Application {
         primaryStage.show();
     }
 
-    public void setIdentity(PacketPipeline pipeline, RSAPublicKey serverKey, RSAPrivateKey privateKey, RSAPublicKey publicKey) {
+    public void setIdentity(PacketPipeline pipeline, RSAPublicKey serverKey, RSAPublicKey publicKey, AccountData data) {
         this.pipeline = pipeline;
-        this.privateKey = privateKey;
-        this.serverPubKey = serverKey;
         this.publicKey = publicKey;
+        this.serverPubKey = serverKey;
+        this.privateKey = data.privateKey();
     }
 
     public RSAPublicKey getPublicKey() {
@@ -62,7 +62,7 @@ public class Client extends Application {
     }
 
     public byte[] signMessage(String contents) {
-        Signature rsaSignature = CryptoConstants.getRsaSignature();
+        Signature rsaSignature = CryptoHelper.createRsaSignature();
         try {
             rsaSignature.initSign(this.privateKey);
             rsaSignature.update(contents.getBytes(StandardCharsets.UTF_8));
