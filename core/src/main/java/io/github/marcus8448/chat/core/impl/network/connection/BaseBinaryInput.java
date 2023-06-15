@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.impl.connection;
+package io.github.marcus8448.chat.core.impl.network.connection;
 
-import io.github.marcus8448.chat.core.api.connection.BinaryInput;
+import io.github.marcus8448.chat.core.api.network.connection.BinaryInput;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -35,6 +35,13 @@ public abstract class BaseBinaryInput implements BinaryInput {
     @Override
     public int readShort() throws IOException {
         return this.readByte() << 8 | this.readByte();
+    }
+
+    @Override
+    public long readLong() throws IOException {
+        return ((long) this.readByte()) << 56 | ((long) this.readByte()) << 48 | ((long) this.readByte()) << 40
+                | ((long) this.readByte()) << 32 | ((long) this.readByte()) << 24 | ((long)this.readByte() << 16)
+                | ((long)this.readByte() << 8) | ((long)this.readByte());
     }
 
     @Override

@@ -14,23 +14,26 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.impl.connection;
+package io.github.marcus8448.chat.core;
 
-import java.io.IOException;
+import org.jetbrains.annotations.NotNull;
 
-public class FixedBinaryInput extends BaseBinaryInput {
-    private final byte[] bytes;
-    private int pos = 0;
+public class Cell<T> {
+    private T value = null;
+    
+    public Cell() {}
 
-    public FixedBinaryInput(byte[] bytes) {
-        this.bytes = bytes;
+    public Cell(@NotNull T value) {
+        this.value = value;
     }
 
-    @Override
-    public int readByte() throws IOException {
-        return this.bytes[this.pos++];
+    public @NotNull T setValue(@NotNull T value) {
+        if (this.value != null) throw new UnsupportedOperationException("Overwrite cell");
+        this.value = value;
+        return this.value;
     }
 
-    @Override
-    public void close() {}
+    public T getValue() {
+        return this.value;
+    }
 }

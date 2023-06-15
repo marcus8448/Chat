@@ -14,7 +14,25 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.impl.connection;
+package io.github.marcus8448.chat.core.impl.network.connection;
 
-public class LocalPipeline {
+import io.github.marcus8448.chat.core.api.network.connection.CountingBinaryOutput;
+
+import java.io.IOException;
+
+public class CountingBinaryOutputImpl extends BaseBinaryOutput implements CountingBinaryOutput {
+    private int len = 0;
+
+    @Override
+    public void writeByte(int b) {
+        this.len++;
+    }
+
+    @Override
+    public void close() throws IOException {}
+
+    @Override
+    public int getCount() {
+        return this.len;
+    }
 }

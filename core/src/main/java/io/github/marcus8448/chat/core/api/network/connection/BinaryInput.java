@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.api.connection;
+package io.github.marcus8448.chat.core.api.network.connection;
 
-import io.github.marcus8448.chat.core.impl.connection.FixedBinaryInput;
-import io.github.marcus8448.chat.core.impl.connection.InputStreamInput;
+import io.github.marcus8448.chat.core.impl.network.connection.FixedBinaryInput;
+import io.github.marcus8448.chat.core.impl.network.connection.InputStreamInput;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
@@ -38,6 +38,7 @@ public interface BinaryInput extends Closeable {
     int readByte() throws IOException;
     int readInt() throws IOException;
     int readShort() throws IOException;
+    long readLong() throws IOException;
 
     boolean readBoolean() throws IOException;
 
@@ -51,4 +52,7 @@ public interface BinaryInput extends Closeable {
     String readString(int len) throws IOException;
 
     void seekToIdentifier(int id) throws IOException;
+
+    @Override
+    void close() throws IOException;
 }

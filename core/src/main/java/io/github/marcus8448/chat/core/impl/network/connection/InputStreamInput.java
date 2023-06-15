@@ -14,22 +14,25 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core;
+package io.github.marcus8448.chat.core.impl.network.connection;
 
-public class Holder<T> {
-    private T value;
-    
-    public Holder() {}
-    
-    public Holder(T value) {
-        this.value = value;
+import java.io.IOException;
+import java.io.InputStream;
+
+public class InputStreamInput extends BaseBinaryInput {
+    private final InputStream parent;
+
+    public InputStreamInput(InputStream parent) {
+        this.parent = parent;
     }
 
-    public void setValue(T value) {
-        this.value = value;
+    @Override
+    public int readByte() throws IOException {
+        return this.parent.read();
     }
 
-    public T getValue() {
-        return value;
+    @Override
+    public void close() throws IOException {
+        this.parent.close();
     }
 }

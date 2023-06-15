@@ -19,7 +19,7 @@ package io.github.marcus8448.chat.client;
 import io.github.marcus8448.chat.client.config.AccountData;
 import io.github.marcus8448.chat.client.config.Config;
 import io.github.marcus8448.chat.client.ui.LoginScreen;
-import io.github.marcus8448.chat.core.api.connection.PacketPipeline;
+import io.github.marcus8448.chat.core.api.network.PacketPipeline;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import javafx.application.Application;
 import javafx.stage.Stage;
@@ -35,7 +35,7 @@ import java.security.interfaces.RSAPublicKey;
 public class Client extends Application {
     public Config config;
 
-    private PacketPipeline pipeline;
+    public PacketPipeline connection;
     private RSAPrivateKey privateKey;
     private RSAPublicKey publicKey;
     private RSAPublicKey serverPubKey;
@@ -51,7 +51,7 @@ public class Client extends Application {
     }
 
     public void setIdentity(PacketPipeline pipeline, RSAPublicKey serverKey, RSAPublicKey publicKey, AccountData data) {
-        this.pipeline = pipeline;
+        this.connection = pipeline;
         this.publicKey = publicKey;
         this.serverPubKey = serverKey;
         this.privateKey = data.privateKey();

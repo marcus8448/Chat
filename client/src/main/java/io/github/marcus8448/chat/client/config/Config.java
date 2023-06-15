@@ -30,8 +30,7 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.interfaces.RSAPublicKey;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 public class Config {
     private static final Logger LOGGER = LogManager.getLogger();
@@ -79,6 +78,16 @@ public class Config {
                 Config config = GSON.fromJson(reader, Config.class);
                 config.isLoading = false;
                 config.configFile = configFile;
+                List<RSAPublicKey> keys = new ArrayList<>(config.accounts.size());
+                for (Iterator<Account> iterator = config.accounts.iterator(); iterator.hasNext(); ) {
+                    Account account = iterator.next();
+                    if (keys.contains(account.publicKey())) {
+                        LOGGER.warn("Removing account '{}' as a account already exists with the same key.", account.username());
+                        iterator.remove();
+                    } else {
+                        keys.add(account.publicKey());
+                    }
+                }
                 return config;
             } catch (IOException e) {
                 LOGGER.fatal("Failed to open config file", e);

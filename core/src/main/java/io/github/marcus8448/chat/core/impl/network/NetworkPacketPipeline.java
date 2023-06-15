@@ -14,11 +14,12 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.impl.connection;
+package io.github.marcus8448.chat.core.impl.network;
 
-import io.github.marcus8448.chat.core.api.connection.BinaryInput;
-import io.github.marcus8448.chat.core.api.connection.BinaryOutput;
-import io.github.marcus8448.chat.core.api.connection.PacketPipeline;
+import io.github.marcus8448.chat.core.api.network.connection.BinaryInput;
+import io.github.marcus8448.chat.core.api.network.connection.BinaryOutput;
+import io.github.marcus8448.chat.core.api.network.PacketPipeline;
+import io.github.marcus8448.chat.core.impl.network.connection.EncryptedNetworkPipeline;
 import io.github.marcus8448.chat.core.network.NetworkedData;
 import io.github.marcus8448.chat.core.network.PacketType;
 import io.github.marcus8448.chat.core.network.packet.Packet;
@@ -27,18 +28,28 @@ import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
+import java.net.Socket;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 
-public class BasicNetworkPipeline implements PacketPipeline {
+public class NetworkPacketPipeline implements PacketPipeline {
     private static final Logger LOGGER = LogManager.getLogger();
 
     private final int packetHeader;
+    private final Socket socket;
     private final BinaryInput input;
     private final BinaryOutput output;
 
-    public BasicNetworkPipeline(int packetHeader, @NotNull BinaryInput input, @NotNull BinaryOutput output) throws IOException {
+    public NetworkPacketPipeline(int packetHeader, @NotNull Socket socket, @NotNull BinaryInput input, @NotNull BinaryOutput output) throws IOException {
         this.packetHeader = packetHeader;
+        this.socket = socket;
         this.input = input;
         this.output = output;
+    }
+
+    @Override
+    public @NotNull PacketPipeline encryptWith(@NotNull RSAPublicKey sendingKey, @NotNull RSAPrivateKey receivingKey) throws IOException {
+        return new EncryptedNetworkPipeline(this.packetHeader, this.socket, this.input, this.output, sendingKey, receivingKey);
     }
 
     @Override
@@ -66,5 +77,16 @@ public class BasicNetworkPipeline implements PacketPipeline {
         }
         LOGGER.debug("Received packet {}", type.getDataClass().getName());
         return (Packet<Data>) packet;
+    }
+
+    @Override
+    public void close() throws IOException {
+        this.input.close();
+        this.output.close();
+    }
+
+    @Override
+    public boolean isOpen() {
+        return !this.socket.isClosed();
     }
 }

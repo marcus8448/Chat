@@ -1,6 +1,6 @@
-package io.github.marcus8448.chat.core.api.connection;
+package io.github.marcus8448.chat.core.api.network.connection;
 
-import io.github.marcus8448.chat.core.impl.connection.GrowingBinaryOutputImpl;
+import io.github.marcus8448.chat.core.impl.network.connection.GrowingBinaryOutputImpl;
 
 public interface GrowingBinaryOutput extends CountingBinaryOutput {
     static GrowingBinaryOutput create(int baseSize) {

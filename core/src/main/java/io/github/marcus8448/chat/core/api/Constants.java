@@ -20,4 +20,5 @@ public interface Constants {
     int PORT = 34599;
     String VERSION = "0.1.0";
     int PACKET_HEADER = 0xAACE7A7E;
+    String BRAND = "Chat";
 }

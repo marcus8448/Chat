@@ -16,57 +16,125 @@
 
 package io.github.marcus8448.chat.server;
 
-import io.github.marcus8448.chat.core.room.ChatRoom;
+import io.github.marcus8448.chat.core.Cell;
+import io.github.marcus8448.chat.core.api.Constants;
+import io.github.marcus8448.chat.core.api.network.PacketPipeline;
+import io.github.marcus8448.chat.core.message.Message;
+import io.github.marcus8448.chat.core.network.PacketTypes;
+import io.github.marcus8448.chat.core.network.packet.NewMessage;
+import io.github.marcus8448.chat.core.network.packet.Packet;
 import io.github.marcus8448.chat.core.user.User;
+import io.github.marcus8448.chat.server.network.ClientConnectionHandler;
+import io.github.marcus8448.chat.server.network.ClientLoginConnectionHandler;
+import io.github.marcus8448.chat.server.thread.ThreadPerTaskExecutor;
+import io.github.marcus8448.chat.server.util.Users;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class Server implements Closeable {
-    private final List<ChatRoom> rooms = new ArrayList<>();
-    private final List<User> users = new ArrayList<>();
-    private final List<User> online = new ArrayList<>();
-    private final Connection database;
+    private static final Logger LOGGER = LogManager.getLogger();
+    private final Cell<Thread> mainThread = new Cell<>();
+    public final ExecutorService executor;
+    private final ExecutorService connectionExecutor;
+    public final RSAPublicKey publicKey;
+    public final RSAPrivateKey privateKey;
+    private final List<ClientConnectionHandler> connectionHandlers = new ArrayList<>();
+    private final Users users = new Users();
 
-    public Server(File database) throws SQLException {
-        this.database = DriverManager.getConnection("jdbc:sqlite:" + database.getAbsolutePath());
-        try (Statement stmt = this.database.createStatement()) {
-            stmt.executeUpdate("""
-create table IF NOT EXISTS Users (
-    UUID TEXT PRIMARY KEY NOT NULL,
-    USERNAME TEXT NOT NULL UNIQUE,
-    PUBLICKEY BLOB NOT NULL UNIQUE
-);
-""");
-            stmt.executeUpdate("""
-create table IF NOT EXISTS ChatRooms (
-    UUID TEXT PRIMARY KEY NOT NULL,
-    NAME TEXT NOT NULL,
-    PARTICIPANTS TEXT
-);
-""");
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+    public Server(RSAPublicKey publicKey, RSAPrivateKey privateKey) {
+        this.publicKey = publicKey;
+        this.privateKey = privateKey;
+        ExecutorService service;
+        try {
+            service = (ExecutorService) Executors.class.getMethod("newVirtualThreadPerTaskExecutor").invoke(null);
+            LOGGER.info("Using virtual thread per task executor");
+        } catch (Exception e) {
+            service = new ThreadPerTaskExecutor();
+        }
+        this.connectionExecutor = service;
+        this.executor = Executors.newSingleThreadExecutor(r -> new Thread(r, "Server Main"));
+    }
+
+    public void sendMessage(Message message) {
+
+    }
+
+    public void launch(int port) {
+        try (ServerSocket socket = new ServerSocket(port)) {
+            while (!socket.isClosed()) {
+                if (this.executor.isShutdown()) socket.close();
+                try {
+                    Socket accepted = socket.accept();
+                    ClientLoginConnectionHandler connectionHandler = new ClientLoginConnectionHandler(
+                            this,
+                            PacketPipeline.createNetwork(
+                                    Constants.PACKET_HEADER,
+                                    accepted
+                            )
+                    );
+                    this.executor.execute(() -> {
+                        this.connectionHandlers.add(connectionHandler);
+                        this.connectionExecutor.execute(connectionHandler);
+                    });
+                } catch (Exception ignored) {
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Incoming connection failure", e);
         }
     }
 
-    public void createAccount() {
+    public void updateConnection(ClientConnectionHandler oldHandler, ClientConnectionHandler newHandler) {
+        this.executor.execute(() -> {
+            if (this.connectionHandlers.remove(oldHandler)) {
+                this.connectionHandlers.add(newHandler);
+                this.connectionExecutor.submit(newHandler);
+            } else {
+                throw new RuntimeException("Failed to replace handler");
+            }
+        });
+    }
 
+    private void assertOnThread() {
+        if (Thread.currentThread() != this.mainThread.getValue()) {
+            throw new WrongThreadException();
+        }
     }
 
     @Override
-    public void close() throws IOException {
-        try {
-            this.database.close();
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
+    public void close() {
+        for (ClientConnectionHandler handler : this.connectionHandlers) {
+            handler.shutdown();
         }
+        this.connectionExecutor.shutdown();
+        this.executor.shutdown();
+    }
+
+    public boolean isConnected(RSAPublicKey key) {
+        return this.users.contains(key);
+    }
+
+    public void receiveMessage(long time, User user, byte[] checksum, String message) {
+        for (ClientConnectionHandler handler : this.connectionHandlers) {
+            handler.send(new Packet<>(PacketTypes.NEW_MESSAGE, new NewMessage(time, user.sessionId(), message, checksum)));
+        }
+    }
+
+    public @NotNull User createUser(String username, RSAPublicKey key, byte @Nullable [] icon) {
+        this.assertOnThread();
+        return this.users.createUser(username, key, icon);
     }
 }

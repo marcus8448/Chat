@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.api.connection;
+package io.github.marcus8448.chat.core.api.network.connection;
 
-import io.github.marcus8448.chat.core.impl.connection.CountingBinaryOutputImpl;
+import io.github.marcus8448.chat.core.impl.network.connection.CountingBinaryOutputImpl;
 
 public interface CountingBinaryOutput extends BinaryOutput {
     static CountingBinaryOutput counting() {

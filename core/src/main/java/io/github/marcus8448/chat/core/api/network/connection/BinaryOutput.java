@@ -14,17 +14,18 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.api.connection;
+package io.github.marcus8448.chat.core.api.network.connection;
 
-import io.github.marcus8448.chat.core.impl.connection.FixedBinaryOutput;
-import io.github.marcus8448.chat.core.impl.connection.OutputStreamOutput;
+import io.github.marcus8448.chat.core.impl.network.connection.FixedBinaryOutput;
+import io.github.marcus8448.chat.core.impl.network.connection.OutputStreamOutput;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
 
-public interface BinaryOutput {
+public interface BinaryOutput extends Closeable {
     @Contract(value = "_ -> new", pure = true)
     static @NotNull BinaryOutput stream(OutputStream outputStream) {
         return new OutputStreamOutput(outputStream);
@@ -38,6 +39,7 @@ public interface BinaryOutput {
     void writeByte(int b) throws IOException;
     void writeInt(int i) throws IOException;
     void writeShort(int s) throws IOException;
+    void writeLong(long l) throws IOException;
 
     void writeBoolean(boolean b) throws IOException;
 
@@ -49,4 +51,7 @@ public interface BinaryOutput {
 
     void writeString(@NotNull String s) throws IOException;
     void writeString(int len, @NotNull String s) throws IOException;
+
+    @Override
+    void close() throws IOException;
 }

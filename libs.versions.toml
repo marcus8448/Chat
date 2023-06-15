@@ -2,20 +2,16 @@
 annotations = "24.0.1"
 junit = "5.9.3"
 nightconfig = "3.6.6"
-sqlite = "3.42.0.0"
 javafx = "20.0.1"
 log4j = "2.20.0"
 gson = "2.10.1"
-jmetro = "11.6.16"
 
 [libraries]
 annotations = { module = "org.jetbrains:annotations", version.ref = "annotations" }
 nightconfig = { module = "com.electronwill.night-config:toml", version.ref = "nightconfig" }
-sqlite = { module = "org.xerial:sqlite-jdbc", version.ref = "sqlite" }
 log4j-api = { module = "org.apache.logging.log4j:log4j-api", version.ref = "log4j" }
 log4j-core = { module = "org.apache.logging.log4j:log4j-core", version.ref = "log4j" }
 gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
-jmetro = { module = "org.jfxtras:jmetro", version.ref = "jmetro" }
 
 [bundles]
 log4j = ["log4j-api", "log4j-core"]

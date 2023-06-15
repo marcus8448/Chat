@@ -17,14 +17,9 @@
 package io.github.marcus8448.chat.client;
 
 import javafx.application.Application;
-import jfxtras.styles.jmetro.JMetro;
-import jfxtras.styles.jmetro.Style;
-
-import java.io.IOException;
 
 public class Main {
-    public static final JMetro J_METRO = new JMetro(Style.LIGHT);
     public static void main(String[] args) {
-        Application.launch(Client.class);
+        Application.launch(Client.class, args);
     }
 }

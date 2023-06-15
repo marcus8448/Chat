@@ -22,9 +22,9 @@ import io.github.marcus8448.chat.client.config.AccountData;
 import io.github.marcus8448.chat.client.config.Config;
 import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.core.api.Constants;
-import io.github.marcus8448.chat.core.api.connection.BinaryInput;
-import io.github.marcus8448.chat.core.api.connection.BinaryOutput;
-import io.github.marcus8448.chat.core.api.connection.PacketPipeline;
+import io.github.marcus8448.chat.core.api.network.connection.BinaryInput;
+import io.github.marcus8448.chat.core.api.network.connection.BinaryOutput;
+import io.github.marcus8448.chat.core.api.network.PacketPipeline;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.network.PacketTypes;
 import io.github.marcus8448.chat.core.network.packet.*;
@@ -54,15 +54,9 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.security.InvalidKeyException;
-import java.security.PublicKey;
-import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
-import java.util.Base64;
 import java.util.List;
 
 public class LoginScreen {
@@ -224,8 +218,10 @@ public class LoginScreen {
             Socket socket = new Socket();
             socket.bind(null);
             socket.connect(address);
-            connect = PacketPipeline.createBasic(Constants.PACKET_HEADER, BinaryInput.stream(socket.getInputStream()), BinaryOutput.stream(socket.getOutputStream()));
-            connect.send(PacketTypes.CLIENT_HELLO, new ClientHello(Constants.VERSION, Constants.VERSION, publicKey));
+            BinaryInput stream = BinaryInput.stream(socket.getInputStream());
+            BinaryOutput output1 = BinaryOutput.stream(socket.getOutputStream());
+            connect = PacketPipeline.createNetwork(Constants.PACKET_HEADER, socket);
+            connect.send(PacketTypes.CLIENT_HELLO, new ClientHello(Constants.BRAND, Constants.VERSION, publicKey));
 
             Packet<ServerAuthRequest> packet = connect.receivePacket();
             Cipher cipher = CryptoHelper.createRsaCipher();
@@ -238,7 +234,7 @@ public class LoginScreen {
             connect.send(PacketTypes.CLIENT_AUTH, new ClientAuthResponse(account.username(), output));
             Packet<ServerAuthResponse> networkedDataPacket = connect.receivePacket();
             if (networkedDataPacket.data().isSuccess()) {
-                this.client.setIdentity(connect, serverKey, publicKey, accountData);
+                this.client.setIdentity(connect.encryptWith(serverKey, accountData.privateKey()), serverKey, publicKey, accountData);
                 this.stage.close();
                 ChatView chatView = new ChatView(this.client, this.stage);
                 this.stage.show();

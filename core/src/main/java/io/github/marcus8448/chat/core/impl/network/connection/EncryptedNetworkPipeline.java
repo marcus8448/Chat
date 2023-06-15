@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.impl.connection;
+package io.github.marcus8448.chat.core.impl.network.connection;
 
-import io.github.marcus8448.chat.core.api.connection.BinaryInput;
-import io.github.marcus8448.chat.core.api.connection.BinaryOutput;
-import io.github.marcus8448.chat.core.api.connection.GrowingBinaryOutput;
-import io.github.marcus8448.chat.core.api.connection.PacketPipeline;
+import io.github.marcus8448.chat.core.api.network.connection.BinaryInput;
+import io.github.marcus8448.chat.core.api.network.connection.BinaryOutput;
+import io.github.marcus8448.chat.core.api.network.connection.GrowingBinaryOutput;
+import io.github.marcus8448.chat.core.api.network.PacketPipeline;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.network.NetworkedData;
 import io.github.marcus8448.chat.core.network.PacketType;
@@ -32,6 +32,7 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import java.io.IOException;
+import java.net.Socket;
 import java.security.InvalidKeyException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
@@ -40,13 +41,15 @@ public class EncryptedNetworkPipeline implements PacketPipeline {
     private static final Logger LOGGER = LogManager.getLogger();
 
     private final int packetHeader;
+    private final Socket socket;
     private final BinaryInput input;
     private final BinaryOutput output;
     private final Cipher decryption = CryptoHelper.createRsaCipher();
     private final Cipher encryption = CryptoHelper.createRsaCipher();
 
-    public EncryptedNetworkPipeline(int packetHeader, @NotNull BinaryInput input, @NotNull BinaryOutput output, @NotNull RSAPublicKey sendingKey, @NotNull RSAPrivateKey receivingKey) throws IOException {
+    public EncryptedNetworkPipeline(int packetHeader, @NotNull Socket socket, @NotNull BinaryInput input, @NotNull BinaryOutput output, @NotNull RSAPublicKey sendingKey, @NotNull RSAPrivateKey receivingKey) throws IOException {
         this.packetHeader = packetHeader;
+        this.socket = socket;
         this.input = input;
         this.output = output;
         try {
@@ -55,6 +58,11 @@ public class EncryptedNetworkPipeline implements PacketPipeline {
         } catch (InvalidKeyException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public @NotNull PacketPipeline encryptWith(@NotNull RSAPublicKey sendingKey, @NotNull RSAPrivateKey receivingKey) throws IOException {
+        return new EncryptedNetworkPipeline(this.packetHeader, this.socket, this.input, this.output, sendingKey, receivingKey);
     }
 
     @Override
@@ -109,5 +117,16 @@ public class EncryptedNetworkPipeline implements PacketPipeline {
         }
         LOGGER.debug("Received packet {}", type.getDataClass().getName());
         return (Packet<Data>) packet;
+    }
+
+    @Override
+    public void close() throws IOException {
+        this.input.close();
+        this.output.close();
+    }
+
+    @Override
+    public boolean isOpen() {
+        return !this.socket.isClosed();
     }
 }

@@ -14,9 +14,11 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.impl.connection;
+package io.github.marcus8448.chat.core.impl.network.connection;
 
-import io.github.marcus8448.chat.core.api.connection.GrowingBinaryOutput;
+import io.github.marcus8448.chat.core.api.network.connection.GrowingBinaryOutput;
+
+import java.io.IOException;
 
 public class GrowingBinaryOutputImpl extends BaseBinaryOutput implements GrowingBinaryOutput {
     private byte[] data;
@@ -35,6 +37,9 @@ public class GrowingBinaryOutputImpl extends BaseBinaryOutput implements Growing
         }
         this.data[this.pos++] = (byte) b;
     }
+
+    @Override
+    public void close() throws IOException {}
 
     @Override
     public int getCount() {

@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.impl.connection;
+package io.github.marcus8448.chat.core.impl.network.connection;
 
-import io.github.marcus8448.chat.core.api.connection.BinaryOutput;
+import io.github.marcus8448.chat.core.api.network.connection.BinaryOutput;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
@@ -40,6 +40,18 @@ public abstract class BaseBinaryOutput implements BinaryOutput {
         this.writeByte(value >> 16 & 0xFF);
         this.writeByte(value >> 8 & 0xFF);
         this.writeByte(value & 0xFF);
+    }
+
+    @Override
+    public void writeLong(long l) throws IOException {
+        this.writeByte((int) (l >> 56 & 0xFF));
+        this.writeByte((int) (l >> 48 & 0xFF));
+        this.writeByte((int) (l >> 40 & 0xFF));
+        this.writeByte((int) (l >> 32 & 0xFF));
+        this.writeByte((int) (l >> 24 & 0xFF));
+        this.writeByte((int) (l >> 16 & 0xFF));
+        this.writeByte((int) (l >> 8 & 0xFF));
+        this.writeByte((int) (l & 0xFF));
     }
 
     @Override

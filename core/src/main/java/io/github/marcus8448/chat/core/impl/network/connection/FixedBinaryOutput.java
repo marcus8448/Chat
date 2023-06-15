@@ -14,22 +14,23 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.impl.connection;
-
-import io.github.marcus8448.chat.core.api.connection.CountingBinaryOutput;
+package io.github.marcus8448.chat.core.impl.network.connection;
 
 import java.io.IOException;
 
-public class CountingBinaryOutputImpl extends BaseBinaryOutput implements CountingBinaryOutput {
-    private int len = 0;
+public class FixedBinaryOutput extends BaseBinaryOutput {
+    private final byte[] wrap;
+    private int pos = 0;
+
+    public FixedBinaryOutput(byte[] wrap) {
+        this.wrap = wrap;
+    }
 
     @Override
     public void writeByte(int b) {
-        this.len++;
+        this.wrap[pos++] = (byte) b;
     }
 
     @Override
-    public int getCount() {
-        return this.len;
-    }
+    public void close() throws IOException {}
 }

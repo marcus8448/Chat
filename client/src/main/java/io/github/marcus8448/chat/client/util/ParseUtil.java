@@ -39,7 +39,7 @@ public class ParseUtil {
     public static Result<String, String> validateUsername(String username) {
         if (username.length() < 4) return Result.error("Too short");
         for (char c : username.toCharArray()) {
-            if (!Character.isDigit(c) && !Character.isLetter(c) && c != '_') return Result.error("Non a-z 0-9 _ character");
+            if (!Character.isDigit(c) && !Character.isAlphabetic(c) && c != '_') return Result.error("Non a-z 0-9 _ character");
         }
         return Result.ok(username);
     }

@@ -21,7 +21,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.security.interfaces.RSAPublicKey;
 
-public record User(String username, RSAPublicKey key, byte @Nullable [] base64Icon) {
+public record User(int sessionId, String username, RSAPublicKey key, byte @Nullable [] base64Icon) {
     public String usernameAndId() {
         String hash = CryptoHelper.sha256Hash(this.key.getEncoded());
         return this.username() + " [" + hash.substring(0, hash.length() / 2) + "]";

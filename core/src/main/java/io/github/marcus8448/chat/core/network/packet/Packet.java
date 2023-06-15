@@ -19,5 +19,5 @@ package io.github.marcus8448.chat.core.network.packet;
 import io.github.marcus8448.chat.core.network.NetworkedData;
 import io.github.marcus8448.chat.core.network.PacketType;
 
-public record Packet<Data extends NetworkedData>(PacketType<? extends Data> type, Data data) {
+public record Packet<Data extends NetworkedData>(PacketType<Data> type, Data data) {
 }

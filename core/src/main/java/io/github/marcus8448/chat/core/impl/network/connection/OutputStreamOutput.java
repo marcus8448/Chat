@@ -14,21 +14,23 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.impl.connection;
+package io.github.marcus8448.chat.core.impl.network.connection;
 
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
 
-public class InputStreamInput extends BaseBinaryInput {
-    private final InputStream parent;
+public class OutputStreamOutput extends BaseBinaryOutput {
+    private final OutputStream parent;
 
-    public InputStreamInput(InputStream parent) {
+    public OutputStreamOutput(OutputStream parent) {
         this.parent = parent;
     }
 
     @Override
-    public int readByte() throws IOException {
-        return this.parent.read();
+    public void writeByte(int b) throws IOException {
+        if (b > 255) throw new UnsupportedEncodingException();
+        this.parent.write(b);
     }
 
     @Override

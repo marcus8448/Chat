@@ -16,7 +16,7 @@
 
 package io.github.marcus8448.chat.core.network;
 
-import io.github.marcus8448.chat.core.api.connection.BinaryInput;
+import io.github.marcus8448.chat.core.api.network.connection.BinaryInput;
 
 import java.io.IOException;
 import java.util.ArrayList;

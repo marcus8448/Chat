@@ -18,7 +18,10 @@ package io.github.marcus8448.chat.client.ui;
 
 import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.ui.cell.MessageCell;
+import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.core.message.Message;
+import io.github.marcus8448.chat.core.network.PacketTypes;
+import io.github.marcus8448.chat.core.network.packet.SendMessage;
 import io.github.marcus8448.chat.core.user.User;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -26,12 +29,16 @@ import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
 import javafx.scene.layout.*;
 import javafx.stage.Stage;
+
+import java.io.IOException;
 
 public class ChatView {
     private final Stage stage;
     private final Client client;
+    private final TextArea messageBox = new TextArea();
 
     public ChatView(Client client, Stage stage) {
         this.client = client;
@@ -65,10 +72,9 @@ public class ChatView {
         ObservableList<Message> messages = FXCollections.observableArrayList();
         ListView<Message> centerContent = new ListView<>(messages);
         centerContent.setCellFactory(l -> new MessageCell(this.client));
-        messages.add(new Message(System.currentTimeMillis(), new User("my_username", this.client.getPublicKey(), null), new byte[0], "Hello there"));
+        messages.add(new Message(System.currentTimeMillis(), new User(0, "my_username", this.client.getPublicKey(), null), new byte[0], "Hello there"));
         centerContent.setEditable(true);
 
-        TextArea messageBox = new TextArea();
         messageBox.setPromptText("Type your message here");
         messageBox.setPrefRowCount(1);
         messageBox.setWrapText(true);
@@ -80,6 +86,12 @@ public class ChatView {
             sendButton.setPrefWidth(sendButton.getHeight());
             sendButton.setMinWidth(sendButton.getHeight());
         });
+        messageBox.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.ENTER && (e.isShiftDown() || e.isControlDown())) {
+                this.sendMessage();
+            }
+        });
+        JfxUtil.buttonPressCallback(sendButton, this::sendMessage);
 
         HBox.setHgrow(messageBox, Priority.ALWAYS);
         HBox.setHgrow(sendButton, Priority.SOMETIMES);
@@ -113,5 +125,19 @@ public class ChatView {
         vBox.getChildren().add(hBox);
 
         stage.setScene(scene);
+    }
+
+    private void sendMessage() {
+        String message = this.messageBox.getText();
+        if (message.isBlank()) {
+            return;
+        }
+
+        try {
+            this.client.connection.send(PacketTypes.SEND_MESSAGE, new SendMessage(message, this.client.signMessage(message)));
+            this.messageBox.setText("");
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
