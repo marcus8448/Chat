@@ -140,4 +140,20 @@ public class Config {
         this.accounts.remove(account);
         this.save();
     }
+
+    public void updateAccountData(RSAPublicKey key, AccountData.EncryptedAccountData encrypted) {
+        int idx = -1;
+        for (int i = 0; i < this.accounts.size(); i++) {
+            Account next = this.accounts.get(i);
+            if (next.publicKey().equals(key)) {
+                idx = i;
+                break;
+            }
+        }
+        if (idx != -1) {
+            Account remove = this.accounts.remove(idx);
+            this.accounts.add(idx, new Account(remove.username(), key, encrypted));
+            this.save();
+        }
+    }
 }

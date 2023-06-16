@@ -28,17 +28,16 @@ import java.security.KeyPair;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
 
 public class Main {
     private static final Logger LOGGER = LogManager.getLogger();
-    private static RSAPublicKey publicKey;
-    private static RSAPrivateKey privateKey;
+
     public static void main(String[] args) throws IOException, InvalidKeySpecException {
         LOGGER.info("Loading Chat Server v{}", Constants.VERSION);
         File pubKF = new File("public.key");
         File privKF = new File("private.key");
+        RSAPublicKey publicKey;
+        RSAPrivateKey privateKey;
         if (!pubKF.exists() || !privKF.exists()) {
             LOGGER.warn("No existing server keypair found. Generating...");
             pubKF.delete();
@@ -50,8 +49,8 @@ public class Main {
             Files.write(pubKF.toPath(), publicKey.getEncoded());
             Files.write(privKF.toPath(), privateKey.getEncoded());
         } else {
-            publicKey = (RSAPublicKey) CryptoHelper.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(Files.readAllBytes(pubKF.toPath())));
-            privateKey = (RSAPrivateKey) CryptoHelper.RSA_KEY_FACTORY.generatePrivate(new PKCS8EncodedKeySpec(Files.readAllBytes(privKF.toPath())));
+            publicKey = CryptoHelper.decodeRsaPublicKey(Files.readAllBytes(pubKF.toPath()));
+            privateKey = CryptoHelper.decodeRsaPrivateKey(Files.readAllBytes(privKF.toPath()));
         }
         try (Server server = new Server(publicKey, privateKey)) {
             server.launch(Constants.PORT);

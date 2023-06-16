@@ -16,15 +16,14 @@
 
 package io.github.marcus8448.chat.core.network.packet;
 
+import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.api.network.connection.BinaryInput;
 import io.github.marcus8448.chat.core.api.network.connection.BinaryOutput;
-import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.network.NetworkedData;
 
 import java.io.IOException;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
-import java.security.spec.X509EncodedKeySpec;
 
 public class ClientCreateAccount implements NetworkedData {
     private final RSAPublicKey key;
@@ -39,7 +38,7 @@ public class ClientCreateAccount implements NetworkedData {
         this.username = input.readString();
         byte[] encodedKey = input.readByteArray();
         try {
-            this.key = (RSAPublicKey) CryptoHelper.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(encodedKey));
+            this.key = CryptoHelper.decodeRsaPublicKey(encodedKey);
         } catch (InvalidKeySpecException e) {
             throw new RuntimeException(e);
         }

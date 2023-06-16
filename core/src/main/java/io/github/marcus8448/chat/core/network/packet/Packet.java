@@ -20,4 +20,8 @@ import io.github.marcus8448.chat.core.network.NetworkedData;
 import io.github.marcus8448.chat.core.network.PacketType;
 
 public record Packet<Data extends NetworkedData>(PacketType<Data> type, Data data) {
+    public <RealData extends NetworkedData> RealData getAs(PacketType<RealData> type) {
+        if (this.type() != type) throw new UnsupportedOperationException();
+        return (RealData) this.data();
+    }
 }

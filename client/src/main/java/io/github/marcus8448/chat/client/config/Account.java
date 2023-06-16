@@ -22,7 +22,6 @@ import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import java.lang.reflect.Type;
 import java.security.PublicKey;
 import java.security.interfaces.RSAPublicKey;
-import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 
 public record Account(String username, RSAPublicKey publicKey, AccountData.EncryptedAccountData data) {
@@ -32,7 +31,7 @@ public record Account(String username, RSAPublicKey publicKey, AccountData.Encry
             try {
                 JsonObject obj = json.getAsJsonObject();
                 String username = obj.get("username").getAsString();
-                PublicKey publicKey = CryptoHelper.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(Base64.getDecoder().decode(obj.get("public_key").getAsString())));
+                PublicKey publicKey = CryptoHelper.decodeRsaPublicKey(Base64.getDecoder().decode(obj.get("public_key").getAsString()));
                 AccountData.EncryptedAccountData data = context.deserialize(obj.get("data"), AccountData.EncryptedAccountData.class);
                 return new Account(username, (RSAPublicKey) publicKey, data);
             } catch (Exception e) {

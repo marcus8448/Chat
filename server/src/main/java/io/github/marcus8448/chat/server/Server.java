@@ -21,8 +21,7 @@ import io.github.marcus8448.chat.core.api.Constants;
 import io.github.marcus8448.chat.core.api.network.PacketPipeline;
 import io.github.marcus8448.chat.core.message.Message;
 import io.github.marcus8448.chat.core.network.PacketTypes;
-import io.github.marcus8448.chat.core.network.packet.NewMessage;
-import io.github.marcus8448.chat.core.network.packet.Packet;
+import io.github.marcus8448.chat.core.network.packet.AddMessage;
 import io.github.marcus8448.chat.core.user.User;
 import io.github.marcus8448.chat.server.network.ClientConnectionHandler;
 import io.github.marcus8448.chat.server.network.ClientLoginConnectionHandler;
@@ -65,7 +64,7 @@ public class Server implements Closeable {
             service = new ThreadPerTaskExecutor();
         }
         this.connectionExecutor = service;
-        this.executor = Executors.newSingleThreadExecutor(r -> new Thread(r, "Server Main"));
+        this.executor = Executors.newSingleThreadExecutor(r -> mainThread.setValue(new Thread(r, "Server Main")));
     }
 
     public void sendMessage(Message message) {
@@ -129,12 +128,18 @@ public class Server implements Closeable {
 
     public void receiveMessage(long time, User user, byte[] checksum, String message) {
         for (ClientConnectionHandler handler : this.connectionHandlers) {
-            handler.send(new Packet<>(PacketTypes.NEW_MESSAGE, new NewMessage(time, user.sessionId(), message, checksum)));
+            handler.send(PacketTypes.ADD_MESSAGE, new AddMessage(time, user.sessionId(), message, checksum));
         }
     }
 
     public @NotNull User createUser(String username, RSAPublicKey key, byte @Nullable [] icon) {
         this.assertOnThread();
         return this.users.createUser(username, key, icon);
+    }
+
+    public void disconnect(ClientConnectionHandler handler, User user) {
+        this.assertOnThread();
+        this.connectionHandlers.remove(handler);
+        this.users.remove(user);
     }
 }

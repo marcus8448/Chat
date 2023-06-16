@@ -1,9 +1,27 @@
+/*
+ * Copyright 2023 marcus8448
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.github.marcus8448.chat.client.config;
 
 import com.google.gson.*;
+import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.api.crypto.Encrypted;
 import io.github.marcus8448.chat.core.api.crypto.PrivateData;
-import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -13,31 +31,41 @@ import java.nio.charset.StandardCharsets;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
-public record AccountData(RSAPrivateKey privateKey, Map<RSAPublicKey, String> knownAccounts) implements PrivateData<AccountData.EncryptedAccountData> {
+public record AccountData(RSAPrivateKey privateKey, Map<RSAPublicKey, String> knownAccounts, Map<String, RSAPublicKey> knownServers) implements PrivateData<AccountData.EncryptedAccountData> {
     @Override
     public EncryptedAccountData encrypt(Cipher cipher) throws IllegalBlockSizeException, BadPaddingException {
-        Map<byte[], byte[]> map = new HashMap<>(knownAccounts.size());
+        Map<byte[], byte[]> encodedAccounts = new HashMap<>(knownAccounts.size());
         for (Map.Entry<RSAPublicKey, String> entry : this.knownAccounts.entrySet()) {
-            map.put(cipher.doFinal(entry.getKey().getEncoded()), cipher.doFinal(entry.getValue().getBytes(StandardCharsets.UTF_8)));
+            encodedAccounts.put(cipher.doFinal(entry.getKey().getEncoded()), cipher.doFinal(entry.getValue().getBytes(StandardCharsets.UTF_8)));
         }
-        return new EncryptedAccountData(cipher.doFinal(privateKey.getEncoded()), map);
+        Map<byte[], byte[]> encodedServers = new HashMap<>(this.knownServers.size());
+        for (Map.Entry<String, RSAPublicKey> entry : this.knownServers.entrySet()) {
+            encodedServers.put(
+                    cipher.doFinal(entry.getKey().getBytes(StandardCharsets.UTF_8)),
+                    cipher.doFinal(entry.getValue().getEncoded())
+            );
+        }
+        return new EncryptedAccountData(cipher.doFinal(privateKey.getEncoded()), encodedAccounts, encodedServers);
     }
 
-    public record EncryptedAccountData(byte[] privateKey, Map<byte[], byte[]> knownAccounts) implements Encrypted<AccountData> {
+    public record EncryptedAccountData(byte[] privateKey, Map<byte[], byte[]> knownAccounts, Map<byte[], byte[]> knownServers) implements Encrypted<AccountData> {
+        @Contract("_ -> new")
         @Override
-        public AccountData decrypt(Cipher cipher) throws IllegalBlockSizeException, BadPaddingException, InvalidKeySpecException {
-            RSAPrivateKey rsaPrivateKey = (RSAPrivateKey) CryptoHelper.RSA_KEY_FACTORY.generatePrivate(new PKCS8EncodedKeySpec(cipher.doFinal(privateKey)));
-            Map<RSAPublicKey, String> map = new HashMap<>();
+        public @NotNull AccountData decrypt(@NotNull Cipher cipher) throws IllegalBlockSizeException, BadPaddingException, InvalidKeySpecException {
+            RSAPrivateKey rsaPrivateKey = CryptoHelper.decodeRsaPrivateKey(cipher.doFinal(privateKey));
+            Map<RSAPublicKey, String> decodedAccounts = new HashMap<>();
             for (Map.Entry<byte[], byte[]> entry : this.knownAccounts.entrySet()) {
-                map.put((RSAPublicKey) CryptoHelper.RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(cipher.doFinal(entry.getKey()))), new String(cipher.doFinal(entry.getValue()), StandardCharsets.UTF_8));
+                decodedAccounts.put(CryptoHelper.decodeRsaPublicKey(cipher.doFinal(entry.getKey())), new String(cipher.doFinal(entry.getValue()), StandardCharsets.UTF_8));
             }
-            return new AccountData(rsaPrivateKey, map);
+            Map<String, RSAPublicKey> decodedServers = new HashMap<>();
+            for (Map.Entry<byte[], byte[]> entry : this.knownServers.entrySet()) {
+                decodedServers.put(new String(cipher.doFinal(entry.getKey()), StandardCharsets.UTF_8), CryptoHelper.decodeRsaPublicKey(cipher.doFinal(entry.getValue())));
+            }
+            return new AccountData(rsaPrivateKey, decodedAccounts, decodedServers);
         }
 
         public static class Serializer implements JsonSerializer<EncryptedAccountData>, JsonDeserializer<EncryptedAccountData> {
@@ -49,9 +77,12 @@ public record AccountData(RSAPrivateKey privateKey, Map<RSAPublicKey, String> kn
                 Base64.Decoder decoder = Base64.getDecoder();
                 JsonObject obj = json.getAsJsonObject();
                 Map<String, JsonElement> map = obj.get("known_accounts").getAsJsonObject().asMap();
-                Map<byte[], byte[]> knownUsers = new HashMap<>();
-                map.forEach((k, v) -> knownUsers.put(decoder.decode(k), decoder.decode(v.getAsString())));
-                return new EncryptedAccountData(decoder.decode(obj.get("private_key").getAsString()), knownUsers);
+                Map<String, JsonElement> map2 = obj.get("known_servers").getAsJsonObject().asMap();
+                Map<byte[], byte[]> knownAccounts = new HashMap<>();
+                map.forEach((k, v) -> knownAccounts.put(decoder.decode(k), decoder.decode(v.getAsString())));
+                Map<byte[], byte[]> knownServers = new HashMap<>();
+                map2.forEach((k, v) -> knownServers.put(decoder.decode(k), decoder.decode(v.getAsString())));
+                return new EncryptedAccountData(decoder.decode(obj.get("private_key").getAsString()), knownAccounts, knownServers);
             }
 
             @Override
@@ -59,9 +90,12 @@ public record AccountData(RSAPrivateKey privateKey, Map<RSAPublicKey, String> kn
                 Base64.Encoder encoder = Base64.getEncoder();
                 JsonObject object = new JsonObject();
                 JsonObject accounts = new JsonObject();
+                JsonObject servers = new JsonObject();
                 src.knownAccounts.forEach((k, v) -> accounts.addProperty(encoder.encodeToString(k), encoder.encodeToString(v)));
+                src.knownServers.forEach((k, v) -> servers.addProperty(encoder.encodeToString(k), encoder.encodeToString(v)));
                 object.addProperty("private_key", encoder.encodeToString(src.privateKey));
                 object.add("known_accounts", accounts);
+                object.add("known_servers", servers);
                 return object;
             }
         }

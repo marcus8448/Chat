@@ -16,9 +16,9 @@
 
 package io.github.marcus8448.chat.core.impl.network;
 
+import io.github.marcus8448.chat.core.api.network.PacketPipeline;
 import io.github.marcus8448.chat.core.api.network.connection.BinaryInput;
 import io.github.marcus8448.chat.core.api.network.connection.BinaryOutput;
-import io.github.marcus8448.chat.core.api.network.PacketPipeline;
 import io.github.marcus8448.chat.core.impl.network.connection.EncryptedNetworkPipeline;
 import io.github.marcus8448.chat.core.network.NetworkedData;
 import io.github.marcus8448.chat.core.network.PacketType;
@@ -27,10 +27,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
+import javax.crypto.SecretKey;
 import java.io.IOException;
 import java.net.Socket;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
 
 public class NetworkPacketPipeline implements PacketPipeline {
     private static final Logger LOGGER = LogManager.getLogger();
@@ -48,12 +47,12 @@ public class NetworkPacketPipeline implements PacketPipeline {
     }
 
     @Override
-    public @NotNull PacketPipeline encryptWith(@NotNull RSAPublicKey sendingKey, @NotNull RSAPrivateKey receivingKey) throws IOException {
-        return new EncryptedNetworkPipeline(this.packetHeader, this.socket, this.input, this.output, sendingKey, receivingKey);
+    public @NotNull PacketPipeline encryptWith(@NotNull SecretKey secretKey) throws IOException {
+        return new EncryptedNetworkPipeline(this.packetHeader, this.socket, this.input, this.output, secretKey);
     }
 
     @Override
-    public <Data extends NetworkedData> void send(PacketType<Data> type, Data networkedData) throws IOException {
+    public synchronized <Data extends NetworkedData> void send(PacketType<Data> type, Data networkedData) throws IOException {
         LOGGER.debug("Sending packet {}", type.getDataClass().getName());
         this.output.writeInt(this.packetHeader);
         this.output.writeShort(type.getId());

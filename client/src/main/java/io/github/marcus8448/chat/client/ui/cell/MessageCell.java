@@ -20,7 +20,6 @@ import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.message.Message;
-import io.github.marcus8448.chat.core.util.Utils;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
@@ -99,6 +98,7 @@ public class MessageCell extends ListCell<Message> {
         super.commitEdit(newValue);
         this.editArea.setDisable(true);
         this.setGraphic(this.hBox);
+        this.setText(null);
     }
 
     @Override
@@ -106,6 +106,7 @@ public class MessageCell extends ListCell<Message> {
         super.cancelEdit();
         this.editArea.setDisable(true);
         this.setGraphic(this.hBox);
+        this.setText(null);
     }
 
     @Override
@@ -125,7 +126,6 @@ public class MessageCell extends ListCell<Message> {
             width = this.hBox.getWidth();
         }
         width -= this.hBox.getPadding().getLeft() + this.hBox.getPadding().getRight();
-        System.out.println(width);
         for (char c : s.toCharArray()) {
             if (c == '\n') {
                 i++;

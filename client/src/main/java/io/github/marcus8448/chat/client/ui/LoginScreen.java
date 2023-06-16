@@ -22,10 +22,8 @@ import io.github.marcus8448.chat.client.config.AccountData;
 import io.github.marcus8448.chat.client.config.Config;
 import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.core.api.Constants;
-import io.github.marcus8448.chat.core.api.network.connection.BinaryInput;
-import io.github.marcus8448.chat.core.api.network.connection.BinaryOutput;
-import io.github.marcus8448.chat.core.api.network.PacketPipeline;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
+import io.github.marcus8448.chat.core.api.network.PacketPipeline;
 import io.github.marcus8448.chat.core.network.PacketTypes;
 import io.github.marcus8448.chat.core.network.packet.*;
 import javafx.application.Platform;
@@ -46,14 +44,12 @@ import org.jetbrains.annotations.NotNull;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.spec.PBEKeySpec;
-import javax.crypto.spec.SecretKeySpec;
+import javax.crypto.SecretKey;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
@@ -162,7 +158,8 @@ public class LoginScreen {
             this.failureReason.setText("You must select an account");
             return;
         }
-        if (this.passwordField.getText().isBlank()) {
+        String password = this.passwordField.getText();
+        if (password.isBlank()) {
             this.failureReason.setText("You must enter a password.");
             return;
         }
@@ -186,9 +183,9 @@ public class LoginScreen {
         Account account = this.accountBox.getSelectionModel().getSelectedItem();
 
         LOGGER.debug("All required fields supplied");
-        SecretKeySpec aesKey;
+        SecretKey aesKey;
         try {
-            aesKey = new SecretKeySpec(CryptoHelper.PBKDF2_SECRET_KEY_FACTORY.generateSecret(new PBEKeySpec(this.passwordField.getText().toCharArray(), account.username().getBytes(StandardCharsets.UTF_8), 65536, 256)).getEncoded(), "AES");
+            aesKey = CryptoHelper.generateUserPassKey(password.toCharArray(), account.username());
         } catch (InvalidKeySpecException e) {
             this.failureReason.setText("Invalid account/password");
             LOGGER.error("Failed to generate AES secret", e);
@@ -204,6 +201,8 @@ public class LoginScreen {
             LOGGER.error("Failed to initialize AES cipher with key", e);
             return;
         }
+
+        this.client.config.setLastAccount(this.accountBox.getSelectionModel().getSelectedIndex());
         AccountData accountData;
         try {
             accountData = account.data().decrypt(aesCipher);
@@ -218,23 +217,54 @@ public class LoginScreen {
             Socket socket = new Socket();
             socket.bind(null);
             socket.connect(address);
-            BinaryInput stream = BinaryInput.stream(socket.getInputStream());
-            BinaryOutput output1 = BinaryOutput.stream(socket.getOutputStream());
             connect = PacketPipeline.createNetwork(Constants.PACKET_HEADER, socket);
             connect.send(PacketTypes.CLIENT_HELLO, new ClientHello(Constants.BRAND, Constants.VERSION, publicKey));
 
             Packet<ServerAuthRequest> packet = connect.receivePacket();
+            RSAPublicKey serverKey = packet.data().getServerKey();
+            String keyHash = CryptoHelper.sha256Hash(serverKey.getEncoded());
+            LOGGER.info("Server key id: {}", keyHash);
+            String host = address.getHostString() + ":" + address.getPort();
+            RSAPublicKey expectedKey = accountData.knownServers().get(host);
+            if (expectedKey == null) {
+                Alert alert = new Alert(Alert.AlertType.WARNING, "Please verify that the server's key is correct\n\n" + keyHash + "\n\nDo you wish to connect?", ButtonType.NO, ButtonType.YES);
+                alert.setTitle("Server ID Confirmation");
+                if (alert.showAndWait().orElse(ButtonType.NO) == ButtonType.NO) {
+                    LOGGER.warn("Server connection aborted");
+                    return;
+                }
+                LOGGER.warn("Trusting new server key");
+                accountData.knownServers().put(host, serverKey);
+            } else if (!expectedKey.equals(serverKey)) {
+                LOGGER.warn("Server connection aborted");
+                String expectedHash = CryptoHelper.sha256Hash(serverKey.getEncoded());
+                Alert alert = new Alert(Alert.AlertType.ERROR, "Server key ID changed!\nPrevious: " + expectedHash + "\nNew: " + keyHash + "\nPlease verify that the new key is correct. Do you wish to continue connecting?", ButtonType.NO, ButtonType.YES);
+                alert.setTitle("Server ID Changed!");
+                if (alert.showAndWait().orElse(ButtonType.NO) == ButtonType.NO) {
+                    LOGGER.warn("Server connection aborted");
+                    return;
+                }
+                LOGGER.warn("Trusting new server key");
+                accountData.knownServers().put(host, serverKey);
+            }
             Cipher cipher = CryptoHelper.createRsaCipher();
             cipher.init(Cipher.DECRYPT_MODE, accountData.privateKey());
-            byte[] b = cipher.doFinal(packet.data().getAuthData());
-            RSAPublicKey serverKey = packet.data().getServerKey();
+            byte[] encodedKey = cipher.doFinal(packet.data().getAuthData());
             cipher.init(Cipher.ENCRYPT_MODE, serverKey);
-            byte[] output = cipher.doFinal(b);
+            byte[] output = cipher.doFinal(encodedKey);
+
+            SecretKey key;
+            try {
+                key = CryptoHelper.decodeAesKey(encodedKey);
+            } catch (InvalidKeySpecException e) {
+                throw new RuntimeException(e);
+            }
 
             connect.send(PacketTypes.CLIENT_AUTH, new ClientAuthResponse(account.username(), output));
             Packet<ServerAuthResponse> networkedDataPacket = connect.receivePacket();
             if (networkedDataPacket.data().isSuccess()) {
-                this.client.setIdentity(connect.encryptWith(serverKey, accountData.privateKey()), serverKey, publicKey, accountData);
+                this.client.initialize(connect.encryptWith(key), aesKey, serverKey, publicKey, key, accountData);
+                this.client.saveAccountData();
                 this.stage.close();
                 ChatView chatView = new ChatView(this.client, this.stage);
                 this.stage.show();

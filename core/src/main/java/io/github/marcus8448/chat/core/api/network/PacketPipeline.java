@@ -19,18 +19,16 @@ package io.github.marcus8448.chat.core.api.network;
 import io.github.marcus8448.chat.core.api.network.connection.BinaryInput;
 import io.github.marcus8448.chat.core.api.network.connection.BinaryOutput;
 import io.github.marcus8448.chat.core.impl.network.NetworkPacketPipeline;
-import io.github.marcus8448.chat.core.impl.network.connection.EncryptedNetworkPipeline;
 import io.github.marcus8448.chat.core.network.NetworkedData;
 import io.github.marcus8448.chat.core.network.PacketType;
 import io.github.marcus8448.chat.core.network.packet.Packet;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
+import javax.crypto.SecretKey;
 import java.io.Closeable;
 import java.io.IOException;
 import java.net.Socket;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
 
 public interface PacketPipeline extends Closeable {
     @Contract(value = "_, _ -> new", pure = true)
@@ -42,7 +40,7 @@ public interface PacketPipeline extends Closeable {
         }
     }
 
-    @NotNull PacketPipeline encryptWith(@NotNull RSAPublicKey sendingKey, @NotNull RSAPrivateKey receivingKey) throws IOException;
+    @NotNull PacketPipeline encryptWith(@NotNull SecretKey secretKey) throws IOException;
 
     <Data extends NetworkedData> void send(PacketType<Data> type, Data networkedData) throws IOException;
 

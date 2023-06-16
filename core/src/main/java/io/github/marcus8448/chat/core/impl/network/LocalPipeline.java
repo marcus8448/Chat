@@ -22,9 +22,8 @@ import io.github.marcus8448.chat.core.network.PacketType;
 import io.github.marcus8448.chat.core.network.packet.Packet;
 import org.jetbrains.annotations.NotNull;
 
+import javax.crypto.SecretKey;
 import java.io.IOException;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.locks.Condition;
@@ -53,7 +52,7 @@ public class LocalPipeline implements PacketPipeline {
     }
 
     @Override
-    public @NotNull PacketPipeline encryptWith(@NotNull RSAPublicKey sendingKey, @NotNull RSAPrivateKey receivingKey) throws IOException {
+    public @NotNull PacketPipeline encryptWith(@NotNull SecretKey secretKey) throws IOException {
         return this; // encryption is pointless.
     }
 

@@ -17,33 +17,46 @@
 package io.github.marcus8448.chat.core.api.crypto;
 
 import io.github.marcus8448.chat.core.util.Utils;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
 
-import javax.crypto.Cipher;
-import javax.crypto.NoSuchPaddingException;
-import javax.crypto.SecretKeyFactory;
+import javax.crypto.*;
+import javax.crypto.spec.PBEKeySpec;
+import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
 import java.security.*;
-import java.util.Base64;
+import java.security.interfaces.RSAPrivateCrtKey;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.security.spec.X509EncodedKeySpec;
 import java.util.Locale;
 
 public class CryptoHelper {
+    public static final KeyGenerator AES_KEY_GENERATOR;
     public static final KeyPairGenerator RSA_KEY_GENERATOR;
-    public static final KeyFactory RSA_KEY_FACTORY;
-    public static final SecretKeyFactory PBKDF2_SECRET_KEY_FACTORY;
+    private static final KeyFactory RSA_KEY_FACTORY;
+    private static final SecretKeyFactory PBKDF2_SECRET_KEY_FACTORY;
     private static final MessageDigest SHA256_DIGEST = createSha256Digest();
 
-    static {
-        try {
-            RSA_KEY_FACTORY = KeyFactory.getInstance("RSA");
-            RSA_KEY_GENERATOR = KeyPairGenerator.getInstance("RSA");
-            RSA_KEY_GENERATOR.initialize(4096);
-            PBKDF2_SECRET_KEY_FACTORY = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
+    public static String sha256Hash(byte[] key) {
+        return Utils.toHexString(SHA256_DIGEST.digest(key)).toUpperCase(Locale.ROOT);
     }
 
-    public static Cipher createAesCipher() { //NOT thread safe - so use local
+    public static RSAPrivateCrtKey decodeRsaPrivateKey(byte[] bytes) throws InvalidKeySpecException {
+        return (RSAPrivateCrtKey) RSA_KEY_FACTORY.generatePrivate(new PKCS8EncodedKeySpec(bytes));
+    }
+
+    public static RSAPublicKey decodeRsaPublicKey(byte[] bytes) throws InvalidKeySpecException {
+        return (RSAPublicKey) RSA_KEY_FACTORY.generatePublic(new X509EncodedKeySpec(bytes));
+    }
+
+    @Contract("_, _ -> new")
+    public static @NotNull SecretKey generateUserPassKey(char[] password, String username) throws InvalidKeySpecException {
+        return decodeAesKey(CryptoHelper.PBKDF2_SECRET_KEY_FACTORY.generateSecret(new PBEKeySpec(password, username.getBytes(StandardCharsets.UTF_8), 65536, 256)).getEncoded());
+    }
+
+    public static Cipher createAesCipher() {
         try {
             return Cipher.getInstance("AES");
         } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
@@ -75,7 +88,24 @@ public class CryptoHelper {
         }
     }
 
-    public static String sha256Hash(byte[] key) {
-        return Utils.toHexString(SHA256_DIGEST.digest(key)).toUpperCase(Locale.ROOT);
+
+    static {
+        try {
+            AES_KEY_GENERATOR = KeyGenerator.getInstance("AES");
+            AES_KEY_GENERATOR.init(256, SecureRandom.getInstanceStrong());
+
+            RSA_KEY_FACTORY = KeyFactory.getInstance("RSA");
+            RSA_KEY_GENERATOR = KeyPairGenerator.getInstance("RSA");
+            RSA_KEY_GENERATOR.initialize(4096, SecureRandom.getInstanceStrong());
+
+            PBKDF2_SECRET_KEY_FACTORY = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Contract(value = "_ -> new", pure = true)
+    public static @NotNull SecretKey decodeAesKey(byte[] encodedKey) throws InvalidKeySpecException {
+        return new SecretKeySpec(encodedKey, "AES");
     }
 }

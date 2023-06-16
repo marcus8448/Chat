@@ -16,11 +16,11 @@
 
 package io.github.marcus8448.chat.core.impl.network.connection;
 
+import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
+import io.github.marcus8448.chat.core.api.network.PacketPipeline;
 import io.github.marcus8448.chat.core.api.network.connection.BinaryInput;
 import io.github.marcus8448.chat.core.api.network.connection.BinaryOutput;
 import io.github.marcus8448.chat.core.api.network.connection.GrowingBinaryOutput;
-import io.github.marcus8448.chat.core.api.network.PacketPipeline;
-import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.network.NetworkedData;
 import io.github.marcus8448.chat.core.network.PacketType;
 import io.github.marcus8448.chat.core.network.packet.Packet;
@@ -31,11 +31,10 @@ import org.jetbrains.annotations.NotNull;
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.SecretKey;
 import java.io.IOException;
 import java.net.Socket;
 import java.security.InvalidKeyException;
-import java.security.interfaces.RSAPrivateKey;
-import java.security.interfaces.RSAPublicKey;
 
 public class EncryptedNetworkPipeline implements PacketPipeline {
     private static final Logger LOGGER = LogManager.getLogger();
@@ -44,29 +43,29 @@ public class EncryptedNetworkPipeline implements PacketPipeline {
     private final Socket socket;
     private final BinaryInput input;
     private final BinaryOutput output;
-    private final Cipher decryption = CryptoHelper.createRsaCipher();
-    private final Cipher encryption = CryptoHelper.createRsaCipher();
+    private final Cipher decryption = CryptoHelper.createAesCipher();
+    private final Cipher encryption = CryptoHelper.createAesCipher();
 
-    public EncryptedNetworkPipeline(int packetHeader, @NotNull Socket socket, @NotNull BinaryInput input, @NotNull BinaryOutput output, @NotNull RSAPublicKey sendingKey, @NotNull RSAPrivateKey receivingKey) throws IOException {
+    public EncryptedNetworkPipeline(int packetHeader, @NotNull Socket socket, @NotNull BinaryInput input, @NotNull BinaryOutput output, @NotNull SecretKey secretKey) throws IOException {
         this.packetHeader = packetHeader;
         this.socket = socket;
         this.input = input;
         this.output = output;
         try {
-            this.encryption.init(Cipher.ENCRYPT_MODE, sendingKey);
-            this.decryption.init(Cipher.DECRYPT_MODE, receivingKey);
+            this.encryption.init(Cipher.ENCRYPT_MODE, secretKey);
+            this.decryption.init(Cipher.DECRYPT_MODE, secretKey);
         } catch (InvalidKeyException e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public @NotNull PacketPipeline encryptWith(@NotNull RSAPublicKey sendingKey, @NotNull RSAPrivateKey receivingKey) throws IOException {
-        return new EncryptedNetworkPipeline(this.packetHeader, this.socket, this.input, this.output, sendingKey, receivingKey);
+    public @NotNull PacketPipeline encryptWith(@NotNull SecretKey secretKey) throws IOException {
+        return new EncryptedNetworkPipeline(this.packetHeader, this.socket, this.input, this.output, secretKey);
     }
 
     @Override
-    public <Data extends NetworkedData> void send(PacketType<Data> type, Data networkedData) throws IOException {
+    public synchronized <Data extends NetworkedData> void send(PacketType<Data> type, Data networkedData) throws IOException {
         LOGGER.debug("Sending packet {}", type.getDataClass().getName());
         this.output.writeInt(this.packetHeader);
         int len = networkedData.getLength();
