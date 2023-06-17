@@ -21,6 +21,8 @@ import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.message.Message;
 import javafx.scene.control.*;
+import javafx.scene.input.Clipboard;
+import javafx.scene.input.DataFormat;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.Background;
@@ -29,13 +31,19 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class MessageCell extends ListCell<Message> {
+    private final Background NOT_VERIFIED_BG = Background.fill(JfxUtil.NOT_VERIFIED_COLOUR);
+
     private final Circle authorPicture = new Circle();
     private final Label authorName = new Label();
     private final Label messageContents = new Label();
     private final VBox vBox = new VBox(authorName, messageContents);
     private final HBox hBox = new HBox(authorPicture, vBox);
     private final TextArea editArea = new TextArea();
+    private final ContextMenu contextMenu;
     private final Client client;
 
     public MessageCell(Client client) {
@@ -61,31 +69,57 @@ public class MessageCell extends ListCell<Message> {
         this.editArea.setWrapText(true);
         this.editArea.setPromptText("Edit message");
 
-        MenuItem edit = new MenuItem("Edit");
-        edit.setOnAction(e -> this.startEdit());
-        MenuItem history = new MenuItem("History...");
-        history.setOnAction(e -> {
-        });
-        ContextMenu contextMenu = new ContextMenu(edit, history);
-        this.setContextMenu(contextMenu);
+//        MenuItem edit = new MenuItem("Edit");
+//        edit.setOnAction(e -> this.startEdit());
+        MenuItem copyContents = new MenuItem("Copy contents");
+        copyContents.setOnAction(e -> this.copyContents());
+        MenuItem copyAuthorName = new MenuItem("Copy author name");
+        copyAuthorName.setOnAction(e -> this.copyAuthorName());
+        MenuItem copyAuthorId = new MenuItem("Copy author ID");
+        copyAuthorId.setOnAction(e -> this.copyAuthorId());
+//        MenuItem history = new MenuItem("History...");
+//        history.setOnAction(e -> {
+//        });
+        this.contextMenu = new ContextMenu(/*edit, history, */copyAuthorName, copyContents, copyAuthorId);
+    }
+
+    private void copyAuthorId() {
+        Map<DataFormat, Object> data = new HashMap<>();
+        data.put(DataFormat.PLAIN_TEXT, CryptoHelper.sha256Hash(this.getItem().author().key().getEncoded()));
+        Clipboard.getSystemClipboard().setContent(data);
+    }
+
+    private void copyAuthorName() {
+        Map<DataFormat, Object> data = new HashMap<>();
+        data.put(DataFormat.PLAIN_TEXT, this.getItem().author().usernameAndId());
+        Clipboard.getSystemClipboard().setContent(data);
+    }
+
+    private void copyContents() {
+        Map<DataFormat, Object> data = new HashMap<>();
+        data.put(DataFormat.PLAIN_TEXT, this.getItem().contents());
+        Clipboard.getSystemClipboard().setContent(data);
     }
 
     @Override
     protected void updateItem(Message item, boolean empty) {
         super.updateItem(item, empty);
         if (!empty && item != null) {
-            boolean equals = this.client.getPublicKey().equals(item.author().key());
-            this.setEditable(equals);
+//            boolean equals = this.client.getPublicKey().equals(item.author().key()); //todo: editing
+//            this.setEditable(equals);
+            this.authorName.setBackground(null);
             this.messageContents.setText(item.contents());
             this.authorName.setText(item.author().usernameAndId());
             this.authorName.setOnMouseClicked(this::openAuthor);
+            this.setContextMenu(contextMenu);
             if (item.verifyChecksum()) {
-                this.setBackground(Background.EMPTY);
                 this.authorName.setTooltip(new Tooltip(CryptoHelper.sha256Hash(item.author().key().getEncoded())));
             } else {
-                this.setBackground(Background.fill(JfxUtil.NOT_VERIFIED_COLOUR));
+                this.authorName.setBackground(NOT_VERIFIED_BG);
                 this.authorName.setTooltip(new Tooltip("NOT VERIFIED: " + CryptoHelper.sha256Hash(item.author().key().getEncoded())));
             }
+        } else {
+            this.setContextMenu(null);
         }
     }
 

@@ -25,6 +25,10 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 
+/**
+ * Represents a stream of bytes - similar to an {@link InputStream} - but with additional helper methods
+ * Probably could've used NIO instead
+ */
 public interface BinaryInput extends Closeable {
     @Contract(value = "_ -> new", pure = true)
     static @NotNull BinaryInput stream(InputStream inputStream) {

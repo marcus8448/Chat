@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.network.packet;
+package io.github.marcus8448.chat.core.network.packet.client;
 
 import io.github.marcus8448.chat.core.api.network.connection.BinaryInput;
 import io.github.marcus8448.chat.core.api.network.connection.BinaryOutput;
@@ -22,16 +22,29 @@ import io.github.marcus8448.chat.core.network.NetworkedData;
 
 import java.io.IOException;
 
-public class ClientAuthResponse implements NetworkedData {
+/**
+ * The client's response to the server's authentication/identity challenge
+ * @see io.github.marcus8448.chat.core.network.packet.server.AuthenticationRequest The server's challenge
+ * @see io.github.marcus8448.chat.core.network.packet.server.AuthenticationSuccess Server response (success)
+ * @see io.github.marcus8448.chat.core.network.packet.server.AuthenticationFailure Server response (failure)
+ */
+public class Authenticate implements NetworkedData {
+    /**
+     * The username of the user connecting
+     */
     private final String username;
+    /**
+     * The data sent in the {@link io.github.marcus8448.chat.core.network.packet.server.AuthenticationRequest}, but
+     * encrypted with the server's key.
+     */
     private final byte[] data;
 
-    public ClientAuthResponse(String username, byte[] data) {
+    public Authenticate(String username, byte[] data) {
         this.username = username;
         this.data = data;
     }
 
-    public ClientAuthResponse(BinaryInput input) throws IOException {
+    public Authenticate(BinaryInput input) throws IOException {
         this.username = input.readString();
         this.data = input.readByteArray();
     }

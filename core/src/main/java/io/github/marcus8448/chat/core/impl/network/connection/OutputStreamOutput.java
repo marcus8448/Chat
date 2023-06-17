@@ -20,6 +20,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
 
+/**
+ * Binary output that wraps an output stream
+ */
 public class OutputStreamOutput extends BaseBinaryOutput {
     private final OutputStream parent;
 

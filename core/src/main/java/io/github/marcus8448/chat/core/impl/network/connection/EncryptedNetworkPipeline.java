@@ -36,14 +36,37 @@ import java.io.IOException;
 import java.net.Socket;
 import java.security.InvalidKeyException;
 
+/**
+ * A network pipeline that has been encrypted by an AES key
+ * @see io.github.marcus8448.chat.core.impl.network.NetworkPacketPipeline
+ */
 public class EncryptedNetworkPipeline implements PacketPipeline {
     private static final Logger LOGGER = LogManager.getLogger();
 
+    /**
+     * The packet header in use
+     */
     private final int packetHeader;
+    /**
+     * The network (socket) connection
+     */
     private final Socket socket;
+    /**
+     * The binary input (wrapped socket input stream)
+     */
     private final BinaryInput input;
+    /**
+     * The binary output (wrapped socket input stream)
+     */
     private final BinaryOutput output;
+
+    /**
+     * The cipher used for decryption. Initialized with the AES key provided in the constructor
+     */
     private final Cipher decryption = CryptoHelper.createAesCipher();
+    /**
+     * The cipher used for encryption. Initialized with the AES key provided in the constructor
+     */
     private final Cipher encryption = CryptoHelper.createAesCipher();
 
     public EncryptedNetworkPipeline(int packetHeader, @NotNull Socket socket, @NotNull BinaryInput input, @NotNull BinaryOutput output, @NotNull SecretKey secretKey) throws IOException {
@@ -51,6 +74,8 @@ public class EncryptedNetworkPipeline implements PacketPipeline {
         this.socket = socket;
         this.input = input;
         this.output = output;
+
+        // Initialize ciphers for encryption/decryption
         try {
             this.encryption.init(Cipher.ENCRYPT_MODE, secretKey);
             this.decryption.init(Cipher.DECRYPT_MODE, secretKey);
@@ -61,61 +86,61 @@ public class EncryptedNetworkPipeline implements PacketPipeline {
 
     @Override
     public @NotNull PacketPipeline encryptWith(@NotNull SecretKey secretKey) throws IOException {
+        // encryption is NOT recursive
         return new EncryptedNetworkPipeline(this.packetHeader, this.socket, this.input, this.output, secretKey);
     }
 
     @Override
     public synchronized <Data extends NetworkedData> void send(PacketType<Data> type, Data networkedData) throws IOException {
         LOGGER.debug("Sending packet {}", type.getDataClass().getName());
-        this.output.writeInt(this.packetHeader);
-        int len = networkedData.getLength();
+        this.output.writeInt(this.packetHeader); // write the packet header
+        int len = networkedData.getLength(); // get the data size
         byte[] data;
+        // check if the size is known/valid
         if (len != -1) {
-            data = new byte[2 + len]; // write packet ID
-            BinaryOutput fixed = BinaryOutput.buffer(data);
-            fixed.writeShort(type.getId());
-            networkedData.write(fixed);
+            len += Short.BYTES; // packet ID (short) size
+            data = new byte[len]; // allocate space for the packet (data)
+            BinaryOutput fixed = BinaryOutput.buffer(data); // create a buffer for the data
+            fixed.writeShort(type.getId()); // write the packet ID
+            networkedData.write(fixed); // write the packet data
         } else {
-            GrowingBinaryOutput clear = GrowingBinaryOutput.create(128);
-            clear.writeShort(type.getId());
-            networkedData.write(clear);
-            data = clear.getRawOutput();
-            len = clear.getCount();
+            GrowingBinaryOutput clear = GrowingBinaryOutput.create(128); // create an unbounded buffer
+            clear.writeShort(type.getId()); // write the packet ID
+            networkedData.write(clear); // write the packet data
+            data = clear.getRawOutput(); // get the written data
+            len = clear.getCount(); // update the actual length of the data
         }
         byte[] bytes;
         try {
+            // encrypt the packet
             bytes = this.encryption.doFinal(data, 0, len);
         } catch (IllegalBlockSizeException | BadPaddingException e) {
             throw new RuntimeException(e);
         }
+        // send the data
         this.output.writeByteArray(bytes);
     }
 
     @Override
     public <Data extends NetworkedData> Packet<Data> receivePacket() throws IOException {
+        // Wait for a packet header
         this.input.seekToIdentifier(this.packetHeader);
+        // read the (encrypted) data
         byte[] bytes = this.input.readByteArray();
         byte[] clear;
         try {
+            // decrypt the data
             clear = this.decryption.doFinal(bytes);
         } catch (IllegalBlockSizeException | BadPaddingException e) {
             throw new RuntimeException(e);
         }
+        // wrap the data in a binary input for easy reading
         BinaryInput input = BinaryInput.wrap(clear);
+        // get the type of packet based on the short id
         PacketType<Data> type = (PacketType<Data>) PacketType.getType(input.readShort());
         LOGGER.debug("Received packet {}", type.getDataClass().getName());
+        // create the packet
         return new Packet<>(type, type.create(input));
-    }
-
-    @Override
-    public <Data extends NetworkedData> Packet<Data> receivePacket(PacketType<Data> type) throws IOException {
-        Packet<NetworkedData> packet = this.receivePacket();
-        if (packet.type() != type) {
-            LOGGER.debug("Discarding packet {}", type.getDataClass().getName());
-            return this.receivePacket(type);
-        }
-        LOGGER.debug("Received packet {}", type.getDataClass().getName());
-        return (Packet<Data>) packet;
     }
 
     @Override

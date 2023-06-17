@@ -30,10 +30,25 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
+/**
+ * A packet pipeline that connects to an in-memory client and server
+ */
 public class LocalPipeline implements PacketPipeline {
+    /**
+     * Packets waiting to be handled
+     */
     private final List<Packet<?>> pending = new ArrayList<>();
+    /**
+     * The connected client/server
+     */
     private LocalPipeline peer = null;
+    /**
+     * Lock to solve concurrency issues
+     */
     private final Lock lock = new ReentrantLock();
+    /**
+     * Marker for when a packet is available
+     */
     private final Condition condition = lock.newCondition();
 
     public LocalPipeline() {
@@ -45,10 +60,10 @@ public class LocalPipeline implements PacketPipeline {
     }
 
     private <Data extends NetworkedData> void receive(Packet<Data> packet) {
-        this.lock.lock();
-        this.pending.add(packet);
-        this.condition.signal();
-        this.lock.unlock();
+        this.lock.lock(); // claim lock on the pending list
+        this.pending.add(packet); // add the packet
+        this.condition.signal(); // signal that there are packets available
+        this.lock.unlock(); // unlock
     }
 
     @Override
@@ -63,27 +78,18 @@ public class LocalPipeline implements PacketPipeline {
 
     @Override
     public <Data extends NetworkedData> Packet<Data> receivePacket() throws IOException {
-        if (this.pending.isEmpty()) {
-            this.lock.lock();
+        if (this.pending.isEmpty()) { // check if there are available packets
+            this.lock.lock(); // no packets, so claim the lock on the pending packets
             try {
-                this.condition.await();
+                this.condition.await(); // wait for a packet ot arrive
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
-            Packet<Data> remove = (Packet<Data>) this.pending.remove(0);
-            this.lock.unlock();
+            Packet<Data> remove = (Packet<Data>) this.pending.remove(0); // get the newly received packet
+            this.lock.unlock(); // unlock
             return remove;
         }
-        return (Packet<Data>) this.pending.remove(0);
-    }
-
-    @Override
-    public <Data extends NetworkedData> Packet<Data> receivePacket(PacketType<Data> type) throws IOException {
-        Packet<NetworkedData> packet = this.receivePacket();
-        if (packet.type() != type) {
-            return this.receivePacket(type);
-        }
-        return (Packet<Data>) packet;
+        return (Packet<Data>) this.pending.remove(0); // get the newest packet
     }
 
     @Override

@@ -24,8 +24,13 @@ import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.core.api.Constants;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.api.network.PacketPipeline;
-import io.github.marcus8448.chat.core.network.PacketTypes;
+import io.github.marcus8448.chat.core.network.ClientPacketTypes;
+import io.github.marcus8448.chat.core.network.ServerPacketTypes;
 import io.github.marcus8448.chat.core.network.packet.*;
+import io.github.marcus8448.chat.core.network.packet.client.Authenticate;
+import io.github.marcus8448.chat.core.network.packet.client.Hello;
+import io.github.marcus8448.chat.core.network.packet.server.AuthenticationRequest;
+import io.github.marcus8448.chat.core.network.packet.server.AuthenticationSuccess;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -62,7 +67,7 @@ public class LoginScreen {
     private static final int MAX = Integer.MAX_VALUE;
 
     protected static final Insets PADDING_HOR = new Insets(0, PADDING, 0, PADDING);
-    protected static final Insets PADDING_CORE = new Insets(PADDING / 2.0, PADDING, PADDING / 2.0, PADDING / 2.0);
+    protected static final Insets PADDING_CORE = new Insets(PADDING / 2.0, PADDING, PADDING / 2.0, PADDING);
 
     private final Client client;
 
@@ -89,7 +94,7 @@ public class LoginScreen {
         this.failureReason.setAlignment(Pos.TOP_RIGHT);
         HBox spacing = new HBox(this.failureReason);
         HBox.setHgrow(this.failureReason, Priority.ALWAYS);
-        spacing.setPadding(PADDING_HOR);
+        spacing.setPadding(PADDING_CORE);
         VBox.setVgrow(spacing, Priority.ALWAYS);
         vBox.getChildren().add(spacing);
 
@@ -218,15 +223,16 @@ public class LoginScreen {
             socket.bind(null);
             socket.connect(address);
             connect = PacketPipeline.createNetwork(Constants.PACKET_HEADER, socket);
-            connect.send(PacketTypes.CLIENT_HELLO, new ClientHello(Constants.BRAND, Constants.VERSION, publicKey));
+            connect.send(ClientPacketTypes.HELLO, new Hello(Constants.BRAND, Constants.VERSION, publicKey));
 
-            Packet<ServerAuthRequest> packet = connect.receivePacket();
+            Packet<AuthenticationRequest> packet = connect.receivePacket();
             RSAPublicKey serverKey = packet.data().getServerKey();
             String keyHash = CryptoHelper.sha256Hash(serverKey.getEncoded());
             LOGGER.info("Server key id: {}", keyHash);
             String host = address.getHostString() + ":" + address.getPort();
             RSAPublicKey expectedKey = accountData.knownServers().get(host);
             if (expectedKey == null) {
+                LOGGER.info("Awaiting key confirmation");
                 Alert alert = new Alert(Alert.AlertType.WARNING, "Please verify that the server's key is correct\n\n" + keyHash + "\n\nDo you wish to connect?", ButtonType.NO, ButtonType.YES);
                 alert.setTitle("Server ID Confirmation");
                 if (alert.showAndWait().orElse(ButtonType.NO) == ButtonType.NO) {
@@ -236,7 +242,7 @@ public class LoginScreen {
                 LOGGER.warn("Trusting new server key");
                 accountData.knownServers().put(host, serverKey);
             } else if (!expectedKey.equals(serverKey)) {
-                LOGGER.warn("Server connection aborted");
+                LOGGER.warn("Server connection suspended - key change");
                 String expectedHash = CryptoHelper.sha256Hash(serverKey.getEncoded());
                 Alert alert = new Alert(Alert.AlertType.ERROR, "Server key ID changed!\nPrevious: " + expectedHash + "\nNew: " + keyHash + "\nPlease verify that the new key is correct. Do you wish to continue connecting?", ButtonType.NO, ButtonType.YES);
                 alert.setTitle("Server ID Changed!");
@@ -247,12 +253,15 @@ public class LoginScreen {
                 LOGGER.warn("Trusting new server key");
                 accountData.knownServers().put(host, serverKey);
             }
+
+            LOGGER.info("Initializing ciphers");
             Cipher cipher = CryptoHelper.createRsaCipher();
             cipher.init(Cipher.DECRYPT_MODE, accountData.privateKey());
             byte[] encodedKey = cipher.doFinal(packet.data().getAuthData());
             cipher.init(Cipher.ENCRYPT_MODE, serverKey);
             byte[] output = cipher.doFinal(encodedKey);
 
+            LOGGER.info("Decoding symmetric (AES) key");
             SecretKey key;
             try {
                 key = CryptoHelper.decodeAesKey(encodedKey);
@@ -260,17 +269,25 @@ public class LoginScreen {
                 throw new RuntimeException(e);
             }
 
-            connect.send(PacketTypes.CLIENT_AUTH, new ClientAuthResponse(account.username(), output));
-            Packet<ServerAuthResponse> networkedDataPacket = connect.receivePacket();
-            if (networkedDataPacket.data().isSuccess()) {
-                this.client.initialize(connect.encryptWith(key), aesKey, serverKey, publicKey, key, accountData);
+            LOGGER.info("Authenticating...");
+            connect.send(ClientPacketTypes.AUTHENTICATE, new Authenticate(account.username(), output));
+            System.out.println("SAS");
+            Packet<?> response = connect.receivePacket();
+            System.out.println("XX");
+            if (response.type() == ServerPacketTypes.AUTHENTICATION_SUCCESS) {
+                LOGGER.info("Successfully authenticated to the server");
+                AuthenticationSuccess success = response.getAs(ServerPacketTypes.AUTHENTICATION_SUCCESS);
+                this.client.initialize(connect.encryptWith(key), aesKey, serverKey, publicKey, key, accountData, success.getUsers());
                 this.client.saveAccountData();
                 this.stage.close();
                 ChatView chatView = new ChatView(this.client, this.stage);
                 this.stage.show();
+            } else if (response.type() == ServerPacketTypes.AUTHENTICATION_FAILURE) {
+                String failure = response.getAs(ServerPacketTypes.AUTHENTICATION_FAILURE).getReason();
+                LOGGER.error("Server denied connection: {}", failure);
+                this.failureReason.setText(failure);
             } else {
-                LOGGER.error("Server denied connection: {}", networkedDataPacket.data().getFailureReason());
-                this.failureReason.setText(networkedDataPacket.data().getFailureReason());
+                LOGGER.error("Server sent invalid id: " + response.type());
             }
         } catch (IOException e) {
             LOGGER.error("Communication I/O error", e);
@@ -284,80 +301,81 @@ public class LoginScreen {
     private @NotNull HBox createButtons() {
         Label createAccountPrompt = new Label("No account? Create one!");
         createAccountPrompt.setTextFill(JfxUtil.LINK_COLOUR);
-        createAccountPrompt.setPadding(new Insets(0.0, 0.0, 0.0, PADDING / 2.0));
         JfxUtil.buttonPressCallback(createAccountPrompt, this::createAccount);
         AnchorPane spacing2 = new AnchorPane();
         Button cancel = new Button("Cancel");
         cancel.setPrefWidth(JfxUtil.BUTTON_WIDTH);
         cancel.setPrefHeight(JfxUtil.BUTTON_HEIGHT);
-        cancel.setPadding(PADDING_HOR);
         cancel.setOnMouseClicked(e -> Platform.exit());
 
         Button login = new Button("Login");
         login.setPrefWidth(JfxUtil.BUTTON_WIDTH);
         login.setPrefHeight(JfxUtil.BUTTON_HEIGHT);
-        login.setPadding(PADDING_HOR);
         JfxUtil.buttonPressCallback(login, this::login);
 
         HBox buttons = new HBox(createAccountPrompt, spacing2, cancel, login);
         buttons.setPadding(PADDING_CORE);
+        buttons.setSpacing(PADDING / 2.0);
         HBox.setHgrow(createAccountPrompt, Priority.NEVER);
         HBox.setHgrow(spacing2, Priority.ALWAYS);
         HBox.setHgrow(cancel, Priority.NEVER);
         HBox.setHgrow(login, Priority.NEVER);
         VBox.setVgrow(buttons, Priority.NEVER);
+        buttons.setAlignment(Pos.CENTER_LEFT);
         return buttons;
     }
 
     private @NotNull HBox createPasswordInput() {
         Label passwordLabel = new Label("Password ");
-        passwordLabel.setPadding(PADDING_HOR);
+        alignLabel(passwordLabel);
         this.passwordField.setMinHeight(25);
-        this.passwordField.setPadding(PADDING_HOR);
 
         HBox passwordInput = new HBox(passwordLabel, this.passwordField);
         passwordInput.setPadding(PADDING_CORE);
+        passwordInput.setSpacing(PADDING / 2.0);
         HBox.setHgrow(passwordLabel, Priority.NEVER);
         HBox.setHgrow(this.passwordField, Priority.ALWAYS);
         VBox.setVgrow(passwordInput, Priority.NEVER);
         this.passwordField.setOnKeyPressed(JfxUtil.enterKeyCallback(this::login));
+        passwordInput.setAlignment(Pos.CENTER_LEFT);
         return passwordInput;
     }
 
     private @NotNull HBox createAccountSelection() {
         Label accountLabel = new Label("Account");
-        accountLabel.setPadding(PADDING_HOR);
-        accountLabel.setMinWidth(77);
-        this.accountBox.setMaxWidth(MAX);
-        this.accountBox.setPadding(PADDING_HOR);
+        accountLabel.setMinWidth(alignLabel(accountLabel));
         this.accountBox.setConverter(JfxUtil.ACCOUNT_STRING_CONVERTER);
-
+        this.accountBox.maxWidth(MAX);
+        this.accountBox.setPrefWidth(MAX);
         HBox accountSelection = new HBox(accountLabel, this.accountBox);
         accountSelection.setPadding(PADDING_CORE);
-        HBox.setHgrow(accountLabel, Priority.NEVER);
+        accountSelection.setSpacing(PADDING / 2.0);
+        HBox.setHgrow(accountLabel, Priority.SOMETIMES);
         HBox.setHgrow(this.accountBox, Priority.ALWAYS);
         VBox.setVgrow(accountSelection, Priority.NEVER);
+        accountSelection.setAlignment(Pos.CENTER_LEFT);
         return accountSelection;
     }
 
     private @NotNull HBox createServerSelection() {
         Label hostnameLabel = new Label("Hostname");
-        hostnameLabel.setPadding(PADDING_HOR);
         Label portLabel = new Label("Port");
-        portLabel.setPadding(PADDING_HOR);
+        portLabel.setPadding(new Insets(0, 0, 0, PADDING / 2.0));
         this.port.setPrefWidth(70);
         this.port.setMaxHeight(MAX);
         this.hostname.setMinHeight(25);
         this.hostname.setMaxWidth(MAX);
-        this.port.setPadding(PADDING_HOR);
+        alignLabel(hostnameLabel);
 
         HBox serverSelection = new HBox(hostnameLabel, this.hostname, portLabel, this.port);
-        serverSelection.setPadding(new Insets(PADDING, PADDING, PADDING / 2.0, PADDING / 2.0));
+        serverSelection.setPadding(PADDING_CORE);
+        serverSelection.setSpacing(PADDING / 2.0);
         HBox.setHgrow(hostnameLabel, Priority.NEVER);
         HBox.setHgrow(this.hostname, Priority.ALWAYS);
         HBox.setHgrow(portLabel, Priority.NEVER);
         HBox.setHgrow(this.port, Priority.NEVER);
         VBox.setVgrow(serverSelection, Priority.NEVER);
+        serverSelection.setAlignment(Pos.CENTER_LEFT);
         return serverSelection;
     }
 
@@ -384,5 +402,11 @@ public class LoginScreen {
     private void about() {
         Alert alert = new Alert(Alert.AlertType.INFORMATION, "Chat");
         alert.showAndWait();
+    }
+
+    private double alignLabel(Label label) {
+        double hostname1 = JfxUtil.getTextWidth("Hostname");
+        label.setPrefWidth(hostname1);
+        return hostname1;
     }
 }

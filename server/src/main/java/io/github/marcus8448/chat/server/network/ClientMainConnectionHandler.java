@@ -17,11 +17,12 @@
 package io.github.marcus8448.chat.server.network;
 
 import io.github.marcus8448.chat.core.api.network.PacketPipeline;
+import io.github.marcus8448.chat.core.network.ClientPacketTypes;
 import io.github.marcus8448.chat.core.network.NetworkedData;
 import io.github.marcus8448.chat.core.network.PacketType;
-import io.github.marcus8448.chat.core.network.PacketTypes;
+import io.github.marcus8448.chat.core.network.ServerPacketTypes;
 import io.github.marcus8448.chat.core.network.packet.Packet;
-import io.github.marcus8448.chat.core.network.packet.SendMessage;
+import io.github.marcus8448.chat.core.network.packet.client.SendMessage;
 import io.github.marcus8448.chat.core.user.User;
 import io.github.marcus8448.chat.server.Server;
 import io.github.marcus8448.chat.server.util.Utils;
@@ -45,9 +46,9 @@ public class ClientMainConnectionHandler implements ClientConnectionHandler {
     @Override
     public <Data extends NetworkedData> void handle(Packet<Data> packet) {
         PacketType<? extends Data> type = packet.type();
-        if (type == PacketTypes.SEND_MESSAGE) {
+        if (type == ClientPacketTypes.SEND_MESSAGE) {
             long time = Utils.currentTimeNonDecreasing();
-            SendMessage send = ((SendMessage) packet.data());
+            SendMessage send = packet.getAs(ClientPacketTypes.SEND_MESSAGE);
             this.server.executor.submit(() -> this.server.receiveMessage(time, this.user, send.getChecksum(), send.getMessage()));
         }
     }

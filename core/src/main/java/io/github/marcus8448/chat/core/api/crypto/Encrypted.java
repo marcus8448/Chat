@@ -24,7 +24,17 @@ import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import java.security.spec.InvalidKeySpecException;
 
+/**
+ * Represents encrypted data (that can be decrypted)
+ * @param <D> A type that represents the decrypted data
+ */
 public interface Encrypted<D> {
+    /**
+     * Decrypts the data represented by this object
+     * @param cipher The cipher to use to decrypt
+     *               (Must be properly initialized already)
+     * @return The decrypted data
+     */
     @Contract("_ -> new")
     @NotNull D decrypt(@NotNull Cipher cipher) throws IllegalBlockSizeException, BadPaddingException, InvalidKeySpecException;
 }

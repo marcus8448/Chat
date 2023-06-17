@@ -25,6 +25,9 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
 
+/**
+ * Represents an outgoing stream of bytes (similar to an {@link OutputStream}), but with more helper methods
+ */
 public interface BinaryOutput extends Closeable {
     @Contract(value = "_ -> new", pure = true)
     static @NotNull BinaryOutput stream(OutputStream outputStream) {

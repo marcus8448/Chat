@@ -131,6 +131,7 @@ public class CreateAccountScreen {
         stage.setWidth(300);
         stage.setHeight(175);
         stage.setResizable(true);
+        stage.setTitle("Create an Account");
         stage.setScene(scene);
     }
 

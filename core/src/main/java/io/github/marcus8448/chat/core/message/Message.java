@@ -25,29 +25,28 @@ import java.security.PrivateKey;
 import java.security.Signature;
 import java.security.SignatureException;
 
+/**
+ * Represents a message
+ * @param timestamp the time the message was received on the server
+ * @param author the entity that created the message
+ * @param checksum the signature of the creator, verifying the contents
+ * @param contents the contents of the message
+ */
 public record Message(long timestamp, User author, byte[] checksum, String contents) {
     private static final ThreadLocal<Signature> RSA_SIGNATURE = ThreadLocal.withInitial(CryptoHelper::createRsaSignature);
-    public static Message create(long timestamp, User author, PrivateKey privateKey, String contents) {
-        byte[] checksum;
-        try {
-            Signature signature = RSA_SIGNATURE.get();
-            signature.initSign(privateKey);
-            signature.update(contents.getBytes(StandardCharsets.UTF_8));
-            checksum = signature.sign();
-        } catch (InvalidKeyException | SignatureException e) {
-            throw new RuntimeException(e);
-        }
-        return new Message(timestamp, author, checksum, contents);
-    }
 
+    /**
+     * Verifies that the message checksum matches the contents (message was actually authored by the author)
+     * @return whether the message checksum is valid
+     */
     public boolean verifyChecksum() {
-        Signature signature = RSA_SIGNATURE.get();
+        Signature signature = RSA_SIGNATURE.get(); // get the global RSA signature instance
         try {
-            signature.initVerify(this.author.key());
-            signature.update(this.contents.getBytes(StandardCharsets.UTF_8));
-            return signature.verify(this.checksum);
+            signature.initVerify(this.author.key()); // initialize the instance with the author's key
+            signature.update(this.contents.getBytes(StandardCharsets.UTF_8)); // set the data to be the message contents
+            return signature.verify(this.checksum); // verify the contents
         } catch (InvalidKeyException | SignatureException e) {
-            return false;
+            return false; // the verification failed so return false.
         }
     }
 }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.network.packet;
+package io.github.marcus8448.chat.core.network.packet.client;
 
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.api.network.connection.BinaryInput;
@@ -25,20 +25,34 @@ import java.io.IOException;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 
-public class ClientHello implements NetworkedData {
-    private final String clientBrand;
-    private final String clientVersion;
+/**
+ * First packet sent on client connection with a server
+ * Initial part of connection handshake - nothing is encrypted yet
+ * @see io.github.marcus8448.chat.core.network.packet.server.AuthenticationRequest The server's (expected) response
+ */
+public class Hello implements NetworkedData {
+    /**
+     * The client brand
+     */
+    private final String brand;
+    /**
+     * The client's version
+     */
+    private final String version;
+    /**
+     * The RSA public key of the client
+     */
     private final RSAPublicKey key;
 
-    public ClientHello(String clientBrand, String clientVersion, RSAPublicKey key) {
-        this.clientBrand = clientBrand;
-        this.clientVersion = clientVersion;
+    public Hello(String brand, String version, RSAPublicKey key) {
+        this.brand = brand;
+        this.version = version;
         this.key = key;
     }
 
-    public ClientHello(BinaryInput input) throws IOException {
-        this.clientBrand = input.readString();
-        this.clientVersion = input.readString();
+    public Hello(BinaryInput input) throws IOException {
+        this.brand = input.readString();
+        this.version = input.readString();
         try {
             this.key = CryptoHelper.decodeRsaPublicKey(input.readByteArray());
         } catch (InvalidKeySpecException e) {
@@ -48,8 +62,8 @@ public class ClientHello implements NetworkedData {
 
     @Override
     public void write(BinaryOutput output) throws IOException {
-        output.writeString(this.clientBrand);
-        output.writeString(this.clientVersion);
+        output.writeString(this.brand);
+        output.writeString(this.version);
         output.writeByteArray(this.key.getEncoded());
     }
 
@@ -57,11 +71,11 @@ public class ClientHello implements NetworkedData {
         return key;
     }
 
-    public String getClientBrand() {
-        return clientBrand;
+    public String getBrand() {
+        return brand;
     }
 
-    public String getClientVersion() {
-        return clientVersion;
+    public String getVersion() {
+        return version;
     }
 }

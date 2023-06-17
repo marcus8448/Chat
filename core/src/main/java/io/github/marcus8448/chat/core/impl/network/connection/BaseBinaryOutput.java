@@ -22,6 +22,11 @@ import org.jetbrains.annotations.NotNull;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
+
+/**
+ * Base class for binary outputs
+ * Provides default implementations for the helper methods
+ */
 public abstract class BaseBinaryOutput implements BinaryOutput {
     @Override
     public void writeShort(int value) throws IOException {

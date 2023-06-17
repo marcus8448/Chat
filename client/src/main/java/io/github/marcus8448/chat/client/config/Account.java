@@ -31,9 +31,9 @@ public record Account(String username, RSAPublicKey publicKey, AccountData.Encry
             try {
                 JsonObject obj = json.getAsJsonObject();
                 String username = obj.get("username").getAsString();
-                PublicKey publicKey = CryptoHelper.decodeRsaPublicKey(Base64.getDecoder().decode(obj.get("public_key").getAsString()));
+                RSAPublicKey publicKey = CryptoHelper.decodeRsaPublicKey(Base64.getDecoder().decode(obj.get("public_key").getAsString()));
                 AccountData.EncryptedAccountData data = context.deserialize(obj.get("data"), AccountData.EncryptedAccountData.class);
-                return new Account(username, (RSAPublicKey) publicKey, data);
+                return new Account(username, publicKey, data);
             } catch (Exception e) {
                 throw new JsonParseException(e);
             }

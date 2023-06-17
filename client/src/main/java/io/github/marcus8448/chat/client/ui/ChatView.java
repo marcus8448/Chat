@@ -20,8 +20,8 @@ import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.ui.cell.MessageCell;
 import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.core.message.Message;
-import io.github.marcus8448.chat.core.network.PacketTypes;
-import io.github.marcus8448.chat.core.network.packet.SendMessage;
+import io.github.marcus8448.chat.core.network.ClientPacketTypes;
+import io.github.marcus8448.chat.core.network.packet.client.SendMessage;
 import io.github.marcus8448.chat.core.user.User;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -38,6 +38,8 @@ import java.io.IOException;
 public class ChatView {
     private final Stage stage;
     private final Client client;
+    private final Label leftStatus = new Label("...");
+    private final Label connectionStatus = new Label("Online");
     private final TextArea messageBox = new TextArea();
 
     public ChatView(Client client, Stage stage) {
@@ -69,10 +71,9 @@ public class ChatView {
         ObservableList<String> channels = FXCollections.observableArrayList("a", "a", "a", "a");
         ListView<String> leftPane = new ListView<>(channels);
 
-        ObservableList<Message> messages = FXCollections.observableArrayList();
-        ListView<Message> centerContent = new ListView<>(messages);
+        ListView<Message> centerContent = new ListView<>(this.client.messages);
         centerContent.setCellFactory(l -> new MessageCell(this.client));
-        messages.add(new Message(System.currentTimeMillis(), new User(0, "my_username", this.client.getPublicKey(), null), new byte[0], "Hello there"));
+        this.client.messages.add(new Message(System.currentTimeMillis(), new User(0, "my_username", this.client.getPublicKey(), null), new byte[0], "Hello there"));
         centerContent.setEditable(true);
 
         messageBox.setPromptText("Type your message here");
@@ -108,16 +109,13 @@ public class ChatView {
         VBox.setVgrow(pane, Priority.ALWAYS);
         vBox.getChildren().add(pane);
 
-        Label leftStatus = new Label("LEFT");
         HBox.setHgrow(leftStatus, Priority.ALWAYS);
+        HBox.setHgrow(connectionStatus, Priority.NEVER);
 
         Pane pane1 = new Pane();
         HBox.setHgrow(pane1, Priority.ALWAYS);
 
-        Label rightStatus = new Label("RIGHT");
-        HBox.setHgrow(rightStatus, Priority.NEVER);
-
-        HBox hBox = new HBox();
+        HBox hBox = new HBox(leftStatus, pane1, connectionStatus);
         hBox.setPadding(new Insets(3.0, 3.0, 3.0, 3.0));
         hBox.setAlignment(Pos.CENTER_LEFT);
         hBox.setSpacing(5.0);
@@ -125,6 +123,9 @@ public class ChatView {
         vBox.getChildren().add(hBox);
 
         stage.setScene(scene);
+        this.client.setView(this);stage.setOnCloseRequest(s -> {
+            this.client.close();
+        });
     }
 
     private void sendMessage() {
@@ -134,7 +135,7 @@ public class ChatView {
         }
 
         try {
-            this.client.connection.send(PacketTypes.SEND_MESSAGE, new SendMessage(message, this.client.signMessage(message)));
+            this.client.connection.send(ClientPacketTypes.SEND_MESSAGE, new SendMessage(message, this.client.signMessage(message)));
             this.messageBox.setText("");
         } catch (IOException e) {
             throw new RuntimeException(e);

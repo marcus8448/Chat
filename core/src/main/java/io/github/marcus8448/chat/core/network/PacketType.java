@@ -24,10 +24,6 @@ import java.util.List;
 
 public class PacketType<Data extends NetworkedData> {
     private static final List<PacketType<? extends NetworkedData>> TYPES = new ArrayList<>();
-
-    static {
-        PacketTypes.initialize();
-    }
     private static int index = 0;
     private final int id;
     private final Class<Data> clazz;
@@ -69,5 +65,10 @@ public class PacketType<Data extends NetworkedData> {
     @FunctionalInterface
     public interface DataDeserializer<D extends NetworkedData> {
         D readFromNetwork(BinaryInput input) throws IOException;
+    }
+
+    static {
+        ServerPacketTypes.initialize();
+        ClientPacketTypes.initialize();
     }
 }

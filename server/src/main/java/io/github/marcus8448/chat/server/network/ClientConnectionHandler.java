@@ -16,12 +16,12 @@
 
 package io.github.marcus8448.chat.server.network;
 
-import io.github.marcus8448.chat.core.api.network.PacketHandler;
 import io.github.marcus8448.chat.core.network.NetworkedData;
 import io.github.marcus8448.chat.core.network.PacketType;
+import io.github.marcus8448.chat.core.network.packet.Packet;
 
-public interface ClientConnectionHandler extends PacketHandler, Runnable {
+public interface ClientConnectionHandler extends Runnable {
     void shutdown();
-
+    <Data extends NetworkedData> void handle(Packet<Data> packet);
     <Data extends NetworkedData> void send(PacketType<Data> type, Data data);
 }

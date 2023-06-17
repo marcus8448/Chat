@@ -20,12 +20,16 @@ import io.github.marcus8448.chat.core.api.network.connection.CountingBinaryOutpu
 
 import java.io.IOException;
 
+/**
+ * Binary output that just counts the number of bytes written
+ * All data is discarded
+ */
 public class CountingBinaryOutputImpl extends BaseBinaryOutput implements CountingBinaryOutput {
-    private int len = 0;
+    private int count = 0;
 
     @Override
     public void writeByte(int b) {
-        this.len++;
+        this.count++;
     }
 
     @Override
@@ -33,6 +37,6 @@ public class CountingBinaryOutputImpl extends BaseBinaryOutput implements Counti
 
     @Override
     public int getCount() {
-        return this.len;
+        return this.count;
     }
 }

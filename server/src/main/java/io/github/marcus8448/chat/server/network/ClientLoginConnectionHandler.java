@@ -19,10 +19,16 @@ package io.github.marcus8448.chat.server.network;
 import io.github.marcus8448.chat.core.api.Constants;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.api.network.PacketPipeline;
+import io.github.marcus8448.chat.core.network.ClientPacketTypes;
 import io.github.marcus8448.chat.core.network.NetworkedData;
 import io.github.marcus8448.chat.core.network.PacketType;
-import io.github.marcus8448.chat.core.network.PacketTypes;
+import io.github.marcus8448.chat.core.network.ServerPacketTypes;
 import io.github.marcus8448.chat.core.network.packet.*;
+import io.github.marcus8448.chat.core.network.packet.client.Authenticate;
+import io.github.marcus8448.chat.core.network.packet.client.Hello;
+import io.github.marcus8448.chat.core.network.packet.server.AuthenticationFailure;
+import io.github.marcus8448.chat.core.network.packet.server.AuthenticationRequest;
+import io.github.marcus8448.chat.core.network.packet.server.AuthenticationSuccess;
 import io.github.marcus8448.chat.core.user.User;
 import io.github.marcus8448.chat.server.Server;
 import org.apache.logging.log4j.LogManager;
@@ -58,12 +64,12 @@ public class ClientLoginConnectionHandler implements ClientConnectionHandler {
             while (this.pipeline.isOpen()) {
                 Packet<?> packet = this.pipeline.receivePacket();
                 PacketType<?> type = packet.type();
-                if (type == PacketTypes.CLIENT_HELLO) {
-                    ClientHello hello = (ClientHello) packet.data();
-                    LOGGER.trace("Hello from '{}' version {}", hello.getClientBrand(), hello.getClientVersion());
-                    if (!Objects.equals(hello.getClientVersion(), Constants.VERSION)) {
-                        LOGGER.warn("Rejected client due to version mismatch [client: {} | server: {}]", hello.getClientVersion(), Constants.VERSION);
-                        this.pipeline.send(PacketTypes.SERVER_AUTH_RESPONSE, new ServerAuthResponse(false, "Version mismatch!"));
+                if (type == ClientPacketTypes.HELLO) {
+                    Hello hello = (Hello) packet.data();
+                    LOGGER.trace("Hello from '{}' version {}", hello.getBrand(), hello.getVersion());
+                    if (!Objects.equals(hello.getVersion(), Constants.VERSION)) {
+                        LOGGER.warn("Rejected client due to version mismatch [client: {} | server: {}]", hello.getVersion(), Constants.VERSION);
+                        this.pipeline.send(ServerPacketTypes.AUTHENTICATION_FAILURE, new AuthenticationFailure("Version mismatch!"));
                         this.pipeline.close();
                         return;
                     }
@@ -78,13 +84,13 @@ public class ClientLoginConnectionHandler implements ClientConnectionHandler {
                     LOGGER.trace("Sending authentication data");
                     byte[] encoded = secretKey.getEncoded();
                     try {
-                        this.pipeline.send(PacketTypes.SERVER_AUTH_REQUEST, new ServerAuthRequest(this.server.publicKey, rsaCipher.doFinal(encoded)));
+                        this.pipeline.send(ServerPacketTypes.AUTHENTICATION_REQUEST, new AuthenticationRequest(this.server.publicKey, rsaCipher.doFinal(encoded)));
                     } catch (IllegalBlockSizeException | BadPaddingException e) {
                         throw new RuntimeException(e);
                     }
 
-                    Packet<ClientAuthResponse> packet1 = this.pipeline.receivePacket();
-                    ClientAuthResponse auth = packet1.data();
+                    Packet<Authenticate> packet1 = this.pipeline.receivePacket();
+                    Authenticate auth = packet1.data();
                     try {
                         rsaCipher.init(Cipher.DECRYPT_MODE, this.server.privateKey);
                     } catch (InvalidKeyException e) {
@@ -98,23 +104,27 @@ public class ClientLoginConnectionHandler implements ClientConnectionHandler {
                             this.server.executor.execute(() -> {
                                 User user = this.server.createUser(auth.getUsername(), hello.getKey(), null);
                                 try {
-                                    this.server.updateConnection(this, new ClientMainConnectionHandler(this.server, this.pipeline.encryptWith(secretKey), user));
-                                    this.pipeline.send(PacketTypes.SERVER_AUTH_RESPONSE, new ServerAuthResponse(true, null));
+                                    this.server.updateConnection(this, new ClientMainConnectionHandler(this.server, this.pipeline.encryptWith(secretKey), user), user);
+                                    this.pipeline.send(ServerPacketTypes.AUTHENTICATION_SUCCESS, new AuthenticationSuccess(this.server.getUsers()));
                                 } catch (IOException e) {
-                                    throw new RuntimeException(e);
+                                    LOGGER.error(e);
                                 }
                             });
                             return;
                         } else {
                             LOGGER.error("User with the same key already connected");
-                            this.pipeline.send(PacketTypes.SERVER_AUTH_RESPONSE, new ServerAuthResponse(false, "Client with this public key already connected."));
+                            this.pipeline.send(ServerPacketTypes.AUTHENTICATION_FAILURE, new AuthenticationFailure("Client with this public key already connected."));
                             this.pipeline.close();
                         }
                     } else {
                         LOGGER.warn("Client failed identity verification");
-                        this.pipeline.send(PacketTypes.SERVER_AUTH_RESPONSE, new ServerAuthResponse(false, "Identity verification failed."));
+                        this.pipeline.send(ServerPacketTypes.AUTHENTICATION_FAILURE, new AuthenticationFailure("Identity verification failed."));
                         this.pipeline.close();
                     }
+                } else {
+                    LOGGER.error("Client sent non-hello packet - closing connection");
+                    this.shutdown();
+                    return;
                 }
             }
         } catch (Exception e) {
@@ -126,6 +136,7 @@ public class ClientLoginConnectionHandler implements ClientConnectionHandler {
     public void shutdown() {
         try {
             this.pipeline.close();
+            server.executor.execute(() -> server.disconnect(this, null));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

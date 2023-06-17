@@ -20,6 +20,16 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 
+/**
+ * Represents data that can (and should) be encrypted before serialization
+ * @param <E> The type that represents the encrypted data
+ */
 public interface PrivateData<E> {
+    /**
+     * Encrypts the data represented by this object
+     * @param cipher the cipher to use when encrpyting the data
+     *               (Must be properly initialized)
+     * @return the encrypted data
+     */
     E encrypt(Cipher cipher) throws IllegalBlockSizeException, BadPaddingException;
 }

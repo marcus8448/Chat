@@ -20,8 +20,9 @@ import io.github.marcus8448.chat.core.Cell;
 import io.github.marcus8448.chat.core.api.Constants;
 import io.github.marcus8448.chat.core.api.network.PacketPipeline;
 import io.github.marcus8448.chat.core.message.Message;
-import io.github.marcus8448.chat.core.network.PacketTypes;
-import io.github.marcus8448.chat.core.network.packet.AddMessage;
+import io.github.marcus8448.chat.core.network.ServerPacketTypes;
+import io.github.marcus8448.chat.core.network.packet.server.AddMessage;
+import io.github.marcus8448.chat.core.network.packet.server.UserConnect;
 import io.github.marcus8448.chat.core.user.User;
 import io.github.marcus8448.chat.server.network.ClientConnectionHandler;
 import io.github.marcus8448.chat.server.network.ClientLoginConnectionHandler;
@@ -39,7 +40,9 @@ import java.net.Socket;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
+import java.util.Scanner;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -72,6 +75,7 @@ public class Server implements Closeable {
     }
 
     public void launch(int port) {
+        Thread thread = new Thread(this::serverAdministration);
         try (ServerSocket socket = new ServerSocket(port)) {
             while (!socket.isClosed()) {
                 if (this.executor.isShutdown()) socket.close();
@@ -96,9 +100,31 @@ public class Server implements Closeable {
         }
     }
 
-    public void updateConnection(ClientConnectionHandler oldHandler, ClientConnectionHandler newHandler) {
+    private void serverAdministration() {
+        Scanner scanner = new Scanner(System.in);
+        while (!this.executor.isShutdown()) {
+            String[] s = scanner.nextLine().split(" ");
+            String command = s[0];
+            switch (command) {
+                case "kick" -> {
+                }
+                case "exit" -> {
+                    this.executor.shutdown();
+                }
+                default -> {
+                    LOGGER.error("Invalid command!");
+                }
+            }
+        }
+    }
+
+    public void updateConnection(ClientConnectionHandler oldHandler, ClientConnectionHandler newHandler, User user) {
         this.executor.execute(() -> {
             if (this.connectionHandlers.remove(oldHandler)) {
+                for (ClientConnectionHandler connectionHandler : this.connectionHandlers) {
+                    connectionHandler.send(ServerPacketTypes.USER_CONNECT, new UserConnect(user));
+                }
+
                 this.connectionHandlers.add(newHandler);
                 this.connectionExecutor.submit(newHandler);
             } else {
@@ -115,7 +141,8 @@ public class Server implements Closeable {
 
     @Override
     public void close() {
-        for (ClientConnectionHandler handler : this.connectionHandlers) {
+        List<ClientConnectionHandler> handlers = new ArrayList<>(this.connectionHandlers);
+        for (ClientConnectionHandler handler : handlers) {
             handler.shutdown();
         }
         this.connectionExecutor.shutdown();
@@ -128,7 +155,7 @@ public class Server implements Closeable {
 
     public void receiveMessage(long time, User user, byte[] checksum, String message) {
         for (ClientConnectionHandler handler : this.connectionHandlers) {
-            handler.send(PacketTypes.ADD_MESSAGE, new AddMessage(time, user.sessionId(), message, checksum));
+            handler.send(ServerPacketTypes.ADD_MESSAGE, new AddMessage(time, user.sessionId(), message, checksum));
         }
     }
 
@@ -140,6 +167,10 @@ public class Server implements Closeable {
     public void disconnect(ClientConnectionHandler handler, User user) {
         this.assertOnThread();
         this.connectionHandlers.remove(handler);
-        this.users.remove(user);
+        if (user != null) this.users.remove(user);
+    }
+
+    public Collection<User> getUsers() {
+        return this.users.getUsers();
     }
 }

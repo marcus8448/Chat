@@ -16,9 +16,25 @@
 
 package io.github.marcus8448.chat.core.api;
 
+/**
+ * Miscellaneous constant values
+ */
 public interface Constants {
+    /**
+     * The default port for chat connections
+     */
     int PORT = 34599;
+    /**
+     * Project version
+     */
     String VERSION = "0.1.0";
+    /**
+     * The packet header (magic number preceding packet data)
+     */
     int PACKET_HEADER = 0xAACE7A7E;
+
+    /**
+     * Application name
+     */
     String BRAND = "Chat";
 }

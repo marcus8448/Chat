@@ -14,46 +14,45 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.network.packet;
+package io.github.marcus8448.chat.core.network.packet.server;
 
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.api.network.connection.BinaryInput;
 import io.github.marcus8448.chat.core.api.network.connection.BinaryOutput;
 import io.github.marcus8448.chat.core.network.NetworkedData;
+import io.github.marcus8448.chat.core.user.User;
 
 import java.io.IOException;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 
-public class ServerAuthRequest implements NetworkedData {
-    private final RSAPublicKey key;
-    private final byte[] authData;
+public class UserConnect implements NetworkedData {
+    private final User user;
 
-    public ServerAuthRequest(RSAPublicKey key, byte[] authData) {
-        this.key = key;
-        this.authData = authData;
+    public UserConnect(User user) {
+        this.user = user;
     }
 
-    public ServerAuthRequest(BinaryInput input) throws IOException {
+    public UserConnect(BinaryInput input) throws IOException {
+        int sessionId = input.readInt();
+        RSAPublicKey key = null;
         try {
-            this.key = CryptoHelper.decodeRsaPublicKey(input.readByteArray());
+            key = CryptoHelper.decodeRsaPublicKey(input.readByteArray());
         } catch (InvalidKeySpecException e) {
             throw new RuntimeException(e);
         }
-        this.authData = input.readByteArray();
+        String username = input.readString();
+        this.user = new User(sessionId, username, key, null);
     }
 
     @Override
     public void write(BinaryOutput output) throws IOException {
-        output.writeByteArray(this.key.getEncoded());
-        output.writeByteArray(this.authData);
+        output.writeInt(user.sessionId());
+        output.writeByteArray(user.key().getEncoded());
+        output.writeString(user.username());
     }
 
-    public RSAPublicKey getServerKey() {
-        return key;
-    }
-
-    public byte[] getAuthData() {
-        return authData;
+    public User getUser() {
+        return user;
     }
 }

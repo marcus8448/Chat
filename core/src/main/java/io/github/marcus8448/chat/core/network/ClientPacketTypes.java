@@ -17,17 +17,14 @@
 package io.github.marcus8448.chat.core.network;
 
 import io.github.marcus8448.chat.core.network.packet.*;
+import io.github.marcus8448.chat.core.network.packet.client.Authenticate;
+import io.github.marcus8448.chat.core.network.packet.client.Hello;
+import io.github.marcus8448.chat.core.network.packet.client.SendMessage;
 
-public interface PacketTypes {
-    PacketType<ClientHello> CLIENT_HELLO = PacketType.create(ClientHello.class, ClientHello::new);
-    PacketType<ClientAuthResponse> CLIENT_AUTH = PacketType.create(ClientAuthResponse.class, ClientAuthResponse::new);
-    PacketType<ServerAuthRequest> SERVER_AUTH_REQUEST = PacketType.create(ServerAuthRequest.class, ServerAuthRequest::new);
-    PacketType<ServerAuthResponse> SERVER_AUTH_RESPONSE = PacketType.create(ServerAuthResponse.class, ServerAuthResponse::new);
-
-    PacketType<AddMessage> ADD_MESSAGE = PacketType.create(AddMessage.class, AddMessage::new);
-
+public interface ClientPacketTypes {
+    PacketType<Hello> HELLO = PacketType.create(Hello.class, Hello::new);
+    PacketType<Authenticate> AUTHENTICATE = PacketType.create(Authenticate.class, Authenticate::new);
     PacketType<SendMessage> SEND_MESSAGE = PacketType.create(SendMessage.class, SendMessage::new);
-    PacketType<EmptyRequest> CLIENT_REQUEST_ONLINE = PacketType.create(EmptyRequest.class, EmptyRequest::new);
     PacketType<EmptyRequest> CLIENT_REQUEST_CHANNELS = PacketType.create(EmptyRequest.class, EmptyRequest::new);
     PacketType<EmptyRequest> CLIENT_JOIN_CHANNEL = PacketType.create(EmptyRequest.class, EmptyRequest::new);
     PacketType<EmptyRequest> CLIENT_CREATE_CHANNEL = PacketType.create(EmptyRequest.class, EmptyRequest::new);

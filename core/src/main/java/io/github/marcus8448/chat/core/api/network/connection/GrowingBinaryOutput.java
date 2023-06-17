@@ -18,12 +18,21 @@ package io.github.marcus8448.chat.core.api.network.connection;
 
 import io.github.marcus8448.chat.core.impl.network.connection.GrowingBinaryOutputImpl;
 
+/**
+ * Represents a binary output backed by arrays to match the size of the input
+ */
 public interface GrowingBinaryOutput extends CountingBinaryOutput {
     static GrowingBinaryOutput create(int baseSize) {
         return new GrowingBinaryOutputImpl(baseSize);
     }
 
+    /**
+     * @return the raw byte array backing this output
+     */
     byte[] getRawOutput();
 
+    /**
+     * @return a copy of the backing byte array that is sized to the current number of bytes inputted
+     */
     byte[] getSizedOutput();
 }

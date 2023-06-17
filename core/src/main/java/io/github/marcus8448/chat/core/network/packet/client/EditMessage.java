@@ -14,11 +14,16 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.api.network;
+package io.github.marcus8448.chat.core.network.packet.client;
 
+import io.github.marcus8448.chat.core.api.network.connection.BinaryOutput;
 import io.github.marcus8448.chat.core.network.NetworkedData;
-import io.github.marcus8448.chat.core.network.packet.Packet;
 
-public interface PacketHandler {
-    <Data extends NetworkedData> void handle(Packet<Data> packet);
+import java.io.IOException;
+
+public class EditMessage implements NetworkedData {
+    @Override
+    public void write(BinaryOutput output) throws IOException {
+
+    }
 }

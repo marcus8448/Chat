@@ -18,8 +18,18 @@ package io.github.marcus8448.chat.core.impl.network.connection;
 
 import java.io.IOException;
 
+/**
+ * Binary input that wraps an array of fixed size
+ * Will throw if it runs out of space
+ */
 public class FixedBinaryInput extends BaseBinaryInput {
+    /**
+     * The backing array
+     */
     private final byte[] bytes;
+    /**
+     * The number of bytes written to this input
+     */
     private int pos = 0;
 
     public FixedBinaryInput(byte[] bytes) {

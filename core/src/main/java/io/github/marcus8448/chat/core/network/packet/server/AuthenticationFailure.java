@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.network.packet;
+package io.github.marcus8448.chat.core.network.packet.server;
 
 import io.github.marcus8448.chat.core.api.network.connection.BinaryInput;
 import io.github.marcus8448.chat.core.api.network.connection.BinaryOutput;
@@ -22,31 +22,27 @@ import io.github.marcus8448.chat.core.network.NetworkedData;
 
 import java.io.IOException;
 
-public class SendMessage implements NetworkedData {
-    private final String message;
-    private final byte[] checksum;
+/**
+ * Represents a client's failure to meet the server's authentication challenge
+ * @see io.github.marcus8448.chat.core.network.packet.client.Authenticate
+ */
+public class AuthenticationFailure implements NetworkedData {
+    private final String reason;
 
-    public SendMessage(BinaryInput input) throws IOException {
-        this.message = input.readString();
-        this.checksum = input.readByteArray();
+    public AuthenticationFailure(BinaryInput input) throws IOException {
+        this.reason = input.readString();
     }
 
-    public SendMessage(String message, byte[] checksum) {
-        this.message = message;
-        this.checksum = checksum;
+    public AuthenticationFailure(String reason) {
+        this.reason = reason;
     }
 
     @Override
     public void write(BinaryOutput output) throws IOException {
-        output.writeString(this.message);
-        output.writeByteArray(this.checksum);
+        output.writeString(this.reason);
     }
 
-    public String getMessage() {
-        return message;
-    }
-
-    public byte[] getChecksum() {
-        return checksum;
+    public String getReason() {
+        return reason;
     }
 }

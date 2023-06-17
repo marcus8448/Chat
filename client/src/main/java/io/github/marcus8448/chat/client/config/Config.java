@@ -72,7 +72,7 @@ public class Config {
     }
 
     public static Config load(File configFile) {
-        LOGGER.trace("Loading configuration file");
+        LOGGER.trace("Loading configuration file at {}", configFile.getPath());
         if (configFile.exists()) {
             try (Reader reader = new FileReader(configFile)) {
                 Config config = GSON.fromJson(reader, Config.class);

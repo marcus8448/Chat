@@ -18,8 +18,18 @@ package io.github.marcus8448.chat.core.impl.network.connection;
 
 import java.io.IOException;
 
+/**
+ * Binary output of fixed size
+ * Will throw if it runs out of space
+ */
 public class FixedBinaryOutput extends BaseBinaryOutput {
+    /**
+     * The wrapped array
+     */
     private final byte[] wrap;
+    /**
+     * THe number of bytes written to this output
+     */
     private int pos = 0;
 
     public FixedBinaryOutput(byte[] wrap) {

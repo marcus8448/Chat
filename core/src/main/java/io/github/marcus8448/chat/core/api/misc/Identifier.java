@@ -18,6 +18,10 @@ package io.github.marcus8448.chat.core.api.misc;
 
 import org.jetbrains.annotations.NotNull;
 
+/**
+ * Effectively, a string with extra constraints
+ * Only allows string with these characters: [0-9], [a-Z], _
+ */
 public class Identifier {
     private final @NotNull String value;
 
@@ -25,11 +29,22 @@ public class Identifier {
         this.value = value;
     }
 
+    /**
+     * Creates a new identifier
+     * @param value the name of the identifier
+     * @return a new identifier
+     * @throws IllegalArgumentException if the string contains illegal characters
+     */
     public static @NotNull Identifier create(String value) {
         if (!Identifier.verify(value)) throw new IllegalArgumentException("Invalid id!");
         return new Identifier(value);
     }
 
+    /**
+     * Verifies the validity of a string to become an identifier
+     * @param s the string to test
+     * @return whether the string is a valid identifier
+     */
     public static boolean verify(String s) {
         for (char c : s.toCharArray()) {
             if (!Character.isAlphabetic(c) && !Character.isDigit(c) && c != '_') {

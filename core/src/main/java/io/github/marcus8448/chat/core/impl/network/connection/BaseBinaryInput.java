@@ -24,6 +24,10 @@ import java.io.EOFException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
+/**
+ * Base class for binary inputs
+ * Provides default implementations for the helper methods
+ */
 public abstract class BaseBinaryInput implements BinaryInput {
     private static final Logger LOGGER = LogManager.getLogger();
 

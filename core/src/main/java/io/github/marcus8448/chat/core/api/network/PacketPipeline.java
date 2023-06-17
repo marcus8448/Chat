@@ -22,6 +22,8 @@ import io.github.marcus8448.chat.core.impl.network.NetworkPacketPipeline;
 import io.github.marcus8448.chat.core.network.NetworkedData;
 import io.github.marcus8448.chat.core.network.PacketType;
 import io.github.marcus8448.chat.core.network.packet.Packet;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
@@ -30,7 +32,18 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.Socket;
 
+/**
+ * Represents a connection to some other device that exchanges packets (The way the packets are transmitted is opaque)
+ */
 public interface PacketPipeline extends Closeable {
+    Logger LOGGER = LogManager.getLogger();
+
+    /**
+     * Creates a new packet pipeline backed by a socket connection
+     * @param header the packet header to use
+     * @param socket the backing socket
+     * @return a new packet pipeline
+     */
     @Contract(value = "_, _ -> new", pure = true)
     static @NotNull PacketPipeline createNetwork(int header, @NotNull Socket socket) {
         try {
@@ -40,16 +53,55 @@ public interface PacketPipeline extends Closeable {
         }
     }
 
+    /**
+     * Encrypts this packet pipeline with the given AES key
+     * Does not support recursive encryption
+     * (e.g. a.encryptWith(x).encryptWith(y) is the same as a.encryptWith(y))
+     * @param secretKey the AES key to use (other formats not supported)
+     * @return the encrypted pipeline
+     */
     @NotNull PacketPipeline encryptWith(@NotNull SecretKey secretKey) throws IOException;
 
+    /**
+     * Sends a packet through the pipeline
+     * @param type the type of packet to send
+     * @param networkedData the packet's contents
+     * @param <Data> the type of packet
+     */
     <Data extends NetworkedData> void send(PacketType<Data> type, Data networkedData) throws IOException;
 
+    /**
+     * Blocks until a packet is received
+     * @param <Data> the type of packet received
+     */
     <Data extends NetworkedData> Packet<Data> receivePacket() throws IOException;
 
-    <Data extends NetworkedData> Packet<Data> receivePacket(PacketType<Data> type) throws IOException;
+    /**
+     * Blocks until a packet of the given type is received.
+     * If a packet not of this type is received, it is discarded.
+     * @param type the type of packet to search for
+     * @return the received packet
+     * @param <Data> the type of packet
+     */
+    default <Data extends NetworkedData> Packet<Data> receivePacket(PacketType<Data> type) throws IOException {
+        // receive any type of packet (as per usual)
+        Packet<NetworkedData> packet = this.receivePacket();
+        // check if it is of the desired type
+        if (packet.type() != type) {
+            LOGGER.debug("Discarding packet {}", type.getDataClass().getName());
+            // it is of some other type, so let's wait for another packet
+            return this.receivePacket(type);
+        }
+        LOGGER.debug("Received packet {}", type.getDataClass().getName());
+        // the packet is of the right type, so return it
+        return (Packet<Data>) packet;
+    }
 
     @Override
     void close() throws IOException;
 
+    /**
+     * @return whether the pipeline is open (can send/receive packets)
+     */
     boolean isOpen();
 }

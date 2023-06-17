@@ -31,12 +31,30 @@ import javax.crypto.SecretKey;
 import java.io.IOException;
 import java.net.Socket;
 
+/**
+ * A packet pipeline backed by a network connection.
+ * Is not encrypted and thereby insecure.
+ * Used for initial handshake (before encrypting)
+ * @see EncryptedNetworkPipeline
+ */
 public class NetworkPacketPipeline implements PacketPipeline {
     private static final Logger LOGGER = LogManager.getLogger();
 
+    /**
+     * The packet header in use
+     */
     private final int packetHeader;
+    /**
+     * The backing network connection (socket)
+     */
     private final Socket socket;
+    /**
+     * The socket's input stream, conveniently wrapped in a binary input
+     */
     private final BinaryInput input;
+    /**
+     * The socket's input stream, conveniently wrapped in a binary output
+     */
     private final BinaryOutput output;
 
     public NetworkPacketPipeline(int packetHeader, @NotNull Socket socket, @NotNull BinaryInput input, @NotNull BinaryOutput output) throws IOException {
@@ -54,28 +72,17 @@ public class NetworkPacketPipeline implements PacketPipeline {
     @Override
     public synchronized <Data extends NetworkedData> void send(PacketType<Data> type, Data networkedData) throws IOException {
         LOGGER.debug("Sending packet {}", type.getDataClass().getName());
-        this.output.writeInt(this.packetHeader);
-        this.output.writeShort(type.getId());
-        networkedData.write(this.output);
+        this.output.writeInt(this.packetHeader); // write the packet header
+        this.output.writeShort(type.getId()); // write the packet id
+        networkedData.write(this.output); // write the raw data - no length knowledge required.
     }
 
     @Override
     public <Data extends NetworkedData> Packet<Data> receivePacket() throws IOException {
-        this.input.seekToIdentifier(this.packetHeader);
-        PacketType<Data> type = (PacketType<Data>) PacketType.getType(this.input.readShort());
+        this.input.seekToIdentifier(this.packetHeader); // wait for a packet header
+        PacketType<Data> type = (PacketType<Data>) PacketType.getType(this.input.readShort()); // get the packet type
         LOGGER.debug("Received packet {}", type.getDataClass().getName());
-        return new Packet<>(type, type.create(this.input));
-    }
-
-    @Override
-    public <Data extends NetworkedData> Packet<Data> receivePacket(PacketType<Data> type) throws IOException {
-        Packet<NetworkedData> packet = this.receivePacket();
-        if (packet.type() != type) {
-            LOGGER.debug("Discarding packet {}", type.getDataClass().getName());
-            return this.receivePacket(type);
-        }
-        LOGGER.debug("Received packet {}", type.getDataClass().getName());
-        return (Packet<Data>) packet;
+        return new Packet<>(type, type.create(this.input)); // read the data and create a packet
     }
 
     @Override

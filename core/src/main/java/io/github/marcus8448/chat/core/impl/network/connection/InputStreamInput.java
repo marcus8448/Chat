@@ -19,6 +19,9 @@ package io.github.marcus8448.chat.core.impl.network.connection;
 import java.io.IOException;
 import java.io.InputStream;
 
+/**
+ * Binary input that wraps an input stream
+ */
 public class InputStreamInput extends BaseBinaryInput {
     private final InputStream parent;
 

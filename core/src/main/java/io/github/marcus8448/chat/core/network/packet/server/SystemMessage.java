@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.network.packet;
+package io.github.marcus8448.chat.core.network.packet.server;
 
 import io.github.marcus8448.chat.core.api.network.connection.BinaryInput;
 import io.github.marcus8448.chat.core.api.network.connection.BinaryOutput;
@@ -22,40 +22,24 @@ import io.github.marcus8448.chat.core.network.NetworkedData;
 
 import java.io.IOException;
 
-public class AddMessage implements NetworkedData {
-    private final long timestamp;
-    private final int authorId;
+public class SystemMessage implements NetworkedData {
     private final String contents;
     private final byte[] checksum;
 
-    public AddMessage(BinaryInput input) throws IOException {
-        this.timestamp = input.readLong();
-        this.authorId = input.readInt();
-        this.contents = input.readString();
-        this.checksum = input.readByteArray();
-    }
-
-    public AddMessage(long timestamp, int authorId, String contents, byte[] checksum) {
-        this.timestamp = timestamp;
-        this.authorId = authorId;
+    public SystemMessage(String contents, byte[] checksum) {
         this.contents = contents;
         this.checksum = checksum;
     }
 
+    public SystemMessage(BinaryInput input) throws IOException {
+        this.contents = input.readString();
+        this.checksum = input.readByteArray();
+    }
+
     @Override
     public void write(BinaryOutput output) throws IOException {
-        output.writeLong(this.timestamp);
-        output.writeInt(this.authorId);
         output.writeString(this.contents);
         output.writeByteArray(this.checksum);
-    }
-
-    public long getTimestamp() {
-        return timestamp;
-    }
-
-    public int getAuthorId() {
-        return authorId;
     }
 
     public byte[] getChecksum() {

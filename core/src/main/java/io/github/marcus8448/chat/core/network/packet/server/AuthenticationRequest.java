@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.github.marcus8448.chat.core.network.packet;
+package io.github.marcus8448.chat.core.network.packet.server;
 
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.api.network.connection.BinaryInput;
@@ -25,36 +25,35 @@ import java.io.IOException;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 
-public class ClientCreateAccount implements NetworkedData {
+public class AuthenticationRequest implements NetworkedData {
     private final RSAPublicKey key;
-    private final String username;
+    private final byte[] authData;
 
-    public ClientCreateAccount(String username, RSAPublicKey key) {
-        this.username = username;
+    public AuthenticationRequest(RSAPublicKey key, byte[] authData) {
         this.key = key;
+        this.authData = authData;
     }
 
-    public ClientCreateAccount(BinaryInput input) throws IOException {
-        this.username = input.readString();
-        byte[] encodedKey = input.readByteArray();
+    public AuthenticationRequest(BinaryInput input) throws IOException {
         try {
-            this.key = CryptoHelper.decodeRsaPublicKey(encodedKey);
+            this.key = CryptoHelper.decodeRsaPublicKey(input.readByteArray());
         } catch (InvalidKeySpecException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public RSAPublicKey getKey() {
-        return key;
+        this.authData = input.readByteArray();
     }
 
     @Override
     public void write(BinaryOutput output) throws IOException {
-        output.writeString(this.username);
         output.writeByteArray(this.key.getEncoded());
+        output.writeByteArray(this.authData);
+    }
+
+    public RSAPublicKey getServerKey() {
+        return key;
+    }
+
+    public byte[] getAuthData() {
+        return authData;
     }
 }
