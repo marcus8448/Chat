@@ -20,15 +20,14 @@ import io.github.marcus8448.chat.client.config.AccountData;
 import io.github.marcus8448.chat.client.config.Config;
 import io.github.marcus8448.chat.client.ui.ChatView;
 import io.github.marcus8448.chat.client.ui.LoginScreen;
+import io.github.marcus8448.chat.core.api.account.User;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
+import io.github.marcus8448.chat.core.api.message.Message;
 import io.github.marcus8448.chat.core.api.network.PacketPipeline;
-import io.github.marcus8448.chat.core.message.Message;
-import io.github.marcus8448.chat.core.network.ServerPacketTypes;
-import io.github.marcus8448.chat.core.network.packet.server.AddMessage;
-import io.github.marcus8448.chat.core.network.packet.Packet;
-import io.github.marcus8448.chat.core.network.packet.server.SystemMessage;
-import io.github.marcus8448.chat.core.network.packet.server.UserConnect;
-import io.github.marcus8448.chat.core.user.User;
+import io.github.marcus8448.chat.core.api.network.packet.Packet;
+import io.github.marcus8448.chat.core.api.network.packet.ServerPacketTypes;
+import io.github.marcus8448.chat.core.api.network.packet.server.AddMessage;
+import io.github.marcus8448.chat.core.api.network.packet.server.SystemMessage;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -121,7 +120,7 @@ public class Client extends Application implements Runnable{
                 LOGGER.info("Received packet : " + packet.type());
                 if (packet.type() == ServerPacketTypes.ADD_MESSAGE) {
                     AddMessage addMessage = packet.getAs(ServerPacketTypes.ADD_MESSAGE);
-                    Platform.runLater(() -> this.messages.add(new Message(addMessage.getTimestamp(), this.users.get(addMessage.getAuthorId()), addMessage.getChecksum(), addMessage.getContents())));
+                    Platform.runLater(() -> this.messages.add(Message.text(addMessage.getTimestamp(), this.users.get(addMessage.getAuthorId()), addMessage.getContents(), addMessage.getSignature())));
                 } else if (packet.type() == ServerPacketTypes.USER_CONNECT) {
                     User user = packet.getAs(ServerPacketTypes.USER_CONNECT).getUser();
                     Platform.runLater(() -> this.users.put(user.sessionId(), user));

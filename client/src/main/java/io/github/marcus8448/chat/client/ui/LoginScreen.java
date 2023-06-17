@@ -24,13 +24,13 @@ import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.core.api.Constants;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.api.network.PacketPipeline;
-import io.github.marcus8448.chat.core.network.ClientPacketTypes;
-import io.github.marcus8448.chat.core.network.ServerPacketTypes;
-import io.github.marcus8448.chat.core.network.packet.*;
-import io.github.marcus8448.chat.core.network.packet.client.Authenticate;
-import io.github.marcus8448.chat.core.network.packet.client.Hello;
-import io.github.marcus8448.chat.core.network.packet.server.AuthenticationRequest;
-import io.github.marcus8448.chat.core.network.packet.server.AuthenticationSuccess;
+import io.github.marcus8448.chat.core.api.network.packet.ClientPacketTypes;
+import io.github.marcus8448.chat.core.api.network.packet.Packet;
+import io.github.marcus8448.chat.core.api.network.packet.ServerPacketTypes;
+import io.github.marcus8448.chat.core.api.network.packet.client.Authenticate;
+import io.github.marcus8448.chat.core.api.network.packet.client.Hello;
+import io.github.marcus8448.chat.core.api.network.packet.server.AuthenticationRequest;
+import io.github.marcus8448.chat.core.api.network.packet.server.AuthenticationSuccess;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -83,6 +83,10 @@ public class LoginScreen {
         this.stage = stage;
         this.stage.setTitle("Login");
         this.accountBox = new ComboBox<>(this.client.config.getAccounts());
+        int lastAccount = this.client.config.getLastAccount();
+        if (lastAccount >= 0 && lastAccount < this.client.config.getAccounts().size()) {
+            this.accountBox.getSelectionModel().select(lastAccount);
+        }
         VBox vBox = new VBox();
 
         vBox.getChildren().add(this.createMenuBar());
@@ -271,9 +275,7 @@ public class LoginScreen {
 
             LOGGER.info("Authenticating...");
             connect.send(ClientPacketTypes.AUTHENTICATE, new Authenticate(account.username(), output));
-            System.out.println("SAS");
             Packet<?> response = connect.receivePacket();
-            System.out.println("XX");
             if (response.type() == ServerPacketTypes.AUTHENTICATION_SUCCESS) {
                 LOGGER.info("Successfully authenticated to the server");
                 AuthenticationSuccess success = response.getAs(ServerPacketTypes.AUTHENTICATION_SUCCESS);

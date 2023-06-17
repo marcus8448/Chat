@@ -17,20 +17,23 @@
 package io.github.marcus8448.chat.client.ui.cell;
 
 import io.github.marcus8448.chat.client.Client;
+import io.github.marcus8448.chat.client.parse.MarkdownParser;
 import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
-import io.github.marcus8448.chat.core.message.Message;
+import io.github.marcus8448.chat.core.api.message.Message;
+import io.github.marcus8448.chat.core.api.message.MessageType;
+import io.github.marcus8448.chat.core.api.message.TextMessage;
 import javafx.scene.control.*;
+import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.Background;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
-import javafx.scene.layout.VBox;
+import javafx.scene.layout.*;
 import javafx.scene.shape.Circle;
+import javafx.scene.text.TextFlow;
 
+import java.io.ByteArrayInputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -39,12 +42,13 @@ public class MessageCell extends ListCell<Message> {
 
     private final Circle authorPicture = new Circle();
     private final Label authorName = new Label();
-    private final Label messageContents = new Label();
-    private final VBox vBox = new VBox(authorName, messageContents);
+    private final Pane imageContents = new Pane();
+    private final VBox vBox = new VBox(authorName);
     private final HBox hBox = new HBox(authorPicture, vBox);
     private final TextArea editArea = new TextArea();
     private final ContextMenu contextMenu;
     private final Client client;
+    private final TextFlow textMessageContents = new TextFlow();
 
     public MessageCell(Client client) {
         super();
@@ -53,7 +57,7 @@ public class MessageCell extends ListCell<Message> {
         HBox.setHgrow(authorPicture, Priority.NEVER);
         HBox.setHgrow(vBox, Priority.ALWAYS);
         VBox.setVgrow(authorName, Priority.NEVER);
-        VBox.setVgrow(messageContents, Priority.ALWAYS);
+        VBox.setVgrow(textMessageContents, Priority.ALWAYS);
         this.setGraphic(hBox);
         this.setText(null);
 
@@ -61,7 +65,7 @@ public class MessageCell extends ListCell<Message> {
             if (k.getCode() == KeyCode.ENTER) { //only passed if ctrl is pressed
                 Message item = this.getItem();
                 String text = this.editArea.getText();
-                this.commitEdit(new Message(item.timestamp(), item.author(), client.signMessage(text), text));
+//                this.commitEdit(new Message(item.getType(), item.author(), client.signMessage(text), text)); //todo: editing
             }
         });
 
@@ -85,19 +89,23 @@ public class MessageCell extends ListCell<Message> {
 
     private void copyAuthorId() {
         Map<DataFormat, Object> data = new HashMap<>();
-        data.put(DataFormat.PLAIN_TEXT, CryptoHelper.sha256Hash(this.getItem().author().key().getEncoded()));
+        data.put(DataFormat.PLAIN_TEXT, CryptoHelper.sha256Hash(this.getItem().getAuthor().getPublicKey().getEncoded()));
         Clipboard.getSystemClipboard().setContent(data);
     }
 
     private void copyAuthorName() {
         Map<DataFormat, Object> data = new HashMap<>();
-        data.put(DataFormat.PLAIN_TEXT, this.getItem().author().usernameAndId());
+        data.put(DataFormat.PLAIN_TEXT, this.getItem().getAuthor().getFormattedName());
         Clipboard.getSystemClipboard().setContent(data);
     }
 
     private void copyContents() {
         Map<DataFormat, Object> data = new HashMap<>();
-        data.put(DataFormat.PLAIN_TEXT, this.getItem().contents());
+        if (this.getItem().getType() == MessageType.TEXT) {
+            data.put(DataFormat.PLAIN_TEXT, ((TextMessage) this.getItem()).getMessage());
+        } else {
+            data.put(DataFormat.IMAGE, this.getItem().getContents()); //fixme?
+        }
         Clipboard.getSystemClipboard().setContent(data);
     }
 
@@ -105,18 +113,29 @@ public class MessageCell extends ListCell<Message> {
     protected void updateItem(Message item, boolean empty) {
         super.updateItem(item, empty);
         if (!empty && item != null) {
-//            boolean equals = this.client.getPublicKey().equals(item.author().key()); //todo: editing
-//            this.setEditable(equals);
+//            boolean canEdit = this.client.getPublicKey().equals(item.getAuthor().getPublicKey()) && item instanceof TextMessage; //todo: editing
+//            this.setEditable(canEdit);
             this.authorName.setBackground(null);
-            this.messageContents.setText(item.contents());
-            this.authorName.setText(item.author().usernameAndId());
+            if (item.getType() == MessageType.TEXT) {
+                this.vBox.getChildren().remove(this.imageContents);
+                if (!this.vBox.getChildren().contains(this.textMessageContents)) this.vBox.getChildren().add(this.textMessageContents);
+                MarkdownParser.parseMarkdown(this.textMessageContents, ((TextMessage) item).getMessage());
+            } else if (item.getType() == MessageType.IMAGE) {
+                this.vBox.getChildren().remove(this.textMessageContents);
+                if (!this.vBox.getChildren().contains(this.imageContents)) this.vBox.getChildren().add(this.imageContents);
+                Image image = new Image(new ByteArrayInputStream(item.getContents()));
+                this.imageContents.setBackground(new Background(new BackgroundImage(image, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.DEFAULT, BackgroundSize.DEFAULT)));
+                this.textMessageContents.getChildren().clear();
+            }
+            this.authorName.setText(item.getAuthor().getFormattedName());
             this.authorName.setOnMouseClicked(this::openAuthor);
             this.setContextMenu(contextMenu);
-            if (item.verifyChecksum()) {
-                this.authorName.setTooltip(new Tooltip(CryptoHelper.sha256Hash(item.author().key().getEncoded())));
+            String hash = CryptoHelper.sha256Hash(item.getAuthor().getPublicKey().getEncoded());
+            if (item.verifySignature()) {
+                this.authorName.setTooltip(new Tooltip(hash));
             } else {
                 this.authorName.setBackground(NOT_VERIFIED_BG);
-                this.authorName.setTooltip(new Tooltip("NOT VERIFIED: " + CryptoHelper.sha256Hash(item.author().key().getEncoded())));
+                this.authorName.setTooltip(new Tooltip("NOT VERIFIED: " + hash));
             }
         } else {
             this.setContextMenu(null);
@@ -147,7 +166,7 @@ public class MessageCell extends ListCell<Message> {
     public void startEdit() {
         super.startEdit();
         if (!isEditing()) return;
-        this.editArea.setText(this.getItem().contents());
+        this.editArea.setText(((TextMessage) this.getItem()).getMessage());
         this.editArea.setDisable(false);
         this.setGraphic(this.editArea);
     }

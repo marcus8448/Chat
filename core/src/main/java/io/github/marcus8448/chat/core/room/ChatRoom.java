@@ -16,8 +16,8 @@
 
 package io.github.marcus8448.chat.core.room;
 
-import io.github.marcus8448.chat.core.message.Message;
-import io.github.marcus8448.chat.core.user.User;
+import io.github.marcus8448.chat.core.api.account.User;
+import io.github.marcus8448.chat.core.api.message.Message;
 
 import java.util.List;
 

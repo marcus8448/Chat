@@ -17,13 +17,12 @@
 package io.github.marcus8448.chat.client.ui.cell;
 
 import io.github.marcus8448.chat.client.Client;
-import io.github.marcus8448.chat.client.util.JfxUtil;
-import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
-import io.github.marcus8448.chat.core.message.Message;
-import io.github.marcus8448.chat.core.user.User;
-import javafx.scene.control.*;
+import io.github.marcus8448.chat.core.api.account.User;
+import javafx.scene.control.ContextMenu;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListCell;
+import javafx.scene.control.MenuItem;
 import javafx.scene.input.MouseEvent;
-import javafx.scene.layout.Background;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -58,7 +57,7 @@ public class UserCell extends ListCell<User> {
     protected void updateItem(User item, boolean empty) {
         super.updateItem(item, empty);
         if (!empty && item != null) {
-            this.name.setText(item.usernameAndId());
+            this.name.setText(item.getFormattedName());
             this.setOnMouseClicked(this::openAccount);
         }
     }

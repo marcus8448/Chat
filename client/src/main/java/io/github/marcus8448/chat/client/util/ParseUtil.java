@@ -16,26 +16,9 @@
 
 package io.github.marcus8448.chat.client.util;
 
-import io.github.marcus8448.chat.core.Result;
-import io.github.marcus8448.chat.core.api.Constants;
-
-import java.net.InetSocketAddress;
-import java.net.URI;
-import java.net.URISyntaxException;
+import io.github.marcus8448.chat.core.api.misc.Result;
 
 public class ParseUtil {
-    public static Result<InetSocketAddress, String> parseServerAddress(String address) {
-        if (address.isBlank()) return Result.error("Missing server address");
-        try {
-            URI uri = new URI("chat://" + address);
-            String host = uri.getHost();
-            int port = uri.getPort();
-            if (uri.getHost() == null) return Result.error("Invalid hostname.");
-            return Result.ok(new InetSocketAddress(host, port == -1 ? Constants.PORT : port));
-        } catch (URISyntaxException ex) {
-            return Result.error("Invalid address.");
-        }
-    }
     public static Result<String, String> validateUsername(String username) {
         if (username.length() < 4) return Result.error("Too short");
         for (char c : username.toCharArray()) {

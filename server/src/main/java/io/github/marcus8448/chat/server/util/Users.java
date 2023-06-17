@@ -16,7 +16,7 @@
 
 package io.github.marcus8448.chat.server.util;
 
-import io.github.marcus8448.chat.core.user.User;
+import io.github.marcus8448.chat.core.api.account.User;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 

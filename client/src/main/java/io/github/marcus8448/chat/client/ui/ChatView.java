@@ -19,11 +19,13 @@ package io.github.marcus8448.chat.client.ui;
 import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.ui.cell.MessageCell;
 import io.github.marcus8448.chat.client.util.JfxUtil;
-import io.github.marcus8448.chat.core.message.Message;
-import io.github.marcus8448.chat.core.network.ClientPacketTypes;
-import io.github.marcus8448.chat.core.network.packet.client.SendMessage;
-import io.github.marcus8448.chat.core.user.User;
+import io.github.marcus8448.chat.core.api.account.User;
+import io.github.marcus8448.chat.core.api.message.Message;
+import io.github.marcus8448.chat.core.api.network.packet.ClientPacketTypes;
+import io.github.marcus8448.chat.core.api.network.packet.client.SendMessage;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
+import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
@@ -72,8 +74,18 @@ public class ChatView {
         ListView<String> leftPane = new ListView<>(channels);
 
         ListView<Message> centerContent = new ListView<>(this.client.messages);
+        this.client.messages.addListener((ListChangeListener<? super Message>) t -> {
+            t.next();
+            if (t.getAddedSize() > 0) {
+                Platform.runLater(() -> {
+                    if (this.client.messages.size() > 0) {
+                        centerContent.scrollTo(this.client.messages.size() - 1);
+                    }
+                });
+            }
+        });
         centerContent.setCellFactory(l -> new MessageCell(this.client));
-        this.client.messages.add(new Message(System.currentTimeMillis(), new User(0, "my_username", this.client.getPublicKey(), null), new byte[0], "Hello there"));
+        this.client.messages.add(Message.unverifiedText(System.currentTimeMillis(), new User(-1, "my_username", this.client.getPublicKey(), null), "Hello there"));
         centerContent.setEditable(true);
 
         messageBox.setPromptText("Type your message here");

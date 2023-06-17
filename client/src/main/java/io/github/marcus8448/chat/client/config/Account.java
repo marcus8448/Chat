@@ -20,7 +20,6 @@ import com.google.gson.*;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 
 import java.lang.reflect.Type;
-import java.security.PublicKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Base64;
 

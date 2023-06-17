@@ -16,14 +16,14 @@
 
 package io.github.marcus8448.chat.server;
 
-import io.github.marcus8448.chat.core.Cell;
 import io.github.marcus8448.chat.core.api.Constants;
+import io.github.marcus8448.chat.core.api.account.User;
+import io.github.marcus8448.chat.core.api.message.Message;
+import io.github.marcus8448.chat.core.api.misc.Cell;
 import io.github.marcus8448.chat.core.api.network.PacketPipeline;
-import io.github.marcus8448.chat.core.message.Message;
-import io.github.marcus8448.chat.core.network.ServerPacketTypes;
-import io.github.marcus8448.chat.core.network.packet.server.AddMessage;
-import io.github.marcus8448.chat.core.network.packet.server.UserConnect;
-import io.github.marcus8448.chat.core.user.User;
+import io.github.marcus8448.chat.core.api.network.packet.ServerPacketTypes;
+import io.github.marcus8448.chat.core.api.network.packet.server.AddMessage;
+import io.github.marcus8448.chat.core.api.network.packet.server.UserConnect;
 import io.github.marcus8448.chat.server.network.ClientConnectionHandler;
 import io.github.marcus8448.chat.server.network.ClientLoginConnectionHandler;
 import io.github.marcus8448.chat.server.thread.ThreadPerTaskExecutor;

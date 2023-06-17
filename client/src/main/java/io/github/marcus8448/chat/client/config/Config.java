@@ -30,7 +30,9 @@ import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.interfaces.RSAPublicKey;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 public class Config {
     private static final Logger LOGGER = LogManager.getLogger();
@@ -43,18 +45,16 @@ public class Config {
             .create();
 
     @Expose
-    private int lastAccount = 0;
+    public int lastAccount = 0;
 
     @Expose
-    private final ObservableList<Account> accounts = FXCollections.observableArrayList();
-
-    private final Map<RSAPublicKey, String> knownUsers = new HashMap<>();
+    public final ObservableList<Account> accounts = FXCollections.observableArrayList();
 
     private boolean isLoading = true;
 
     private File configFile = null;
 
-    private Config() {
+    public Config() {
     }
 
     private void save() {
@@ -155,5 +155,9 @@ public class Config {
             this.accounts.add(idx, new Account(remove.username(), key, encrypted));
             this.save();
         }
+    }
+
+    public int getLastAccount() {
+        return lastAccount;
     }
 }

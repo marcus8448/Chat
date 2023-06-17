@@ -16,10 +16,10 @@
 
 package io.github.marcus8448.chat.core.impl.network;
 
+import io.github.marcus8448.chat.core.api.network.NetworkedData;
 import io.github.marcus8448.chat.core.api.network.PacketPipeline;
-import io.github.marcus8448.chat.core.network.NetworkedData;
-import io.github.marcus8448.chat.core.network.PacketType;
-import io.github.marcus8448.chat.core.network.packet.Packet;
+import io.github.marcus8448.chat.core.api.network.packet.Packet;
+import io.github.marcus8448.chat.core.api.network.packet.PacketType;
 import org.jetbrains.annotations.NotNull;
 
 import javax.crypto.SecretKey;

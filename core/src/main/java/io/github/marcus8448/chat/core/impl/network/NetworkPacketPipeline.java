@@ -16,13 +16,12 @@
 
 package io.github.marcus8448.chat.core.impl.network;
 
+import io.github.marcus8448.chat.core.api.network.NetworkedData;
 import io.github.marcus8448.chat.core.api.network.PacketPipeline;
-import io.github.marcus8448.chat.core.api.network.connection.BinaryInput;
-import io.github.marcus8448.chat.core.api.network.connection.BinaryOutput;
-import io.github.marcus8448.chat.core.impl.network.connection.EncryptedNetworkPipeline;
-import io.github.marcus8448.chat.core.network.NetworkedData;
-import io.github.marcus8448.chat.core.network.PacketType;
-import io.github.marcus8448.chat.core.network.packet.Packet;
+import io.github.marcus8448.chat.core.api.network.io.BinaryInput;
+import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
+import io.github.marcus8448.chat.core.api.network.packet.Packet;
+import io.github.marcus8448.chat.core.api.network.packet.PacketType;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;

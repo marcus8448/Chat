@@ -20,11 +20,15 @@ import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.config.Account;
 import io.github.marcus8448.chat.client.config.Config;
 import io.github.marcus8448.chat.client.util.JfxUtil;
+import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.SingleSelectionModel;
-import javafx.scene.layout.AnchorPane;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
@@ -32,50 +36,57 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
-import java.util.Base64;
 
 
 public class ExportAccountScreen {
-    private static final int PADDING = 6;
-    private static final int WIDTH = 325;
-    private static final int HEIGHT = 100;
+    private static final int PADDING = 12;
 
-    private final Client client;
     private final ComboBox<Account> selection;
     private final Stage stage;
 
     public ExportAccountScreen(Client client, Stage stage) {
-        this.client = client;
         this.stage = stage;
+
+        VBox vBox = new VBox();
+        vBox.setPadding(new Insets(PADDING));
+        vBox.setSpacing(PADDING);
 
         this.selection = new ComboBox<>(client.config.getAccounts());
 
-        this.selection.setPrefWidth(WIDTH - PADDING * 2);
-        this.selection.setLayoutX(PADDING);
-        this.selection.setLayoutY(PADDING);
+        this.selection.setPrefWidth(Integer.MAX_VALUE);
         this.selection.setConverter(JfxUtil.ACCOUNT_STRING_CONVERTER);
+        VBox.setVgrow(this.selection, Priority.NEVER);
+        vBox.getChildren().add(this.selection);
+
+        Pane padding = new Pane();
+        VBox.setVgrow(padding, Priority.ALWAYS);
+        vBox.getChildren().add(padding);
+        padding.setMinHeight(0);
 
         Button cancel = new Button("Cancel");
         cancel.setPrefWidth(JfxUtil.BUTTON_WIDTH);
         cancel.setPrefHeight(JfxUtil.BUTTON_HEIGHT);
-        cancel.setLayoutX(WIDTH - PADDING - JfxUtil.BUTTON_WIDTH - PADDING - JfxUtil.BUTTON_WIDTH);
-        cancel.setLayoutY(HEIGHT - 30 - PADDING - JfxUtil.BUTTON_HEIGHT);
         JfxUtil.buttonPressCallback(cancel, stage::close);
 
         Button export = new Button("Export");
         export.setPrefWidth(JfxUtil.BUTTON_WIDTH);
         export.setPrefHeight(JfxUtil.BUTTON_HEIGHT);
-        export.setLayoutX(WIDTH - PADDING - JfxUtil.BUTTON_WIDTH);
-        export.setLayoutY(HEIGHT - 30 - PADDING - JfxUtil.BUTTON_HEIGHT);
         JfxUtil.buttonPressCallback(export, this::export);
 
-        AnchorPane pane = new AnchorPane(selection, cancel, export);
+        Pane pad = new Pane();
 
-        Scene scene = new Scene(pane);
+        HBox hBox = new HBox(pad, cancel, export);
+        HBox.setHgrow(pad, Priority.ALWAYS);
+        HBox.setHgrow(cancel, Priority.NEVER);
+        HBox.setHgrow(export, Priority.NEVER);
+        VBox.setVgrow(hBox, Priority.ALWAYS);
+        hBox.setSpacing(PADDING);
+        vBox.getChildren().add(hBox);
+
+        Scene scene = new Scene(vBox);
         stage.setTitle("Export account");
-        stage.setWidth(WIDTH);
-        stage.setHeight(HEIGHT);
-        stage.setResizable(false);
+        stage.setWidth(350);
+        stage.setHeight(125);
         stage.setScene(scene);
     }
 

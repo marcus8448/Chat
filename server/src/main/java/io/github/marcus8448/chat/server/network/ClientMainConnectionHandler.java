@@ -16,14 +16,13 @@
 
 package io.github.marcus8448.chat.server.network;
 
+import io.github.marcus8448.chat.core.api.account.User;
+import io.github.marcus8448.chat.core.api.network.NetworkedData;
 import io.github.marcus8448.chat.core.api.network.PacketPipeline;
-import io.github.marcus8448.chat.core.network.ClientPacketTypes;
-import io.github.marcus8448.chat.core.network.NetworkedData;
-import io.github.marcus8448.chat.core.network.PacketType;
-import io.github.marcus8448.chat.core.network.ServerPacketTypes;
-import io.github.marcus8448.chat.core.network.packet.Packet;
-import io.github.marcus8448.chat.core.network.packet.client.SendMessage;
-import io.github.marcus8448.chat.core.user.User;
+import io.github.marcus8448.chat.core.api.network.packet.ClientPacketTypes;
+import io.github.marcus8448.chat.core.api.network.packet.Packet;
+import io.github.marcus8448.chat.core.api.network.packet.PacketType;
+import io.github.marcus8448.chat.core.api.network.packet.client.SendMessage;
 import io.github.marcus8448.chat.server.Server;
 import io.github.marcus8448.chat.server.util.Utils;
 import org.apache.logging.log4j.LogManager;
