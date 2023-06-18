@@ -19,7 +19,6 @@ package io.github.marcus8448.chat.client.ui;
 import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.ui.cell.MessageCell;
 import io.github.marcus8448.chat.client.util.JfxUtil;
-import io.github.marcus8448.chat.core.api.account.User;
 import io.github.marcus8448.chat.core.api.message.Message;
 import io.github.marcus8448.chat.core.api.network.packet.ClientPacketTypes;
 import io.github.marcus8448.chat.core.api.network.packet.client.SendMessage;
@@ -54,12 +53,18 @@ public class ChatView {
         stage.setWidth(900);
         stage.setHeight(600);
         stage.setTitle("Chat");
+        MenuItem preferences = new MenuItem("Preferences");
+        preferences.setOnAction(e -> {});
+        MenuItem logOut = new MenuItem("Log out");
+        logOut.setOnAction(e -> this.client.logout(stage));
+        MenuItem exit = new MenuItem("Exit");
+        exit.setOnAction(e -> this.client.shutdown());
         MenuBar bar = new MenuBar(
                 new Menu("File", null,
-                        new MenuItem("Preferences"),
+                        preferences,
                         new SeparatorMenuItem(),
-                        new MenuItem("Log out"),
-                        new MenuItem("Exit")
+                        logOut,
+                        exit
                 ),
                 new Menu("Help", null,
                         new MenuItem("v"),
@@ -84,8 +89,7 @@ public class ChatView {
                 });
             }
         });
-        centerContent.setCellFactory(l -> new MessageCell(this.client));
-        this.client.messages.add(Message.unverifiedText(System.currentTimeMillis(), new User(-1, "my_username", this.client.getPublicKey(), null), "Hello there"));
+        centerContent.setCellFactory(l -> new MessageCell(centerContent, this.client));
         centerContent.setEditable(true);
 
         messageBox.setPromptText("Type your message here");
@@ -135,9 +139,9 @@ public class ChatView {
         vBox.getChildren().add(hBox);
 
         stage.setScene(scene);
-        this.client.setView(this);stage.setOnCloseRequest(s -> {
-            this.client.close();
-        });
+        this.client.setView(this);
+
+        stage.setOnCloseRequest(s -> this.client.close());
     }
 
     private void sendMessage() {

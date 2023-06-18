@@ -135,7 +135,7 @@ public class EncryptedNetworkPipeline implements PacketPipeline {
             throw new RuntimeException(e);
         }
         // wrap the data in a binary input for easy reading
-        BinaryInput input = BinaryInput.wrap(clear);
+        BinaryInput input = BinaryInput.buffer(clear);
         // get the type of packet based on the short id
         PacketType<Data> type = (PacketType<Data>) PacketType.getType(input.readShort());
         LOGGER.debug("Received packet {}", type.getDataClass().getName());

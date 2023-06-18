@@ -60,7 +60,7 @@ public class AuthenticationSuccess implements NetworkedData {
             output.writeInt(user.sessionId());
             output.writeByteArray(user.key().getEncoded());
             output.writeString(user.username());
-//            output.writeByteArray(user.base64Icon());
+//            output.writeByteArray(user.icon());
         }
     }
 

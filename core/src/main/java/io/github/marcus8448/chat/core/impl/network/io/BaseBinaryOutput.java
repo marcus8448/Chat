@@ -29,26 +29,29 @@ import java.nio.charset.StandardCharsets;
  */
 public abstract class BaseBinaryOutput implements BinaryOutput {
     @Override
-    public void writeShort(int value) throws IOException {
+    public BinaryOutput writeShort(int value) throws IOException {
         this.writeByte(value >> 8 & 0xFF);
         this.writeByte(value & 0xFF);
+        return this;
     }
 
     @Override
-    public void writeBoolean(boolean b) throws IOException {
+    public BinaryOutput writeBoolean(boolean b) throws IOException {
         this.writeByte(b ? 1 : 0);
+        return this;
     }
 
     @Override
-    public void writeInt(int value) throws IOException { //probably some signed-ness shenanigans here
+    public BinaryOutput writeInt(int value) throws IOException { //probably some signed-ness shenanigans here
         this.writeByte(value >> 24 & 0xFF);
         this.writeByte(value >> 16 & 0xFF);
         this.writeByte(value >> 8 & 0xFF);
         this.writeByte(value & 0xFF);
+        return this;
     }
 
     @Override
-    public void writeLong(long l) throws IOException {
+    public BinaryOutput writeLong(long l) throws IOException {
         this.writeByte((int) (l >> 56 & 0xFF));
         this.writeByte((int) (l >> 48 & 0xFF));
         this.writeByte((int) (l >> 40 & 0xFF));
@@ -57,46 +60,53 @@ public abstract class BaseBinaryOutput implements BinaryOutput {
         this.writeByte((int) (l >> 16 & 0xFF));
         this.writeByte((int) (l >> 8 & 0xFF));
         this.writeByte((int) (l & 0xFF));
+        return this;
     }
 
     @Override
-    public void writeByteArray(byte @NotNull [] bytes) throws IOException {
+    public BinaryOutput writeByteArray(byte @NotNull [] bytes) throws IOException {
         this.writeShort(bytes.length);
         this.writeByteArray(bytes.length, bytes);
+        return this;
     }
 
     @Override
-    public void writeByteArray(int len, byte @NotNull [] bytes) throws IOException {
+    public BinaryOutput writeByteArray(int len, byte @NotNull [] bytes) throws IOException {
         assert len == bytes.length;
         for (byte b : bytes) {
             this.writeByte(b);
         }
+        return this;
     }
 
     @Override
-    public void writeIntArray(int @NotNull [] ints) throws IOException {
+    public BinaryOutput writeIntArray(int @NotNull [] ints) throws IOException {
         this.writeShort(ints.length);
         this.writeIntArray(ints.length, ints);
+        return this;
     }
 
     @Override
-    public void writeIntArray(int len, int @NotNull [] ints) throws IOException {
+    public BinaryOutput writeIntArray(int len, int @NotNull [] ints) throws IOException {
         assert ints.length == len;
         for (int i : ints) {
             this.writeInt(i);
         }
+        return this;
     }
 
     @Override
-    public void writeString(@NotNull String s) throws IOException {
+    public BinaryOutput writeString(@NotNull String s) throws IOException {
         byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
         this.writeByteArray(bytes);
+        return this;
     }
 
     @Override
-    public void writeString(int len, @NotNull String s) throws IOException {
+    public BinaryOutput writeString(int len, @NotNull String s) throws IOException {
         byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
         assert bytes.length == len;
         this.writeByteArray(len, bytes);
+        return this;
     }
 }

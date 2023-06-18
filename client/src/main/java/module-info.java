@@ -1,3 +1,6 @@
+/**
+ * Client module of chat
+ */
 module chat.client {
     requires com.google.gson;
     requires org.apache.logging.log4j;
@@ -6,6 +9,7 @@ module chat.client {
     requires org.jetbrains.annotations;
     requires javafx.graphics;
     requires javafx.controls;
+    requires java.desktop;
 
     exports io.github.marcus8448.chat.client;
     exports io.github.marcus8448.chat.client.config;

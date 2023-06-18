@@ -31,7 +31,6 @@ import io.github.marcus8448.chat.core.api.network.packet.client.Authenticate;
 import io.github.marcus8448.chat.core.api.network.packet.client.Hello;
 import io.github.marcus8448.chat.core.api.network.packet.server.AuthenticationRequest;
 import io.github.marcus8448.chat.core.api.network.packet.server.AuthenticationSuccess;
-import javafx.application.Platform;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
@@ -308,7 +307,7 @@ public class LoginScreen {
         Button cancel = new Button("Cancel");
         cancel.setPrefWidth(JfxUtil.BUTTON_WIDTH);
         cancel.setPrefHeight(JfxUtil.BUTTON_HEIGHT);
-        cancel.setOnMouseClicked(e -> Platform.exit());
+        cancel.setOnMouseClicked(e -> this.client.shutdown());
 
         Button login = new Button("Login");
         login.setPrefWidth(JfxUtil.BUTTON_WIDTH);

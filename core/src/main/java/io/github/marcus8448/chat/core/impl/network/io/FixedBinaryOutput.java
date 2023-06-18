@@ -16,6 +16,8 @@
 
 package io.github.marcus8448.chat.core.impl.network.io;
 
+import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
+
 import java.io.IOException;
 
 /**
@@ -37,8 +39,9 @@ public class FixedBinaryOutput extends BaseBinaryOutput {
     }
 
     @Override
-    public void writeByte(int b) {
+    public BinaryOutput writeByte(int b) {
         this.wrap[pos++] = (byte) b;
+        return this;
     }
 
     @Override

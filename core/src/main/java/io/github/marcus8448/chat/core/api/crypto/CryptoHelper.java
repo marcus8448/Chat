@@ -32,11 +32,32 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Locale;
 
+/**
+ * Helper class for cryptographic operations
+ * May not be 100% thread safe.
+ */
 public class CryptoHelper {
+    /**
+     * Generates AES keys
+     */
     public static final KeyGenerator AES_KEY_GENERATOR;
+    /**
+     * Generates RSA key pairs (private/public)
+     */
     public static final KeyPairGenerator RSA_KEY_GENERATOR;
+    /**
+     * Reconstructs RSA key pairs from encoded form
+     */
     private static final KeyFactory RSA_KEY_FACTORY;
+    /**
+     * Generates keys based on a password and a salt
+     * Used to encrypt sensitive config data
+     */
     private static final SecretKeyFactory PBKDF2_SECRET_KEY_FACTORY;
+    /**
+     * Calculates the SHA-256 digest of arbitrary byte arrays
+     * Used for key IDs
+     */
     private static final MessageDigest SHA256_DIGEST = createSha256Digest();
 
     public static String sha256Hash(byte[] key) {

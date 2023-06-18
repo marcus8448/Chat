@@ -39,21 +39,21 @@ public interface BinaryOutput extends Closeable {
         return new FixedBinaryOutput(wrapped);
     }
 
-    void writeByte(int b) throws IOException;
-    void writeInt(int i) throws IOException;
-    void writeShort(int s) throws IOException;
-    void writeLong(long l) throws IOException;
+    BinaryOutput writeByte(int b) throws IOException;
+    BinaryOutput writeInt(int i) throws IOException;
+    BinaryOutput writeShort(int s) throws IOException;
+    BinaryOutput writeLong(long l) throws IOException;
 
-    void writeBoolean(boolean b) throws IOException;
+    BinaryOutput writeBoolean(boolean b) throws IOException;
 
-    void writeByteArray(byte @NotNull [] bytes) throws IOException;
-    void writeByteArray(int len, byte @NotNull [] bytes) throws IOException;
+    BinaryOutput writeByteArray(byte @NotNull [] bytes) throws IOException;
+    BinaryOutput writeByteArray(int len, byte @NotNull [] bytes) throws IOException;
 
-    void writeIntArray(int @NotNull [] ints) throws IOException;
-    void writeIntArray(int len, int @NotNull [] ints) throws IOException;
+    BinaryOutput writeIntArray(int @NotNull [] ints) throws IOException;
+    BinaryOutput writeIntArray(int len, int @NotNull [] ints) throws IOException;
 
-    void writeString(@NotNull String s) throws IOException;
-    void writeString(int len, @NotNull String s) throws IOException;
+    BinaryOutput writeString(@NotNull String s) throws IOException;
+    BinaryOutput writeString(int len, @NotNull String s) throws IOException;
 
     @Override
     void close() throws IOException;

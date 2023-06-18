@@ -16,6 +16,7 @@
 
 package io.github.marcus8448.chat.core.impl.network.io;
 
+import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
 import io.github.marcus8448.chat.core.api.network.io.GrowingBinaryOutput;
 
 import java.io.IOException;
@@ -40,7 +41,7 @@ public class GrowingBinaryOutputImpl extends BaseBinaryOutput implements Growing
     }
 
     @Override
-    public void writeByte(int b) {
+    public BinaryOutput writeByte(int b) {
         // check if we have hit the size limit
         if (this.pos == this.data.length) {
             // allocate another array that is double the size
@@ -51,6 +52,7 @@ public class GrowingBinaryOutputImpl extends BaseBinaryOutput implements Growing
             this.data = allocated;
         }
         this.data[this.pos++] = (byte) b;
+        return this;
     }
 
     @Override

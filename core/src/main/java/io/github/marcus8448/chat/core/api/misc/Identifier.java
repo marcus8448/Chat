@@ -19,7 +19,8 @@ package io.github.marcus8448.chat.core.api.misc;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * Effectively, a string with extra constraints
+ * Effectively, a string with extra constraints.
+ * <p>
  * Only allows string with these characters: [0-9], [a-Z], _
  */
 public class Identifier {

@@ -16,6 +16,8 @@
 
 package io.github.marcus8448.chat.core.impl.network.io;
 
+import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
@@ -31,9 +33,10 @@ public class OutputStreamOutput extends BaseBinaryOutput {
     }
 
     @Override
-    public void writeByte(int b) throws IOException {
+    public BinaryOutput writeByte(int b) throws IOException {
         if (b > 255) throw new UnsupportedEncodingException();
         this.parent.write(b);
+        return this;
     }
 
     @Override

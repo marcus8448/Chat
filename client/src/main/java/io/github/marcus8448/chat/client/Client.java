@@ -20,9 +20,12 @@ import io.github.marcus8448.chat.client.config.AccountData;
 import io.github.marcus8448.chat.client.config.Config;
 import io.github.marcus8448.chat.client.ui.ChatView;
 import io.github.marcus8448.chat.client.ui.LoginScreen;
+import io.github.marcus8448.chat.core.api.Constants;
 import io.github.marcus8448.chat.core.api.account.User;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.api.message.Message;
+import io.github.marcus8448.chat.core.api.message.MessageType;
+import io.github.marcus8448.chat.core.api.message.TextMessage;
 import io.github.marcus8448.chat.core.api.network.PacketPipeline;
 import io.github.marcus8448.chat.core.api.network.packet.Packet;
 import io.github.marcus8448.chat.core.api.network.packet.ServerPacketTypes;
@@ -32,6 +35,7 @@ import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -41,8 +45,11 @@ import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.SecretKey;
+import javax.imageio.ImageIO;
+import java.awt.*;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.Signature;
@@ -56,7 +63,6 @@ import java.util.Map;
 public class Client extends Application implements Runnable{
     private static final Logger LOGGER = LogManager.getLogger();
     private final Cipher aesCipher = CryptoHelper.createAesCipher();
-    private final Cipher rsaCipher = CryptoHelper.createRsaCipher();
     private final Signature rsaSignature = CryptoHelper.createRsaSignature();
 
     public Config config;
@@ -69,14 +75,51 @@ public class Client extends Application implements Runnable{
     public final ObservableList<Message> messages = FXCollections.observableArrayList();
     public final Map<Integer, User> users = new HashMap<>();
 
+    private Stage primaryStage;
+    private SystemTray systemTray;
+    private TrayIcon trayIcon;
+
     public Client() {}
 
     @Override
     public void start(Stage primaryStage) {
         Parameters parameters = this.getParameters();
         this.config = Config.load(new File(parameters.getNamed().getOrDefault("config", "chat.json")));
+        this.primaryStage = primaryStage;
+        this.beginLoginProcess(primaryStage);
+    }
+
+    private void beginLoginProcess(Stage primaryStage) {
         LoginScreen loginScreen = new LoginScreen(this, primaryStage);
+        try (InputStream iconStream = Client.class.getClassLoader().getResourceAsStream("icon.png")) {
+            if (iconStream != null) {
+                primaryStage.getIcons().add(new Image(iconStream));
+            } else {
+                LOGGER.error("Failed to load icon image!");
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
         primaryStage.show();
+    }
+
+    public void logout(Stage stage) {
+        try {
+            this.connection.close();
+        } catch (IOException ignored) {}
+        this.connection = null;
+        this.passKey = null;
+        this.serverPubKey = null;
+        this.accountData = null;
+        this.messages.clear();
+        this.users.clear();
+        if (this.trayIcon != null && this.systemTray != null) {
+            this.systemTray.remove(this.trayIcon);
+            this.trayIcon = null;
+            this.systemTray = null;
+        }
+        stage.hide();
+        this.beginLoginProcess(stage);
     }
 
     public void initialize(PacketPipeline pipeline, SecretKey passKey, RSAPublicKey serverKey, RSAPublicKey publicKey, SecretKey key, @NotNull AccountData data, List<User> users) {
@@ -97,10 +140,27 @@ public class Client extends Application implements Runnable{
 
         Thread thread = new Thread(this, "Client Main");
         thread.start();
-    }
-
-    public RSAPublicKey getPublicKey() {
-        return publicKey;
+        try (InputStream resourceAsStream = Client.class.getClassLoader().getResourceAsStream("icon.png")) {
+            if (resourceAsStream != null) {
+                if (SystemTray.isSupported()) {
+                    this.systemTray = SystemTray.getSystemTray();
+                    this.trayIcon = new TrayIcon(ImageIO.read(resourceAsStream));
+                    MenuItem exit = new MenuItem("Exit");
+                    exit.addActionListener(l -> Platform.runLater(this::shutdown));
+                    PopupMenu popup = new PopupMenu("Chat v" + Constants.VERSION);
+                    popup.add(exit);
+                    this.trayIcon.setToolTip("Chat v" + Constants.VERSION);
+                    this.trayIcon.setPopupMenu(popup);
+                    this.trayIcon.setImageAutoSize(true);
+                    this.trayIcon.addActionListener(l -> {
+                        LOGGER.info("action: {}, param: {}, modifiers: {}", l.getActionCommand(), l.paramString(), l.getModifiers());
+                    });
+                    this.systemTray.add(this.trayIcon);
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.warn("Failed to load system tray");
+        }
     }
 
     public byte[] signMessage(String contents) {
@@ -120,7 +180,10 @@ public class Client extends Application implements Runnable{
                 LOGGER.info("Received packet : " + packet.type());
                 if (packet.type() == ServerPacketTypes.ADD_MESSAGE) {
                     AddMessage addMessage = packet.getAs(ServerPacketTypes.ADD_MESSAGE);
-                    Platform.runLater(() -> this.messages.add(Message.text(addMessage.getTimestamp(), this.users.get(addMessage.getAuthorId()), addMessage.getContents(), addMessage.getSignature())));
+                    Platform.runLater(() -> {
+                        TextMessage text = Message.text(addMessage.getTimestamp(), this.users.get(addMessage.getAuthorId()), addMessage.getContents(), addMessage.getSignature());
+                        addMessage(text);
+                    });
                 } else if (packet.type() == ServerPacketTypes.USER_CONNECT) {
                     User user = packet.getAs(ServerPacketTypes.USER_CONNECT).getUser();
                     Platform.runLater(() -> this.users.put(user.sessionId(), user));
@@ -132,8 +195,24 @@ public class Client extends Application implements Runnable{
                     //todo
                 }
             }
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+        } catch (IOException e) {
+            if (e.getMessage().equals("Socket closed")) {
+                return;
+            }
+            LOGGER.error("Connection error", e);
+        }
+    }
+
+    private void addMessage(Message message) {
+        this.messages.add(message);
+        if (this.trayIcon != null && !this.primaryStage.isFocused()) {
+            if (message.getType() == MessageType.TEXT) {
+                String message1 = ((TextMessage) message).getMessage();
+                if (message1.length() > 64) {
+                    message1 = message1.substring(0, 64 - 3) + "...";
+                }
+                this.trayIcon.displayMessage(message.getAuthor().getFormattedName(), message1, TrayIcon.MessageType.NONE);
+            }
         }
     }
 
@@ -153,8 +232,15 @@ public class Client extends Application implements Runnable{
 
     public void close() {
         try {
-            this.connection.close();
+            if (this.connection != null) {
+                this.connection.close();
+            }
         } catch (IOException ignored) {
         }
+    }
+
+    public void shutdown() {
+        this.close();
+        Platform.exit();
     }
 }

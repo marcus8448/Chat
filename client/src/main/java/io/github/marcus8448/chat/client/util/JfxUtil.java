@@ -18,6 +18,7 @@ package io.github.marcus8448.chat.client.util;
 
 import io.github.marcus8448.chat.client.config.Account;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
+import javafx.application.Platform;
 import javafx.event.EventHandler;
 import javafx.scene.Node;
 import javafx.scene.input.KeyCode;
@@ -51,7 +52,7 @@ public class JfxUtil {
     public static EventHandler<? super KeyEvent> enterKeyCallback(Runnable r) {
         return e -> {
             if (e.getCode() == KeyCode.ENTER) {
-                r.run();
+                Platform.runLater(r); // cannot run directly - JVM crash on linux
             }
         };
     }

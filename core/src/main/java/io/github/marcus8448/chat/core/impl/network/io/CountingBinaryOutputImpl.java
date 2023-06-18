@@ -16,6 +16,7 @@
 
 package io.github.marcus8448.chat.core.impl.network.io;
 
+import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
 import io.github.marcus8448.chat.core.api.network.io.CountingBinaryOutput;
 
 import java.io.IOException;
@@ -28,8 +29,9 @@ public class CountingBinaryOutputImpl extends BaseBinaryOutput implements Counti
     private int count = 0;
 
     @Override
-    public void writeByte(int b) {
+    public BinaryOutput writeByte(int b) {
         this.count++;
+        return this;
     }
 
     @Override

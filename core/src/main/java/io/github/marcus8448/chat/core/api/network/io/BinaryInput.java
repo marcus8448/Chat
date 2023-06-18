@@ -35,7 +35,7 @@ public interface BinaryInput extends Closeable {
         return new InputStreamInput(inputStream);
     }
 
-    static BinaryInput wrap(byte[] bytes) {
+    static BinaryInput buffer(byte[] bytes) {
         return new FixedBinaryInput(bytes);
     }
 

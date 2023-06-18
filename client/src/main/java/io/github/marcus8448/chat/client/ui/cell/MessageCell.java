@@ -50,7 +50,7 @@ public class MessageCell extends ListCell<Message> {
     private final Client client;
     private final TextFlow textMessageContents = new TextFlow();
 
-    public MessageCell(Client client) {
+    public MessageCell(ListView<Message> centerContent, Client client) {
         super();
         this.client = client;
         this.setEditable(false);
@@ -60,6 +60,8 @@ public class MessageCell extends ListCell<Message> {
         VBox.setVgrow(textMessageContents, Priority.ALWAYS);
         this.setGraphic(hBox);
         this.setText(null);
+
+        this.textMessageContents.prefWidthProperty().bind(centerContent.widthProperty().subtract(16.0));
 
         this.setOnKeyPressed(k -> {
             if (k.getCode() == KeyCode.ENTER) { //only passed if ctrl is pressed

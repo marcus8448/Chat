@@ -22,7 +22,14 @@ import org.jetbrains.annotations.Nullable;
 
 import java.security.interfaces.RSAPublicKey;
 
-public record User(int sessionId, String username, RSAPublicKey key, byte @Nullable [] base64Icon) implements MessageAuthor {
+/**
+ * A client connected to a chat server
+ * @param sessionId the unique integer id identifying this client - changes upon disconnect/reconnect
+ * @param username the username of the user - can be changed at anytime
+ * @param key the public key (RSA) of the user - the permanent ID of the user
+ * @param icon the user's profile picture (NYI)
+ */
+public record User(int sessionId, String username, RSAPublicKey key, byte @Nullable [] icon) implements MessageAuthor {
     @Override
     public String getFormattedName() {
         String hash = CryptoHelper.sha256Hash(this.key.getEncoded());
