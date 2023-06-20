@@ -23,21 +23,25 @@ import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
 import java.io.IOException;
 
 public class SystemMessage implements NetworkedData {
+    private final long timestamp;
     private final String contents;
     private final byte[] checksum;
 
-    public SystemMessage(String contents, byte[] checksum) {
+    public SystemMessage(long timestamp, String contents, byte[] checksum) {
+        this.timestamp = timestamp;
         this.contents = contents;
         this.checksum = checksum;
     }
 
     public SystemMessage(BinaryInput input) throws IOException {
+        this.timestamp = input.readLong();
         this.contents = input.readString();
         this.checksum = input.readByteArray();
     }
 
     @Override
     public void write(BinaryOutput output) throws IOException {
+        output.writeLong(this.timestamp);
         output.writeString(this.contents);
         output.writeByteArray(this.checksum);
     }
@@ -48,5 +52,9 @@ public class SystemMessage implements NetworkedData {
 
     public String getContents() {
         return contents;
+    }
+
+    public long getTimestamp() {
+        return this.timestamp;
     }
 }

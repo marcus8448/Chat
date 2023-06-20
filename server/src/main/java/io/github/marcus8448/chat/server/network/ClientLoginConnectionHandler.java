@@ -61,7 +61,7 @@ public class ClientLoginConnectionHandler implements ClientConnectionHandler {
     @Override
     public void run() {
         try {
-            while (this.pipeline.isOpen()) {
+            while (!this.server.shutdown && this.pipeline.isOpen()) {
                 Packet<?> packet = this.pipeline.receivePacket();
                 PacketType<?> type = packet.type();
                 if (type == ClientPacketTypes.HELLO) {

@@ -18,12 +18,17 @@ package io.github.marcus8448.chat.server;
 
 import io.github.marcus8448.chat.core.api.Constants;
 import io.github.marcus8448.chat.core.api.account.User;
+import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.api.message.Message;
 import io.github.marcus8448.chat.core.api.misc.Cell;
+import io.github.marcus8448.chat.core.api.network.NetworkedData;
 import io.github.marcus8448.chat.core.api.network.PacketPipeline;
+import io.github.marcus8448.chat.core.api.network.packet.PacketType;
 import io.github.marcus8448.chat.core.api.network.packet.ServerPacketTypes;
 import io.github.marcus8448.chat.core.api.network.packet.server.AddMessage;
+import io.github.marcus8448.chat.core.api.network.packet.server.SystemMessage;
 import io.github.marcus8448.chat.core.api.network.packet.server.UserConnect;
+import io.github.marcus8448.chat.core.api.network.packet.server.UserDisconnect;
 import io.github.marcus8448.chat.server.network.ClientConnectionHandler;
 import io.github.marcus8448.chat.server.network.ClientLoginConnectionHandler;
 import io.github.marcus8448.chat.server.thread.ThreadPerTaskExecutor;
@@ -37,6 +42,10 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.Signature;
+import java.security.SignatureException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.util.ArrayList;
@@ -51,12 +60,15 @@ public class Server implements Closeable {
     private final Cell<Thread> mainThread = new Cell<>();
     public final ExecutorService executor;
     private final ExecutorService connectionExecutor;
+    private final Signature rsaSignature = CryptoHelper.createRsaSignature();
     public final RSAPublicKey publicKey;
     public final RSAPrivateKey privateKey;
     private final List<ClientConnectionHandler> connectionHandlers = new ArrayList<>();
     private final Users users = new Users();
+    private final ServerSocket socket;
+    public volatile boolean shutdown = false;
 
-    public Server(RSAPublicKey publicKey, RSAPrivateKey privateKey) {
+    public Server(int port, RSAPublicKey publicKey, RSAPrivateKey privateKey) throws IOException {
         this.publicKey = publicKey;
         this.privateKey = privateKey;
         ExecutorService service;
@@ -66,50 +78,61 @@ public class Server implements Closeable {
         } catch (Exception e) {
             service = new ThreadPerTaskExecutor();
         }
+        try {
+            this.rsaSignature.initSign(this.privateKey);
+        } catch (InvalidKeyException e) {
+            throw new RuntimeException(e);
+        }
         this.connectionExecutor = service;
         this.executor = Executors.newSingleThreadExecutor(r -> mainThread.setValue(new Thread(r, "Server Main")));
+        this.socket = new ServerSocket(port);
     }
 
-    public void sendMessage(Message message) {
-
+    public void sendMessage(String message) {
+        this.assertOnThread();
+        long time = System.currentTimeMillis();
+        byte[] sign;
+        try {
+            this.rsaSignature.update(message.getBytes(StandardCharsets.UTF_8));
+            sign = this.rsaSignature.sign();
+        } catch (SignatureException e) {
+            throw new RuntimeException(e);
+        }
+        this.sendToAll(ServerPacketTypes.SYSTEM_MESSAGE, new SystemMessage(time, message, sign));
     }
 
-    public void launch(int port) {
+    public void launch() {
         Thread thread = new Thread(this::serverAdministration);
-        try (ServerSocket socket = new ServerSocket(port)) {
-            while (!socket.isClosed()) {
-                if (this.executor.isShutdown()) socket.close();
-                try {
-                    Socket accepted = socket.accept();
-                    ClientLoginConnectionHandler connectionHandler = new ClientLoginConnectionHandler(
-                            this,
-                            PacketPipeline.createNetwork(
-                                    Constants.PACKET_HEADER,
-                                    accepted
-                            )
-                    );
-                    this.executor.execute(() -> {
-                        this.connectionHandlers.add(connectionHandler);
-                        this.connectionExecutor.execute(connectionHandler);
-                    });
-                } catch (Exception ignored) {
-                }
+        thread.start();
+        while (!this.socket.isClosed() && !this.shutdown) {
+            try {
+                Socket accepted = this.socket.accept();
+                ClientLoginConnectionHandler connectionHandler = new ClientLoginConnectionHandler(
+                        this,
+                        PacketPipeline.createNetwork(
+                                Constants.PACKET_HEADER,
+                                accepted
+                        )
+                );
+                this.executor.execute(() -> {
+                    this.connectionHandlers.add(connectionHandler);
+                    this.connectionExecutor.execute(connectionHandler);
+                });
+            } catch (Exception ignored) {
             }
-        } catch (IOException e) {
-            throw new RuntimeException("Incoming connection failure", e);
         }
     }
 
     private void serverAdministration() {
         Scanner scanner = new Scanner(System.in);
-        while (!this.executor.isShutdown()) {
+        while (!this.shutdown && !this.executor.isShutdown()) {
             String[] s = scanner.nextLine().split(" ");
             String command = s[0];
             switch (command) {
                 case "kick" -> {
                 }
                 case "exit" -> {
-                    this.executor.shutdown();
+                    this.close();
                 }
                 default -> {
                     LOGGER.error("Invalid command!");
@@ -121,9 +144,8 @@ public class Server implements Closeable {
     public void updateConnection(ClientConnectionHandler oldHandler, ClientConnectionHandler newHandler, User user) {
         this.executor.execute(() -> {
             if (this.connectionHandlers.remove(oldHandler)) {
-                for (ClientConnectionHandler connectionHandler : this.connectionHandlers) {
-                    connectionHandler.send(ServerPacketTypes.USER_CONNECT, new UserConnect(user));
-                }
+                this.sendToAll(ServerPacketTypes.USER_CONNECT, new UserConnect(user));
+                this.sendMessage(user.getFormattedName() + " has joined the chat!");
 
                 this.connectionHandlers.add(newHandler);
                 this.connectionExecutor.submit(newHandler);
@@ -141,22 +163,33 @@ public class Server implements Closeable {
 
     @Override
     public void close() {
+        LOGGER.info("Server is shutting down");
+        this.shutdown = true;
         List<ClientConnectionHandler> handlers = new ArrayList<>(this.connectionHandlers);
         for (ClientConnectionHandler handler : handlers) {
             handler.shutdown();
         }
         this.connectionExecutor.shutdown();
         this.executor.shutdown();
+        try {
+            this.socket.close();
+        } catch (IOException ignored) {}
+        LOGGER.info("Shutdown successful.");
     }
 
     public boolean isConnected(RSAPublicKey key) {
         return this.users.contains(key);
     }
 
-    public void receiveMessage(long time, User user, byte[] checksum, String message) {
+    protected <Data extends NetworkedData> void sendToAll(PacketType<Data> type, Data data) {
         for (ClientConnectionHandler handler : this.connectionHandlers) {
-            handler.send(ServerPacketTypes.ADD_MESSAGE, new AddMessage(time, user.sessionId(), message, checksum));
+            handler.send(type, data);
         }
+    }
+
+    public void receiveMessage(long time, User user, byte[] checksum, String message) {
+        this.assertOnThread();
+        this.sendToAll(ServerPacketTypes.ADD_MESSAGE, new AddMessage(time, user.sessionId(), message, checksum));
     }
 
     public @NotNull User createUser(String username, RSAPublicKey key, byte @Nullable [] icon) {
@@ -167,7 +200,12 @@ public class Server implements Closeable {
     public void disconnect(ClientConnectionHandler handler, User user) {
         this.assertOnThread();
         this.connectionHandlers.remove(handler);
-        if (user != null) this.users.remove(user);
+        if (user != null) {
+            this.users.remove(user);
+
+            this.sendToAll(ServerPacketTypes.USER_DISCONNECT, new UserDisconnect(user.sessionId()));
+            this.sendMessage(user.getFormattedName() + " has left the chat.");
+        }
     }
 
     public Collection<User> getUsers() {

@@ -220,6 +220,10 @@ public class LoginScreen {
             return;
         }
 
+        this.connectToServer(address, account, aesKey, publicKey, accountData);
+    }
+
+    private void connectToServer(InetSocketAddress address, Account account, SecretKey aesKey, RSAPublicKey publicKey, AccountData accountData) {
         PacketPipeline connect;
         try {
             Socket socket = new Socket();
@@ -278,7 +282,7 @@ public class LoginScreen {
             if (response.type() == ServerPacketTypes.AUTHENTICATION_SUCCESS) {
                 LOGGER.info("Successfully authenticated to the server");
                 AuthenticationSuccess success = response.getAs(ServerPacketTypes.AUTHENTICATION_SUCCESS);
-                this.client.initialize(connect.encryptWith(key), aesKey, serverKey, publicKey, key, accountData, success.getUsers());
+                this.client.initialize(connect.encryptWith(key), aesKey, serverKey, publicKey, accountData, success.getUsers(), account.username(), address);
                 this.client.saveAccountData();
                 this.stage.close();
                 ChatView chatView = new ChatView(this.client, this.stage);

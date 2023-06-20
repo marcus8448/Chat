@@ -25,35 +25,34 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.security.KeyPair;
+import java.security.interfaces.RSAPrivateCrtKey;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
+import java.security.spec.RSAPublicKeySpec;
 
 public class Main {
     private static final Logger LOGGER = LogManager.getLogger();
 
     public static void main(String[] args) throws IOException, InvalidKeySpecException {
         LOGGER.info("Loading Chat Server v{}", Constants.VERSION);
-        File pubKF = new File("public.key");
-        File privKF = new File("private.key");
+        File privateKeyFile = new File("server.key");
         RSAPublicKey publicKey;
-        RSAPrivateKey privateKey;
-        if (!pubKF.exists() || !privKF.exists()) {
+        RSAPrivateCrtKey privateKey;
+        if (!privateKeyFile.exists()) {
             LOGGER.warn("No existing server keypair found. Generating...");
-            pubKF.delete();
-            privKF.delete();
             KeyPair keyPair = CryptoHelper.RSA_KEY_GENERATOR.generateKeyPair();
+            privateKey = (RSAPrivateCrtKey) keyPair.getPrivate();
             publicKey = (RSAPublicKey) keyPair.getPublic();
-            privateKey = (RSAPrivateKey) keyPair.getPrivate();
             LOGGER.info("Server keypair successfully generated. ID: {}", CryptoHelper.sha256Hash(keyPair.getPublic().getEncoded()));
-            Files.write(pubKF.toPath(), publicKey.getEncoded());
-            Files.write(privKF.toPath(), privateKey.getEncoded());
+            Files.write(privateKeyFile.toPath(), privateKey.getEncoded());
         } else {
-            publicKey = CryptoHelper.decodeRsaPublicKey(Files.readAllBytes(pubKF.toPath()));
-            privateKey = CryptoHelper.decodeRsaPrivateKey(Files.readAllBytes(privKF.toPath()));
+            privateKey = CryptoHelper.decodeRsaPrivateKey(Files.readAllBytes(privateKeyFile.toPath()));
+            publicKey = (RSAPublicKey) CryptoHelper.RSA_KEY_FACTORY.generatePublic(new RSAPublicKeySpec(privateKey.getModulus(), privateKey.getPublicExponent(), privateKey.getParams()));
+            LOGGER.info("Server keypair loaded successfully. ID: {}", CryptoHelper.sha256Hash(publicKey.getEncoded()));
         }
-        try (Server server = new Server(publicKey, privateKey)) {
-            server.launch(Constants.PORT);
+        try (Server server = new Server(Constants.PORT, publicKey, privateKey)) {
+            server.launch();
         }
     }
 }

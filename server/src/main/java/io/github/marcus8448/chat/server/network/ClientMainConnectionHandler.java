@@ -28,6 +28,7 @@ import io.github.marcus8448.chat.server.util.Utils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.EOFException;
 import java.io.IOException;
 
 public class ClientMainConnectionHandler implements ClientConnectionHandler {
@@ -55,11 +56,13 @@ public class ClientMainConnectionHandler implements ClientConnectionHandler {
     @Override
     public void run() {
         try {
-            while (this.pipeline.isOpen()) {
+            while (!this.server.shutdown && this.pipeline.isOpen()) {
                 this.handle(this.pipeline.receivePacket());
             }
+        } catch (EOFException e) {
+            LOGGER.info("User " + this.user.getFormattedName() + " disconnected.");
         } catch (Exception e) {
-            LOGGER.error("Error in client communications - connection closed.", e);
+            if (!this.server.shutdown) LOGGER.error("Error in client communications - connection closed.", e);
         }
         this.shutdown();
     }

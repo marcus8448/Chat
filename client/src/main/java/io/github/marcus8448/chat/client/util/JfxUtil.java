@@ -17,6 +17,7 @@
 package io.github.marcus8448.chat.client.util;
 
 import io.github.marcus8448.chat.client.config.Account;
+import io.github.marcus8448.chat.core.api.account.User;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import javafx.application.Platform;
 import javafx.event.EventHandler;

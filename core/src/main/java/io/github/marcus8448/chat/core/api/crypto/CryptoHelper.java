@@ -48,7 +48,7 @@ public class CryptoHelper {
     /**
      * Reconstructs RSA key pairs from encoded form
      */
-    private static final KeyFactory RSA_KEY_FACTORY;
+    public static final KeyFactory RSA_KEY_FACTORY;
     /**
      * Generates keys based on a password and a salt
      * Used to encrypt sensitive config data

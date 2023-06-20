@@ -21,7 +21,7 @@ import org.jetbrains.annotations.NotNull;
 /**
  * Effectively, a string with extra constraints.
  * <p>
- * Only allows string with these characters: [0-9], [a-Z], _
+ * Only allows string with these characters: [0-9], [a-Z], _ and of length 4-16
  */
 public class Identifier {
     private final @NotNull String value;
@@ -47,6 +47,7 @@ public class Identifier {
      * @return whether the string is a valid identifier
      */
     public static boolean verify(String s) {
+        if (s.length() < 4 || s.length() > 16) return false;
         for (char c : s.toCharArray()) {
             if (!Character.isAlphabetic(c) && !Character.isDigit(c) && c != '_') {
                 return false;

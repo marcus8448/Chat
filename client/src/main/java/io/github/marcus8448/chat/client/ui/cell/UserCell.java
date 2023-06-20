@@ -43,21 +43,17 @@ public class UserCell extends ListCell<User> {
         this.setGraphic(hBox);
         this.setText(null);
 
-        MenuItem trust = new MenuItem("Trust user");
-        trust.setOnAction(e -> this.trust());
+        MenuItem trust = new MenuItem("Manage trust");
+        trust.setOnAction(e -> this.client.openTrustScreen(this.getItem()));
         ContextMenu contextMenu = new ContextMenu(trust);
         this.setContextMenu(contextMenu);
-    }
-
-    private void trust() {
-
     }
 
     @Override
     protected void updateItem(User item, boolean empty) {
         super.updateItem(item, empty);
         if (!empty && item != null) {
-            this.name.setText(item.getFormattedName());
+            this.name.setText(this.client.getName(item));
             this.setOnMouseClicked(this::openAccount);
         }
     }

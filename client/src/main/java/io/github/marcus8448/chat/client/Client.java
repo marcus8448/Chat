@@ -20,26 +20,37 @@ import io.github.marcus8448.chat.client.config.AccountData;
 import io.github.marcus8448.chat.client.config.Config;
 import io.github.marcus8448.chat.client.ui.ChatView;
 import io.github.marcus8448.chat.client.ui.LoginScreen;
+import io.github.marcus8448.chat.client.ui.UserTrustScreen;
 import io.github.marcus8448.chat.core.api.Constants;
 import io.github.marcus8448.chat.core.api.account.User;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.api.message.Message;
+import io.github.marcus8448.chat.core.api.message.MessageAuthor;
 import io.github.marcus8448.chat.core.api.message.MessageType;
 import io.github.marcus8448.chat.core.api.message.TextMessage;
 import io.github.marcus8448.chat.core.api.network.PacketPipeline;
+import io.github.marcus8448.chat.core.api.network.packet.ClientPacketTypes;
 import io.github.marcus8448.chat.core.api.network.packet.Packet;
 import io.github.marcus8448.chat.core.api.network.packet.ServerPacketTypes;
+import io.github.marcus8448.chat.core.api.network.packet.client.Authenticate;
+import io.github.marcus8448.chat.core.api.network.packet.client.Hello;
 import io.github.marcus8448.chat.core.api.network.packet.server.AddMessage;
+import io.github.marcus8448.chat.core.api.network.packet.server.AuthenticationRequest;
+import io.github.marcus8448.chat.core.api.network.packet.server.AuthenticationSuccess;
 import io.github.marcus8448.chat.core.api.network.packet.server.SystemMessage;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
+import javafx.collections.MapChangeListener;
 import javafx.collections.ObservableList;
+import javafx.collections.ObservableMap;
+import javafx.scene.control.Alert;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -47,23 +58,28 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.SecretKey;
 import javax.imageio.ImageIO;
 import java.awt.*;
+import java.awt.event.InputEvent;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.ConnectException;
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.Signature;
 import java.security.SignatureException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
-import java.util.HashMap;
+import java.security.spec.InvalidKeySpecException;
 import java.util.List;
-import java.util.Map;
 
 public class Client extends Application implements Runnable{
     private static final Logger LOGGER = LogManager.getLogger();
     private final Cipher aesCipher = CryptoHelper.createAesCipher();
     private final Signature rsaSignature = CryptoHelper.createRsaSignature();
+
+    public volatile boolean shutdown = false;
 
     public Config config;
     private ChatView screen;
@@ -73,13 +89,24 @@ public class Client extends Application implements Runnable{
     private RSAPublicKey serverPubKey;
     private AccountData accountData;
     public final ObservableList<Message> messages = FXCollections.observableArrayList();
-    public final Map<Integer, User> users = new HashMap<>();
+    public final ObservableMap<Integer, User> users = FXCollections.observableHashMap();
+    public final ObservableList<User> userList = FXCollections.observableArrayList();
 
     private Stage primaryStage;
     private SystemTray systemTray;
     private TrayIcon trayIcon;
+    private InetSocketAddress address;
+    private String username;
 
-    public Client() {}
+    public Client() {
+        this.users.addListener((MapChangeListener<Integer, User>) change -> {
+            if (change.wasAdded()) {
+                this.userList.add(change.getValueAdded());
+            } else {
+                this.userList.remove(change.getValueRemoved());
+            }
+        });
+    }
 
     @Override
     public void start(Stage primaryStage) {
@@ -112,7 +139,9 @@ public class Client extends Application implements Runnable{
         this.serverPubKey = null;
         this.accountData = null;
         this.messages.clear();
+        this.address = null;
         this.users.clear();
+        this.username = null;
         if (this.trayIcon != null && this.systemTray != null) {
             this.systemTray.remove(this.trayIcon);
             this.trayIcon = null;
@@ -122,12 +151,14 @@ public class Client extends Application implements Runnable{
         this.beginLoginProcess(stage);
     }
 
-    public void initialize(PacketPipeline pipeline, SecretKey passKey, RSAPublicKey serverKey, RSAPublicKey publicKey, SecretKey key, @NotNull AccountData data, List<User> users) {
+    public void initialize(PacketPipeline pipeline, SecretKey passKey, RSAPublicKey serverKey, RSAPublicKey publicKey, @NotNull AccountData data, List<User> users, String username, InetSocketAddress address) {
         this.connection = pipeline;
+        this.address = address;
         this.passKey = passKey;
         this.publicKey = publicKey;
         this.serverPubKey = serverKey;
         this.accountData = data;
+        this.username = username;
         for (User user : users) {
             this.users.put(user.sessionId(), user);
         }
@@ -140,26 +171,35 @@ public class Client extends Application implements Runnable{
 
         Thread thread = new Thread(this, "Client Main");
         thread.start();
-        try (InputStream resourceAsStream = Client.class.getClassLoader().getResourceAsStream("icon.png")) {
-            if (resourceAsStream != null) {
-                if (SystemTray.isSupported()) {
-                    this.systemTray = SystemTray.getSystemTray();
-                    this.trayIcon = new TrayIcon(ImageIO.read(resourceAsStream));
-                    MenuItem exit = new MenuItem("Exit");
-                    exit.addActionListener(l -> Platform.runLater(this::shutdown));
-                    PopupMenu popup = new PopupMenu("Chat v" + Constants.VERSION);
-                    popup.add(exit);
-                    this.trayIcon.setToolTip("Chat v" + Constants.VERSION);
-                    this.trayIcon.setPopupMenu(popup);
-                    this.trayIcon.setImageAutoSize(true);
-                    this.trayIcon.addActionListener(l -> {
-                        LOGGER.info("action: {}, param: {}, modifiers: {}", l.getActionCommand(), l.paramString(), l.getModifiers());
-                    });
-                    this.systemTray.add(this.trayIcon);
+
+        if (this.trayIcon == null) {
+            try (InputStream resourceAsStream = Client.class.getClassLoader().getResourceAsStream("icon.png")) {
+                if (resourceAsStream != null) {
+                    if (SystemTray.isSupported()) {
+                        this.systemTray = SystemTray.getSystemTray();
+                        this.trayIcon = new TrayIcon(ImageIO.read(resourceAsStream));
+                        MenuItem exit = new MenuItem("Exit");
+                        exit.addActionListener(l -> Platform.runLater(this::shutdown));
+                        PopupMenu popup = new PopupMenu("Chat v" + Constants.VERSION);
+                        popup.add(exit);
+                        this.trayIcon.setToolTip("Chat v" + Constants.VERSION);
+                        this.trayIcon.setPopupMenu(popup);
+                        this.trayIcon.setImageAutoSize(true);
+                        this.trayIcon.addActionListener(l -> {
+                            if (l.getModifiers() == 0 || l.getModifiers() == InputEvent.BUTTON1_DOWN_MASK) { // notification click on windows
+                                Platform.runLater(() -> {
+                                    if (!this.primaryStage.isFocused()) {
+                                        this.primaryStage.requestFocus();
+                                    }
+                                });
+                            }
+                        });
+                        this.systemTray.add(this.trayIcon);
+                    }
                 }
+            } catch (Exception e) {
+                LOGGER.warn("Failed to load system tray");
             }
-        } catch (Exception e) {
-            LOGGER.warn("Failed to load system tray");
         }
     }
 
@@ -192,14 +232,91 @@ public class Client extends Application implements Runnable{
                     Platform.runLater(() -> this.users.remove(id));
                 } else if (packet.type() == ServerPacketTypes.SYSTEM_MESSAGE) {
                     SystemMessage systemMessage = packet.getAs(ServerPacketTypes.SYSTEM_MESSAGE);
-                    //todo
+                    Platform.runLater(() -> {
+                        TextMessage text = Message.text(systemMessage.getTimestamp(), MessageAuthor.system(this.serverPubKey), systemMessage.getContents(), systemMessage.getChecksum());
+                        addMessage(text);
+                    });
                 }
             }
         } catch (IOException e) {
-            if (e.getMessage().equals("Socket closed")) {
-                return;
-            }
             LOGGER.error("Connection error", e);
+        }
+        if (!this.shutdown) {
+            if (this.screen != null) {
+                Platform.runLater(this.screen::markOffline);
+            }
+            if (!this.tryReconnect()) {
+                Alert alert = new Alert(Alert.AlertType.ERROR, "Server reconnection failed! Please log in again.");
+                this.logout(primaryStage);
+            }
+        }
+    }
+
+    private boolean tryReconnect() {
+        LOGGER.info("Trying to reconnect to server");
+
+        while (true) {
+            PacketPipeline connect;
+            try {
+                Socket socket = new Socket();
+                socket.bind(null);
+                socket.connect(this.address);
+                connect = PacketPipeline.createNetwork(Constants.PACKET_HEADER, socket);
+                connect.send(ClientPacketTypes.HELLO, new Hello(Constants.BRAND, Constants.VERSION, publicKey));
+
+                Packet<AuthenticationRequest> packet = connect.receivePacket();
+                RSAPublicKey serverKey = packet.data().getServerKey();
+                String keyHash = CryptoHelper.sha256Hash(serverKey.getEncoded());
+                LOGGER.info("Server key id: {}", keyHash);
+                String host = address.getHostString() + ":" + address.getPort();
+                RSAPublicKey expectedKey = accountData.knownServers().get(host);
+                if (!serverKey.equals(expectedKey)) {
+                    return false; // immediately FAIL
+                }
+
+                LOGGER.info("Initializing ciphers");
+                Cipher cipher = CryptoHelper.createRsaCipher();
+                cipher.init(Cipher.DECRYPT_MODE, accountData.privateKey());
+                byte[] encodedKey = cipher.doFinal(packet.data().getAuthData());
+                cipher.init(Cipher.ENCRYPT_MODE, serverKey);
+                byte[] output = cipher.doFinal(encodedKey);
+
+                LOGGER.info("Decoding symmetric (AES) key");
+                SecretKey key;
+                try {
+                    key = CryptoHelper.decodeAesKey(encodedKey);
+                } catch (InvalidKeySpecException e) {
+                    return false;
+                }
+
+                LOGGER.info("Authenticating...");
+                connect.send(ClientPacketTypes.AUTHENTICATE, new Authenticate(this.username, output));
+                Packet<?> response = connect.receivePacket();
+                if (response.type() == ServerPacketTypes.AUTHENTICATION_SUCCESS) {
+                    LOGGER.info("Successfully authenticated to the server");
+                    AuthenticationSuccess success = response.getAs(ServerPacketTypes.AUTHENTICATION_SUCCESS);
+                    this.initialize(connect.encryptWith(key), this.passKey, serverKey, publicKey, accountData, success.getUsers(), this.username, this.address);
+                    Platform.runLater(this.screen::markOnline);
+                    return true;
+                } else if (response.type() == ServerPacketTypes.AUTHENTICATION_FAILURE) {
+                    String failure = response.getAs(ServerPacketTypes.AUTHENTICATION_FAILURE).getReason();
+                    LOGGER.error("Server denied connection: {}", failure);
+                    return false;
+                } else {
+                    LOGGER.error("Server sent invalid id: " + response.type());
+                    return false;
+                }
+            } catch (ConnectException ignored) {
+            } catch (IOException e) {
+                LOGGER.error("Communication I/O error", e);
+            } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
+                LOGGER.error("Generic connection crypto failure", e);
+                return false;
+            }
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException ignored) {
+            }
         }
     }
 
@@ -211,7 +328,7 @@ public class Client extends Application implements Runnable{
                 if (message1.length() > 64) {
                     message1 = message1.substring(0, 64 - 3) + "...";
                 }
-                this.trayIcon.displayMessage(message.getAuthor().getFormattedName(), message1, TrayIcon.MessageType.NONE);
+                this.trayIcon.displayMessage(this.getName(message.getAuthor()), message1, TrayIcon.MessageType.NONE);
             }
         }
     }
@@ -231,6 +348,7 @@ public class Client extends Application implements Runnable{
     }
 
     public void close() {
+        this.shutdown = true;
         try {
             if (this.connection != null) {
                 this.connection.close();
@@ -242,5 +360,36 @@ public class Client extends Application implements Runnable{
     public void shutdown() {
         this.close();
         Platform.exit();
+    }
+
+    public void openTrustScreen(@Nullable User item) {
+        Stage stage = new Stage();
+        UserTrustScreen trustScreen = new UserTrustScreen(this, stage);
+        trustScreen.select(item);
+        stage.show();
+    }
+
+    public void trustUser(User item, String username) {
+        this.accountData.knownAccounts().put(item.key(), username);
+        this.saveAccountData();
+        this.screen.refresh();
+    }
+
+    public String getName(MessageAuthor account) {
+        return this.accountData.knownAccounts().getOrDefault(account.getPublicKey(), account.getFormattedName());
+    }
+
+    public void revokeTrust(User selected) {
+        this.accountData.knownAccounts().remove(selected.key());
+        this.saveAccountData();
+        this.screen.refresh();
+    }
+
+    public boolean isTrusted(MessageAuthor account) {
+        return this.accountData.knownAccounts().containsKey(account.getPublicKey());
+    }
+
+    public void openEditSelfScreen() {
+
     }
 }

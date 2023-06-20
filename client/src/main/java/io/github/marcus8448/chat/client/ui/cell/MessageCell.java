@@ -97,7 +97,7 @@ public class MessageCell extends ListCell<Message> {
 
     private void copyAuthorName() {
         Map<DataFormat, Object> data = new HashMap<>();
-        data.put(DataFormat.PLAIN_TEXT, this.getItem().getAuthor().getFormattedName());
+        data.put(DataFormat.PLAIN_TEXT, this.client.getName(this.getItem().getAuthor()));
         Clipboard.getSystemClipboard().setContent(data);
     }
 
@@ -117,7 +117,7 @@ public class MessageCell extends ListCell<Message> {
         if (!empty && item != null) {
 //            boolean canEdit = this.client.getPublicKey().equals(item.getAuthor().getPublicKey()) && item instanceof TextMessage; //todo: editing
 //            this.setEditable(canEdit);
-            this.authorName.setBackground(null);
+            this.authorName.setBackground(Background.EMPTY);
             if (item.getType() == MessageType.TEXT) {
                 this.vBox.getChildren().remove(this.imageContents);
                 if (!this.vBox.getChildren().contains(this.textMessageContents)) this.vBox.getChildren().add(this.textMessageContents);
@@ -129,17 +129,28 @@ public class MessageCell extends ListCell<Message> {
                 this.imageContents.setBackground(new Background(new BackgroundImage(image, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.DEFAULT, BackgroundSize.DEFAULT)));
                 this.textMessageContents.getChildren().clear();
             }
-            this.authorName.setText(item.getAuthor().getFormattedName());
+            this.authorName.setText(this.client.getName(item.getAuthor()));
             this.authorName.setOnMouseClicked(this::openAuthor);
             this.setContextMenu(contextMenu);
             String hash = CryptoHelper.sha256Hash(item.getAuthor().getPublicKey().getEncoded());
             if (item.verifySignature()) {
-                this.authorName.setTooltip(new Tooltip(hash));
+                if (this.client.isTrusted(item.getAuthor())) {
+                    this.authorName.setTooltip(new Tooltip(item.getAuthor().getFormattedName()));
+                } else {
+                    this.authorName.setTooltip(new Tooltip(hash));
+                }
             } else {
                 this.authorName.setBackground(NOT_VERIFIED_BG);
                 this.authorName.setTooltip(new Tooltip("NOT VERIFIED: " + hash));
             }
         } else {
+            this.authorName.setBackground(Background.EMPTY);
+            this.authorName.setText("");
+            this.authorName.setOnMouseClicked(null);
+            this.vBox.getChildren().remove(this.imageContents);
+            this.vBox.getChildren().remove(this.textMessageContents);
+            this.imageContents.setBackground(Background.EMPTY);
+
             this.setContextMenu(null);
         }
     }

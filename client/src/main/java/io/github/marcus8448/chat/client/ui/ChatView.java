@@ -18,7 +18,9 @@ package io.github.marcus8448.chat.client.ui;
 
 import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.ui.cell.MessageCell;
+import io.github.marcus8448.chat.client.ui.cell.UserCell;
 import io.github.marcus8448.chat.client.util.JfxUtil;
+import io.github.marcus8448.chat.core.api.account.User;
 import io.github.marcus8448.chat.core.api.message.Message;
 import io.github.marcus8448.chat.core.api.network.packet.ClientPacketTypes;
 import io.github.marcus8448.chat.core.api.network.packet.client.SendMessage;
@@ -42,6 +44,10 @@ public class ChatView {
     private final Label leftStatus = new Label("...");
     private final Label connectionStatus = new Label("Online");
     private final TextArea messageBox = new TextArea();
+    private final Button sendButton = new Button();
+    private final ListView<String> channelsList;
+    private final ListView<Message> messagesList;
+    private final ListView<User> usersList;
 
     public ChatView(Client client, Stage stage) {
         this.client = client;
@@ -59,6 +65,10 @@ public class ChatView {
         logOut.setOnAction(e -> this.client.logout(stage));
         MenuItem exit = new MenuItem("Exit");
         exit.setOnAction(e -> this.client.shutdown());
+        MenuItem edit = new MenuItem("Edit");
+        edit.setOnAction(e -> this.client.openEditSelfScreen());
+        MenuItem trust = new MenuItem("Trust");
+        trust.setOnAction(e -> this.client.openTrustScreen(null));
         MenuBar bar = new MenuBar(
                 new Menu("File", null,
                         preferences,
@@ -66,36 +76,35 @@ public class ChatView {
                         logOut,
                         exit
                 ),
-                new Menu("Help", null,
-                        new MenuItem("v"),
+                new Menu("Account", null,
+                        edit,
                         new SeparatorMenuItem(),
-                        new MenuItem("d")
+                        trust
                 )
         );
         VBox.setVgrow(bar, Priority.NEVER);
         vBox.getChildren().add(bar);
 
         ObservableList<String> channels = FXCollections.observableArrayList("a", "a", "a", "a");
-        ListView<String> leftPane = new ListView<>(channels);
+        channelsList = new ListView<>(channels);
 
-        ListView<Message> centerContent = new ListView<>(this.client.messages);
+        messagesList = new ListView<>(this.client.messages);
         this.client.messages.addListener((ListChangeListener<? super Message>) t -> {
             t.next();
             if (t.getAddedSize() > 0) {
                 Platform.runLater(() -> {
                     if (this.client.messages.size() > 0) {
-                        centerContent.scrollTo(this.client.messages.size() - 1);
+                        messagesList.scrollTo(this.client.messages.size() - 1);
                     }
                 });
             }
         });
-        centerContent.setCellFactory(l -> new MessageCell(centerContent, this.client));
-        centerContent.setEditable(true);
+        messagesList.setCellFactory(l -> new MessageCell(messagesList, this.client));
+        messagesList.setEditable(true);
 
         messageBox.setPromptText("Type your message here");
         messageBox.setPrefRowCount(1);
         messageBox.setWrapText(true);
-        Button sendButton = new Button();
         HBox messageSendBox = new HBox(messageBox, sendButton);
         messageSendBox.setPadding(new Insets(3.0, 3.0, 3.0, 3.0));
         sendButton.setMaxHeight(10000);
@@ -113,13 +122,14 @@ public class ChatView {
         HBox.setHgrow(messageBox, Priority.ALWAYS);
         HBox.setHgrow(sendButton, Priority.SOMETIMES);
 
-        VBox centerPane = new VBox(centerContent, messageSendBox);
-        VBox.setVgrow(centerContent, Priority.ALWAYS);
+        VBox centerPane = new VBox(messagesList, messageSendBox);
+        VBox.setVgrow(messagesList, Priority.ALWAYS);
         VBox.setVgrow(messageSendBox, Priority.SOMETIMES);
 
-        AnchorPane rightPane = new AnchorPane();
+        usersList = new ListView<>(this.client.userList);
+        usersList.setCellFactory(c -> new UserCell(this.client));
 
-        SplitPane pane = new SplitPane(leftPane, centerPane, rightPane);
+        SplitPane pane = new SplitPane(channelsList, centerPane, usersList);
         pane.setDividerPositions(0.2, 1.0 - 0.2);
         pane.setFocusTraversable(true);
         VBox.setVgrow(pane, Priority.ALWAYS);
@@ -156,5 +166,21 @@ public class ChatView {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    public void markOffline() {
+        this.sendButton.setDisable(true);
+        this.connectionStatus.setText("OFFLINE");
+    }
+
+    public void markOnline() {
+        this.sendButton.setDisable(false);
+        this.connectionStatus.setText("Online");
+    }
+
+    public void refresh() {
+        this.channelsList.refresh();
+        this.usersList.refresh();
+        this.messagesList.refresh();
     }
 }
