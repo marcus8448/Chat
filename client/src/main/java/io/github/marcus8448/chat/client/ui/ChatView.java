@@ -33,43 +33,86 @@ import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
-import javafx.scene.layout.*;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.Pane;
+import javafx.scene.layout.Priority;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.IOException;
 
+/**
+ * The main chat window.
+ */
 public class ChatView {
+    private static final Logger LOGGER = LogManager.getLogger();
+    /**
+     * The active (probably primary) stage
+     */
     private final Stage stage;
+    /**
+     * The client instance
+     */
     private final Client client;
+    /**
+     * The status display on the left side
+     */
     private final Label leftStatus = new Label("...");
+    /**
+     * The status display on the right side
+     * Displays online/offline base don connection state
+     */
     private final Label connectionStatus = new Label("Online");
+    /**
+     * Area for the user to type messages for sending
+     */
     private final TextArea messageBox = new TextArea();
+    /**
+     * Button that sends messages
+     * ctrl-enter also works instead
+     */
     private final Button sendButton = new Button();
+    /**
+     * Left panel - list of channels
+     */
     private final ListView<String> channelsList;
+    /**
+     * Center/main content pane - messages
+     */
     private final ListView<Message> messagesList;
+    /**
+     * Right pane - list of users
+     */
     private final ListView<User> usersList;
 
     public ChatView(Client client, Stage stage) {
         this.client = client;
         this.stage = stage;
-        VBox vBox = new VBox();
+        VBox vBox = new VBox(); // root pane
+
+        //setup scene/stage
         Scene scene = new Scene(vBox, 900, 600);
         vBox.setPrefHeight(600);
         vBox.setPrefWidth(900);
         stage.setWidth(900);
         stage.setHeight(600);
         stage.setTitle("Chat");
-        MenuItem preferences = new MenuItem("Preferences");
-        preferences.setOnAction(e -> {});
+
+        // create top toolbar
+        MenuItem preferences = new MenuItem("Preferences"); //TODO
+        preferences.setOnAction(e -> {
+        });
         MenuItem logOut = new MenuItem("Log out");
-        logOut.setOnAction(e -> this.client.logout(stage));
+        logOut.setOnAction(e -> this.client.logout(stage)); // logs out the user (to login screen)
         MenuItem exit = new MenuItem("Exit");
-        exit.setOnAction(e -> this.client.shutdown());
+        exit.setOnAction(e -> this.client.shutdown()); // closes the app
         MenuItem edit = new MenuItem("Edit");
-        edit.setOnAction(e -> this.client.openEditSelfScreen());
+        edit.setOnAction(e -> this.client.openEditSelfScreen());  // edit username
         MenuItem trust = new MenuItem("Trust");
-        trust.setOnAction(e -> this.client.openTrustScreen(null));
-        MenuBar bar = new MenuBar(
+        trust.setOnAction(e -> this.client.openTrustScreen(null)); // edit user trust
+        MenuBar bar = new MenuBar( //create the bar
                 new Menu("File", null,
                         preferences,
                         new SeparatorMenuItem(),
@@ -82,14 +125,14 @@ public class ChatView {
                         trust
                 )
         );
-        VBox.setVgrow(bar, Priority.NEVER);
-        vBox.getChildren().add(bar);
+        VBox.setVgrow(bar, Priority.NEVER); // disable growth of the bar
+        vBox.getChildren().add(bar); // add the bar to the window
 
-        ObservableList<String> channels = FXCollections.observableArrayList("a", "a", "a", "a");
-        channelsList = new ListView<>(channels);
+        ObservableList<String> channels = FXCollections.observableArrayList("a", "a", "a", "a"); //fixme
+        channelsList = new ListView<>(channels); // create the list of channels
 
-        messagesList = new ListView<>(this.client.messages);
-        this.client.messages.addListener((ListChangeListener<? super Message>) t -> {
+        messagesList = new ListView<>(this.client.messages); // create the messages pane
+        this.client.messages.addListener((ListChangeListener<? super Message>) t -> { // autoscroll to bottom
             t.next();
             if (t.getAddedSize() > 0) {
                 Platform.runLater(() -> {
@@ -99,62 +142,67 @@ public class ChatView {
                 });
             }
         });
-        messagesList.setCellFactory(l -> new MessageCell(messagesList, this.client));
-        messagesList.setEditable(true);
+        messagesList.setCellFactory(l -> new MessageCell(messagesList, this.client)); // see message cell
 
+        // create and setup the input area
         messageBox.setPromptText("Type your message here");
         messageBox.setPrefRowCount(1);
         messageBox.setWrapText(true);
         HBox messageSendBox = new HBox(messageBox, sendButton);
         messageSendBox.setPadding(new Insets(3.0, 3.0, 3.0, 3.0));
         sendButton.setMaxHeight(10000);
-        sendButton.heightProperty().addListener(o -> {
+        sendButton.heightProperty().addListener(o -> { // make button square
             sendButton.setPrefWidth(sendButton.getHeight());
             sendButton.setMinWidth(sendButton.getHeight());
         });
         messageBox.setOnKeyPressed(e -> {
-            if (e.getCode() == KeyCode.ENTER && (e.isShiftDown() || e.isControlDown())) {
-                this.sendMessage();
+            if (e.getCode() == KeyCode.ENTER && (e.isControlDown())) { // check if ctrl-enter is pressed
+                this.sendMessage(); // send message
             }
         });
-        JfxUtil.buttonPressCallback(sendButton, this::sendMessage);
+        JfxUtil.buttonPressCallback(sendButton, this::sendMessage); // send message on button press
 
+        // set growth properties
         HBox.setHgrow(messageBox, Priority.ALWAYS);
         HBox.setHgrow(sendButton, Priority.SOMETIMES);
-
-        VBox centerPane = new VBox(messagesList, messageSendBox);
         VBox.setVgrow(messagesList, Priority.ALWAYS);
         VBox.setVgrow(messageSendBox, Priority.SOMETIMES);
 
-        usersList = new ListView<>(this.client.userList);
-        usersList.setCellFactory(c -> new UserCell(this.client));
+        VBox centerPane = new VBox(messagesList, messageSendBox); // create center pane
 
-        SplitPane pane = new SplitPane(channelsList, centerPane, usersList);
-        pane.setDividerPositions(0.2, 1.0 - 0.2);
+        usersList = new ListView<>(this.client.userList); // create right panel (users)
+        usersList.setCellFactory(c -> new UserCell(this.client)); // see user cell
+
+        SplitPane pane = new SplitPane(channelsList, centerPane, usersList); // Create main content pane
+        pane.setDividerPositions(0.2, 1.0 - 0.2); // allocate space: 20%, 60%, 20%
         pane.setFocusTraversable(true);
-        VBox.setVgrow(pane, Priority.ALWAYS);
         vBox.getChildren().add(pane);
 
+        VBox.setVgrow(pane, Priority.ALWAYS); // set growth properties
         HBox.setHgrow(leftStatus, Priority.ALWAYS);
         HBox.setHgrow(connectionStatus, Priority.NEVER);
 
-        Pane pane1 = new Pane();
-        HBox.setHgrow(pane1, Priority.ALWAYS);
+        Pane spacing = new Pane(); // padding
+        HBox.setHgrow(spacing, Priority.ALWAYS);
 
-        HBox hBox = new HBox(leftStatus, pane1, connectionStatus);
-        hBox.setPadding(new Insets(3.0, 3.0, 3.0, 3.0));
-        hBox.setAlignment(Pos.CENTER_LEFT);
-        hBox.setSpacing(5.0);
-        VBox.setVgrow(hBox, Priority.NEVER);
-        vBox.getChildren().add(hBox);
+        HBox statuses = new HBox(leftStatus, spacing, connectionStatus); // status bar
+        statuses.setPadding(new Insets(3.0, 3.0, 3.0, 3.0));
+        statuses.setAlignment(Pos.CENTER_LEFT);
+        statuses.setSpacing(5.0);
+        VBox.setVgrow(statuses, Priority.NEVER);
+        vBox.getChildren().add(statuses);
 
-        stage.setScene(scene);
-        this.client.setView(this);
+        stage.setScene(scene); // set the scene
+        this.client.setView(this); // inform the client of our existence
 
-        stage.setOnCloseRequest(s -> this.client.close());
+        stage.setOnCloseRequest(s -> this.client.close()); // when the app is closed, shutdown the entire client
     }
 
+    /**
+     * Sends the message written in the messageBox
+     */
     private void sendMessage() {
+        if (this.sendButton.isDisabled()) return; // if we can't send, don't bother
         String message = this.messageBox.getText();
         if (message.isBlank()) {
             return;
@@ -164,20 +212,29 @@ public class ChatView {
             this.client.connection.send(ClientPacketTypes.SEND_MESSAGE, new SendMessage(message, this.client.signMessage(message)));
             this.messageBox.setText("");
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            LOGGER.fatal("Failed to send message", e);
         }
     }
 
+    /**
+     * Set status to offline
+     */
     public void markOffline() {
-        this.sendButton.setDisable(true);
+        this.sendButton.setDisable(true); // disable message sending
         this.connectionStatus.setText("OFFLINE");
     }
 
+    /**
+     * Set status to online
+     */
     public void markOnline() {
-        this.sendButton.setDisable(false);
+        this.sendButton.setDisable(false); // enable message sending
         this.connectionStatus.setText("Online");
     }
 
+    /**
+     * Redraw the main content pane (for username updates, etc.)
+     */
     public void refresh() {
         this.channelsList.refresh();
         this.usersList.refresh();

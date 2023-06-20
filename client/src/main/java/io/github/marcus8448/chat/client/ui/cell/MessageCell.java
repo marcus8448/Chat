@@ -27,7 +27,6 @@ import javafx.scene.control.*;
 import javafx.scene.image.Image;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
-import javafx.scene.input.KeyCode;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.shape.Circle;
@@ -37,70 +36,142 @@ import java.io.ByteArrayInputStream;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Graphical representation of a message
+ */
 public class MessageCell extends ListCell<Message> {
+    /**
+     * Background to use when a message signature is invalid
+     */
     private final Background NOT_VERIFIED_BG = Background.fill(JfxUtil.NOT_VERIFIED_COLOUR);
 
+    /**
+     * Circular picture of message author
+     */
     private final Circle authorPicture = new Circle();
+    /**
+     * Label with the name of the author
+     */
     private final Label authorName = new Label();
+    /**
+     * Image pane (if the message is an image message)
+     */
     private final Pane imageContents = new Pane();
+    /**
+     * The main/message content panel
+     */
     private final VBox vBox = new VBox(authorName);
-    private final HBox hBox = new HBox(authorPicture, vBox);
-    private final TextArea editArea = new TextArea();
+    /**
+     * Context menu for non-blank messages
+     */
     private final ContextMenu contextMenu;
+    /**
+     * The client instance
+     */
     private final Client client;
+    /**
+     * The contents of the message (if the image is a text message)
+     */
     private final TextFlow textMessageContents = new TextFlow();
 
     public MessageCell(ListView<Message> centerContent, Client client) {
         super();
         this.client = client;
         this.setEditable(false);
+        // set growth priorities
         HBox.setHgrow(authorPicture, Priority.NEVER);
         HBox.setHgrow(vBox, Priority.ALWAYS);
         VBox.setVgrow(authorName, Priority.NEVER);
         VBox.setVgrow(textMessageContents, Priority.ALWAYS);
-        this.setGraphic(hBox);
-        this.setText(null);
+        HBox hBox = new HBox(authorPicture, vBox); // create cell content box
+        this.setGraphic(hBox); // set the contents
+        this.setText(null); // we don't want the default text flow
 
+        // lock the width of the contents to the width of the available space
         this.textMessageContents.prefWidthProperty().bind(centerContent.widthProperty().subtract(16.0));
 
-        this.setOnKeyPressed(k -> {
-            if (k.getCode() == KeyCode.ENTER) { //only passed if ctrl is pressed
-                Message item = this.getItem();
-                String text = this.editArea.getText();
-//                this.commitEdit(new Message(item.getType(), item.author(), client.signMessage(text), text)); //todo: editing
-            }
-        });
-
-        this.editArea.textProperty().addListener((o, old, newStr) -> changed(newStr));
-        this.editArea.setWrapText(true);
-        this.editArea.setPromptText("Edit message");
-
-//        MenuItem edit = new MenuItem("Edit");
-//        edit.setOnAction(e -> this.startEdit());
+        // create the contxt menu
         MenuItem copyContents = new MenuItem("Copy contents");
-        copyContents.setOnAction(e -> this.copyContents());
+        copyContents.setOnAction(e -> this.copyContents()); // copies message contents
         MenuItem copyAuthorName = new MenuItem("Copy author name");
-        copyAuthorName.setOnAction(e -> this.copyAuthorName());
+        copyAuthorName.setOnAction(e -> this.copyAuthorName()); // copies the name of the author
         MenuItem copyAuthorId = new MenuItem("Copy author ID");
-        copyAuthorId.setOnAction(e -> this.copyAuthorId());
-//        MenuItem history = new MenuItem("History...");
-//        history.setOnAction(e -> {
-//        });
-        this.contextMenu = new ContextMenu(/*edit, history, */copyAuthorName, copyContents, copyAuthorId);
+        copyAuthorId.setOnAction(e -> this.copyAuthorId()); // copies the public key SHA-256 of the author
+        this.contextMenu = new ContextMenu(copyAuthorName, copyContents, copyAuthorId); // create the menu
     }
 
+    @Override
+    protected void updateItem(Message item, boolean empty) {
+        super.updateItem(item, empty);
+        if (!empty && item != null) { // check if there is any item
+            this.authorName.setBackground(Background.EMPTY); // reset signature verification background
+            if (item.getType() == MessageType.TEXT) { // check if this is a text message
+                this.vBox.getChildren().remove(this.imageContents); // remove image contents (if exists)
+                //add text message contents if it doesn't already exist
+                if (!this.vBox.getChildren().contains(this.textMessageContents))
+                    this.vBox.getChildren().add(this.textMessageContents);
+                // parse the text as markdown and insert it into the flow
+                MarkdownParser.parseMarkdown(this.textMessageContents, ((TextMessage) item).getMessage());
+            } else if (item.getType() == MessageType.IMAGE) {
+                this.vBox.getChildren().remove(this.textMessageContents); // remove text message contents from display
+                // delete any remaining text contents
+                this.textMessageContents.getChildren().clear();
+                // add image content if it doesn't already exist
+                if (!this.vBox.getChildren().contains(this.imageContents))
+                    this.vBox.getChildren().add(this.imageContents);
+                Image image = new Image(new ByteArrayInputStream(item.getContents())); // load the image
+                // set the image data
+                this.imageContents.setBackground(new Background(new BackgroundImage(image, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.DEFAULT, BackgroundSize.DEFAULT)));
+            }
+            this.authorName.setText(this.client.getName(item.getAuthor())); // set the author text
+            this.authorName.setOnMouseClicked(this::openAuthor); // set click handler
+            this.setContextMenu(contextMenu); // set the content menu (since active)
+            String hash = CryptoHelper.sha256Hash(item.getAuthor().getPublicKey().getEncoded()); //get the key id of the author
+            if (item.verifySignature()) { // check that the message signature is valid
+                if (this.client.isTrusted(item.getAuthor())) { // check if the author is trusted
+                    this.authorName.setTooltip(new Tooltip(item.getAuthor().getFormattedName())); // set the tooltip to be the full id
+                } else {
+                    this.authorName.setTooltip(new Tooltip(hash)); // set the tooltip to be just the hash
+                }
+            } else {
+                this.authorName.setBackground(NOT_VERIFIED_BG); // set the red background
+                this.authorName.setTooltip(new Tooltip("NOT VERIFIED: " + hash)); // mark as unverified
+            }
+        } else {
+            this.authorName.setBackground(Background.EMPTY); // clear unverified background
+            this.authorName.setText(""); // clear name
+            this.authorName.setOnMouseClicked(null); // remove click handler
+            // remove all contents
+            this.vBox.getChildren().remove(this.imageContents);
+            this.vBox.getChildren().remove(this.textMessageContents);
+            this.imageContents.setBackground(Background.EMPTY);
+            this.textMessageContents.getChildren().clear();
+
+            this.setContextMenu(null); // remove context menu
+        }
+    }
+
+    /**
+     * Copies the author's ID to the clipboard
+     */
     private void copyAuthorId() {
         Map<DataFormat, Object> data = new HashMap<>();
         data.put(DataFormat.PLAIN_TEXT, CryptoHelper.sha256Hash(this.getItem().getAuthor().getPublicKey().getEncoded()));
         Clipboard.getSystemClipboard().setContent(data);
     }
 
+    /**
+     * Copies the author's name to the clipboard
+     */
     private void copyAuthorName() {
         Map<DataFormat, Object> data = new HashMap<>();
         data.put(DataFormat.PLAIN_TEXT, this.client.getName(this.getItem().getAuthor()));
         Clipboard.getSystemClipboard().setContent(data);
     }
 
+    /**
+     * Copies the message contents to the clipboard
+     */
     private void copyContents() {
         Map<DataFormat, Object> data = new HashMap<>();
         if (this.getItem().getType() == MessageType.TEXT) {
@@ -111,99 +182,10 @@ public class MessageCell extends ListCell<Message> {
         Clipboard.getSystemClipboard().setContent(data);
     }
 
-    @Override
-    protected void updateItem(Message item, boolean empty) {
-        super.updateItem(item, empty);
-        if (!empty && item != null) {
-//            boolean canEdit = this.client.getPublicKey().equals(item.getAuthor().getPublicKey()) && item instanceof TextMessage; //todo: editing
-//            this.setEditable(canEdit);
-            this.authorName.setBackground(Background.EMPTY);
-            if (item.getType() == MessageType.TEXT) {
-                this.vBox.getChildren().remove(this.imageContents);
-                if (!this.vBox.getChildren().contains(this.textMessageContents)) this.vBox.getChildren().add(this.textMessageContents);
-                MarkdownParser.parseMarkdown(this.textMessageContents, ((TextMessage) item).getMessage());
-            } else if (item.getType() == MessageType.IMAGE) {
-                this.vBox.getChildren().remove(this.textMessageContents);
-                if (!this.vBox.getChildren().contains(this.imageContents)) this.vBox.getChildren().add(this.imageContents);
-                Image image = new Image(new ByteArrayInputStream(item.getContents()));
-                this.imageContents.setBackground(new Background(new BackgroundImage(image, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.DEFAULT, BackgroundSize.DEFAULT)));
-                this.textMessageContents.getChildren().clear();
-            }
-            this.authorName.setText(this.client.getName(item.getAuthor()));
-            this.authorName.setOnMouseClicked(this::openAuthor);
-            this.setContextMenu(contextMenu);
-            String hash = CryptoHelper.sha256Hash(item.getAuthor().getPublicKey().getEncoded());
-            if (item.verifySignature()) {
-                if (this.client.isTrusted(item.getAuthor())) {
-                    this.authorName.setTooltip(new Tooltip(item.getAuthor().getFormattedName()));
-                } else {
-                    this.authorName.setTooltip(new Tooltip(hash));
-                }
-            } else {
-                this.authorName.setBackground(NOT_VERIFIED_BG);
-                this.authorName.setTooltip(new Tooltip("NOT VERIFIED: " + hash));
-            }
-        } else {
-            this.authorName.setBackground(Background.EMPTY);
-            this.authorName.setText("");
-            this.authorName.setOnMouseClicked(null);
-            this.vBox.getChildren().remove(this.imageContents);
-            this.vBox.getChildren().remove(this.textMessageContents);
-            this.imageContents.setBackground(Background.EMPTY);
+    /**
+     * Opens a window describing the author of the message
+     */
+    private void openAuthor(MouseEvent unused) { // TODO
 
-            this.setContextMenu(null);
-        }
-    }
-
-    private void openAuthor(MouseEvent mouseEvent) {
-
-    }
-
-    @Override
-    public void commitEdit(Message newValue) {
-        super.commitEdit(newValue);
-        this.editArea.setDisable(true);
-        this.setGraphic(this.hBox);
-        this.setText(null);
-    }
-
-    @Override
-    public void cancelEdit() {
-        super.cancelEdit();
-        this.editArea.setDisable(true);
-        this.setGraphic(this.hBox);
-        this.setText(null);
-    }
-
-    @Override
-    public void startEdit() {
-        super.startEdit();
-        if (!isEditing()) return;
-        this.editArea.setText(((TextMessage) this.getItem()).getMessage());
-        this.editArea.setDisable(false);
-        this.setGraphic(this.editArea);
-    }
-
-    private void changed(String s) {
-        int i = 1;
-        StringBuilder builder = new StringBuilder("ABC");
-        double width = this.editArea.getLayoutBounds().getWidth();
-        if (width == 0.0) {
-            width = this.hBox.getWidth();
-        }
-        width -= this.hBox.getPadding().getLeft() + this.hBox.getPadding().getRight();
-        for (char c : s.toCharArray()) {
-            if (c == '\n') {
-                i++;
-                builder.setLength(3);
-            } else {
-                builder.append(c);
-                if (JfxUtil.getTextWidth(builder.toString()) >= width) {
-                    i++;
-                    builder.setLength(3);
-                }
-            }
-        }
-        this.editArea.setPrefRowCount(i);
     }
 }

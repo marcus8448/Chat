@@ -23,16 +23,11 @@ import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.client.util.ParseUtil;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.api.misc.Result;
-import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.PasswordField;
 import javafx.scene.control.TextField;
-import javafx.scene.layout.AnchorPane;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.apache.logging.log4j.LogManager;
@@ -49,133 +44,123 @@ import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.util.HashMap;
 
+/**
+ * Screen/UI for creating a new account
+ */
 public class CreateAccountScreen {
     private static final Logger LOGGER = LogManager.getLogger();
 
     private static final String INVALID_USERNAME = "Invalid username: %s";
     private static final String INVALID_PASSWORD = "Invalid password: %s";
 
-    private static final int PADDING = 12;
-    private static final int BUTTON_HEIGHT = 25;
-
+    /**
+     * The client instance
+     */
     private final Client client;
+    /**
+     * Password input field
+     */
     private final PasswordField passwordField = new PasswordField();
+    /**
+     * Username input filed
+     */
     private final TextField username = new TextField();
+    /**
+     * Displays the reason why an account could not be created
+     */
     private final Label failureReason = new Label();
+    /**
+     * The current stage
+     */
     private final Stage stage;
 
     public CreateAccountScreen(Client client, Stage stage) {
         this.client = client;
         this.stage = stage;
-        VBox vBox = new VBox();
-        Insets paddingH = new Insets(0, PADDING, 0, PADDING);
-        Insets paddingCore = new Insets(PADDING / 2.0, PADDING, PADDING / 2.0, PADDING);
+        VBox vBox = new VBox(); // root content pane
+        JfxUtil.initializePadding(vBox);
 
-        Label accountLabel = new Label("Username");
-        accountLabel.setPadding(paddingH);
-        this.username.setPromptText("example");
-        this.username.setMaxWidth(1289908123);
-        this.username.setPadding(paddingH);
-        this.username.setPrefHeight(25);
+        double len = JfxUtil.getTextWidth("Username");
+        vBox.getChildren().add(JfxUtil.createInputRow(new Label("Username"), this.username, "example", len));
+        vBox.getChildren().add(JfxUtil.createInputRow(new Label("Password"), this.passwordField, "password", len));
 
-        HBox accountSelection = new HBox(accountLabel, this.username);
-        accountSelection.setPadding(new Insets(PADDING, PADDING, PADDING / 2.0, PADDING));
-        HBox.setHgrow(accountLabel, Priority.NEVER);
-        HBox.setHgrow(this.username, Priority.ALWAYS);
-        VBox.setVgrow(accountSelection, Priority.NEVER);
-        vBox.getChildren().add(accountSelection);
-
-        Label passwordLabel = new Label("Password ");
-        passwordLabel.setPadding(paddingH);
-        this.passwordField.setPrefHeight(25);
-        this.passwordField.setPadding(paddingH);
-
-        HBox passwordInput = new HBox(passwordLabel, this.passwordField);
-        passwordInput.setPadding(paddingCore);
-        HBox.setHgrow(passwordLabel, Priority.NEVER);
-        HBox.setHgrow(this.passwordField, Priority.ALWAYS);
-        VBox.setVgrow(passwordInput, Priority.NEVER);
-        vBox.getChildren().add(passwordInput);
-
-        this.failureReason.setAlignment(Pos.CENTER_RIGHT);
-        this.failureReason.setPrefWidth(10000);
-        this.failureReason.setPadding(paddingH);
-        this.failureReason.setTextFill(JfxUtil.FAILURE_COLOUR);
-        VBox.setVgrow(this.failureReason, Priority.NEVER);
+        JfxUtil.setupFailureLabel(this.failureReason);
         vBox.getChildren().add(this.failureReason);
 
-        AnchorPane spacing = new AnchorPane();
-        VBox.setVgrow(spacing, Priority.ALWAYS);
-        vBox.getChildren().add(spacing);
+        vBox.getChildren().add(JfxUtil.zeroSpacing());
 
-        AnchorPane spacing2 = new AnchorPane();
-        Button cancel = new Button("Cancel");
-        cancel.setPrefHeight(BUTTON_HEIGHT);
-        cancel.setPadding(paddingH);
-        Button create = new Button("Create Account");
-        create.setPrefHeight(BUTTON_HEIGHT);
-        create.setPadding(paddingH);
-        JfxUtil.buttonPressCallback(cancel, stage::close);
-        JfxUtil.buttonPressCallback(create, this::createAccount);
+        Button cancel = new Button("Cancel"); // cancel button
+        Button create = new Button("Create Account"); // create account button
+        JfxUtil.buttonPressCallback(cancel, stage::close); // close the account creation window
+        JfxUtil.buttonPressCallback(create, this::createAccount); // create the account
 
-        HBox buttons = new HBox(cancel, spacing2, create);
-        buttons.setPadding(paddingCore);
-        HBox.setHgrow(spacing2, Priority.ALWAYS);
-        HBox.setHgrow(cancel, Priority.NEVER);
-        HBox.setHgrow(create, Priority.NEVER);
-        VBox.setVgrow(buttons, Priority.NEVER);
-        vBox.getChildren().add(buttons);
+        vBox.getChildren().add(JfxUtil.createButtonRow(cancel, null, create));
 
+        // create the scene, set up the stage
         Scene scene = new Scene(vBox);
 
         stage.setWidth(300);
-        stage.setHeight(175);
+        stage.setHeight(180);
         stage.setResizable(true);
         stage.setTitle("Create an Account");
         stage.setScene(scene);
     }
 
+    /**
+     * Try to create an account
+     */
     private void createAccount() {
-        Result<String, String> res = ParseUtil.validateUsername(this.username.getText());
-        if (res.isError()) {
+        // maybe i've been doing too much rust...
+        Result<String, String> res = ParseUtil.validateUsername(this.username.getText()); // validate username
+        if (res.isError()) { // check if invalid
             this.failureReason.setText(INVALID_USERNAME.formatted(res.unwrapError()));
-            return;
+            return; // cancel
         }
         String username = res.unwrap();
 
-        String password = this.passwordField.getText();
-        Result<Void, String> result = ParseUtil.validatePassword(password);
-        if (result.isError()) {
+        String password = this.passwordField.getText(); // get password
+        Result<Void, String> result = ParseUtil.validatePassword(password); // validate password
+        if (result.isError()) { // check if invalid
             this.failureReason.setText(INVALID_PASSWORD.formatted(result.unwrapError()));
-            return;
+            return; // cancel
         }
 
-        SecretKey encode;
+        SecretKey passKey; // AES key generated based on the username and password
         try {
-            encode = CryptoHelper.generateUserPassKey(password.toCharArray(), username);
+            passKey = CryptoHelper.generateUserPassKey(password.toCharArray(), username);
         } catch (InvalidKeySpecException e) {
             this.failureReason.setText("Failed to calculate password hash.");
             LOGGER.error("PBKDF2 key derivation failure", e);
             return;
         }
+
         Cipher aesCipher = CryptoHelper.createAesCipher();
         try {
-            aesCipher.init(Cipher.ENCRYPT_MODE, encode);
+            aesCipher.init(Cipher.ENCRYPT_MODE, passKey); // create a cipher to encrypt data
         } catch (InvalidKeyException e) {
             this.failureReason.setText("Failed to initialize AES cipher.");
             LOGGER.error("AES cipher initialization failed", e);
             return;
         }
 
-        LOGGER.debug("Generating RSA keypair");
-        KeyPair keyPair = CryptoHelper.RSA_KEY_GENERATOR.generateKeyPair();
-        LOGGER.debug("Keypair generation done (id: {})", CryptoHelper.sha256Hash(keyPair.getPublic().getEncoded()));
+        LOGGER.info("Generating RSA keypair");
+        KeyPair keyPair = CryptoHelper.RSA_KEY_GENERATOR.generateKeyPair(); // Generate a RSA keypair (4096 bits)
+        LOGGER.info("Keypair generation done (id: {})", CryptoHelper.sha256Hash(keyPair.getPublic().getEncoded()));
         try {
+            // create and add the new account
             this.client.config.addAccount(new Account(username, (RSAPublicKey) keyPair.getPublic(), new AccountData((RSAPrivateKey) keyPair.getPrivate(), new HashMap<>(), new HashMap<>()).encrypt(aesCipher)));
         } catch (IllegalBlockSizeException | BadPaddingException e) {
-            throw new RuntimeException(e);
+            this.failureReason.setText("Failed to finalize account.");
+            LOGGER.fatal("Account data encryption failed", e);
+            return;
         }
 
-        this.stage.close();
+        this.stage.close(); // close the window
+    }
+
+    private double alignLabel(Label label) {
+        double hostname1 = JfxUtil.getTextWidth("Username");
+        label.setPrefWidth(hostname1);
+        return hostname1;
     }
 }

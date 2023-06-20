@@ -32,10 +32,8 @@ import io.github.marcus8448.chat.core.api.network.packet.client.Hello;
 import io.github.marcus8448.chat.core.api.network.packet.server.AuthenticationRequest;
 import io.github.marcus8448.chat.core.api.network.packet.server.AuthenticationSuccess;
 import javafx.geometry.Insets;
-import javafx.geometry.Pos;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
@@ -62,12 +60,6 @@ import java.util.List;
 public class LoginScreen {
     private static final Logger LOGGER = LogManager.getLogger();
 
-    private static final int PADDING = 12;
-    private static final int MAX = Integer.MAX_VALUE;
-
-    protected static final Insets PADDING_HOR = new Insets(0, PADDING, 0, PADDING);
-    protected static final Insets PADDING_CORE = new Insets(PADDING / 2.0, PADDING, PADDING / 2.0, PADDING);
-
     private final Client client;
 
     private final PasswordField passwordField = new PasswordField();
@@ -86,24 +78,34 @@ public class LoginScreen {
         if (lastAccount >= 0 && lastAccount < this.client.config.getAccounts().size()) {
             this.accountBox.getSelectionModel().select(lastAccount);
         }
+        this.accountBox.setConverter(JfxUtil.ACCOUNT_STRING_CONVERTER);
         VBox vBox = new VBox();
+        JfxUtil.initializePadding(vBox);
 
-        vBox.getChildren().add(this.createMenuBar());
-        vBox.getChildren().add(this.createServerSelection());
-        vBox.getChildren().add(this.createAccountSelection());
-        vBox.getChildren().add(this.createPasswordInput());
+        double len = JfxUtil.getTextWidth("Hostname");
+        vBox.getChildren().add(this.createServerSelection(len));
+        vBox.getChildren().add(JfxUtil.createComboInputRow(new Label("Account"), this.accountBox, len));
+        vBox.getChildren().add(JfxUtil.createInputRow(new Label("Password"), this.passwordField, "password", len));
 
-        this.failureReason.setPrefWidth(MAX);
-        this.failureReason.setAlignment(Pos.TOP_RIGHT);
-        HBox spacing = new HBox(this.failureReason);
-        HBox.setHgrow(this.failureReason, Priority.ALWAYS);
-        spacing.setPadding(PADDING_CORE);
-        VBox.setVgrow(spacing, Priority.ALWAYS);
-        vBox.getChildren().add(spacing);
+        JfxUtil.setupFailureLabel(this.failureReason);
+        vBox.getChildren().add(this.failureReason);
 
-        vBox.getChildren().add(createButtons());
+        vBox.getChildren().add(JfxUtil.zeroSpacing());
 
-        Scene scene = new Scene(vBox);
+        Label createAccountPrompt = new Label("No account? Create one!");
+        createAccountPrompt.setTextFill(JfxUtil.LINK_COLOUR);
+        Button cancel = new Button("Cancel");
+        Button login = new Button("Login");
+        JfxUtil.buttonPressCallback(cancel, this.client::shutdown);
+        JfxUtil.buttonPressCallback(login, this::login);
+        JfxUtil.buttonPressCallback(createAccountPrompt, this::createAccount);
+        vBox.getChildren().add(JfxUtil.createButtonRow(createAccountPrompt, null, cancel, login));
+
+        MenuBar menuBar = createMenuBar();
+        VBox.setVgrow(menuBar, Priority.NEVER);
+        VBox.setVgrow(vBox, Priority.ALWAYS);
+        VBox root = new VBox(menuBar, vBox);
+        Scene scene = new Scene(root);
 
         stage.setWidth(400);
         stage.setHeight(250);
@@ -303,85 +305,15 @@ public class LoginScreen {
         }
     }
 
-    private @NotNull HBox createButtons() {
-        Label createAccountPrompt = new Label("No account? Create one!");
-        createAccountPrompt.setTextFill(JfxUtil.LINK_COLOUR);
-        JfxUtil.buttonPressCallback(createAccountPrompt, this::createAccount);
-        AnchorPane spacing2 = new AnchorPane();
-        Button cancel = new Button("Cancel");
-        cancel.setPrefWidth(JfxUtil.BUTTON_WIDTH);
-        cancel.setPrefHeight(JfxUtil.BUTTON_HEIGHT);
-        cancel.setOnMouseClicked(e -> this.client.shutdown());
-
-        Button login = new Button("Login");
-        login.setPrefWidth(JfxUtil.BUTTON_WIDTH);
-        login.setPrefHeight(JfxUtil.BUTTON_HEIGHT);
-        JfxUtil.buttonPressCallback(login, this::login);
-
-        HBox buttons = new HBox(createAccountPrompt, spacing2, cancel, login);
-        buttons.setPadding(PADDING_CORE);
-        buttons.setSpacing(PADDING / 2.0);
-        HBox.setHgrow(createAccountPrompt, Priority.NEVER);
-        HBox.setHgrow(spacing2, Priority.ALWAYS);
-        HBox.setHgrow(cancel, Priority.NEVER);
-        HBox.setHgrow(login, Priority.NEVER);
-        VBox.setVgrow(buttons, Priority.NEVER);
-        buttons.setAlignment(Pos.CENTER_LEFT);
-        return buttons;
-    }
-
-    private @NotNull HBox createPasswordInput() {
-        Label passwordLabel = new Label("Password ");
-        alignLabel(passwordLabel);
-        this.passwordField.setMinHeight(25);
-
-        HBox passwordInput = new HBox(passwordLabel, this.passwordField);
-        passwordInput.setPadding(PADDING_CORE);
-        passwordInput.setSpacing(PADDING / 2.0);
-        HBox.setHgrow(passwordLabel, Priority.NEVER);
-        HBox.setHgrow(this.passwordField, Priority.ALWAYS);
-        VBox.setVgrow(passwordInput, Priority.NEVER);
-        this.passwordField.setOnKeyPressed(JfxUtil.enterKeyCallback(this::login));
-        passwordInput.setAlignment(Pos.CENTER_LEFT);
-        return passwordInput;
-    }
-
-    private @NotNull HBox createAccountSelection() {
-        Label accountLabel = new Label("Account");
-        accountLabel.setMinWidth(alignLabel(accountLabel));
-        this.accountBox.setConverter(JfxUtil.ACCOUNT_STRING_CONVERTER);
-        this.accountBox.maxWidth(MAX);
-        this.accountBox.setPrefWidth(MAX);
-        HBox accountSelection = new HBox(accountLabel, this.accountBox);
-        accountSelection.setPadding(PADDING_CORE);
-        accountSelection.setSpacing(PADDING / 2.0);
-        HBox.setHgrow(accountLabel, Priority.SOMETIMES);
-        HBox.setHgrow(this.accountBox, Priority.ALWAYS);
-        VBox.setVgrow(accountSelection, Priority.NEVER);
-        accountSelection.setAlignment(Pos.CENTER_LEFT);
-        return accountSelection;
-    }
-
-    private @NotNull HBox createServerSelection() {
-        Label hostnameLabel = new Label("Hostname");
+    private @NotNull HBox createServerSelection(double len) {
+        HBox row = JfxUtil.createInputRow(new Label("Hostname"), this.hostname, "hostname", len);
         Label portLabel = new Label("Port");
-        portLabel.setPadding(new Insets(0, 0, 0, PADDING / 2.0));
+        portLabel.setPadding(new Insets(0, 0, 0, JfxUtil.SPACING / 2.0));
+        row.getChildren().add(portLabel);
         this.port.setPrefWidth(70);
-        this.port.setMaxHeight(MAX);
-        this.hostname.setMinHeight(25);
-        this.hostname.setMaxWidth(MAX);
-        alignLabel(hostnameLabel);
-
-        HBox serverSelection = new HBox(hostnameLabel, this.hostname, portLabel, this.port);
-        serverSelection.setPadding(PADDING_CORE);
-        serverSelection.setSpacing(PADDING / 2.0);
-        HBox.setHgrow(hostnameLabel, Priority.NEVER);
-        HBox.setHgrow(this.hostname, Priority.ALWAYS);
-        HBox.setHgrow(portLabel, Priority.NEVER);
-        HBox.setHgrow(this.port, Priority.NEVER);
-        VBox.setVgrow(serverSelection, Priority.NEVER);
-        serverSelection.setAlignment(Pos.CENTER_LEFT);
-        return serverSelection;
+        this.port.setMaxHeight(Integer.MAX_VALUE);
+        row.getChildren().add(this.port);
+        return row;
     }
 
     private @NotNull MenuBar createMenuBar() {

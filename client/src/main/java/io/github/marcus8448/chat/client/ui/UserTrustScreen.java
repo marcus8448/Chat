@@ -20,14 +20,8 @@ import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.client.util.ParseUtil;
 import io.github.marcus8448.chat.core.api.account.User;
-import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.Button;
-import javafx.scene.control.ComboBox;
-import javafx.scene.control.SingleSelectionModel;
-import javafx.scene.control.TextField;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.Pane;
+import javafx.scene.control.*;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
@@ -35,30 +29,23 @@ import javafx.util.StringConverter;
 
 
 public class UserTrustScreen {
-    private static final int PADDING = 12;
-
     private final ComboBox<User> selection;
-    private final TextField username = new TextField();
-    private final Stage stage;
-    private Client client;
+    private final TextField nickname = new TextField();
+    private final Client client;
 
     public UserTrustScreen(Client client, Stage stage) {
         this.client = client;
-        this.stage = stage;
 
         VBox vBox = new VBox();
-        vBox.setPadding(new Insets(PADDING));
-        vBox.setSpacing(PADDING);
+        JfxUtil.initializePadding(vBox);
 
-        this.username.setPromptText("username");
-
-        this.selection = new ComboBox<>(client.userList);
+        this.selection = new ComboBox<>(this.client.userList);
 
         this.selection.setPrefWidth(Integer.MAX_VALUE);
         this.selection.setConverter(new StringConverter<>() {
             @Override
             public String toString(User object) {
-                return client.getName(object);
+                return object.getFormattedName();
             }
 
             @Override
@@ -68,54 +55,34 @@ public class UserTrustScreen {
         });
         VBox.setVgrow(this.selection, Priority.NEVER);
         vBox.getChildren().add(this.selection);
-        vBox.getChildren().add(this.username);
-
-        Pane padding = new Pane();
-        VBox.setVgrow(padding, Priority.ALWAYS);
-        vBox.getChildren().add(padding);
-        padding.setMinHeight(0);
+        vBox.getChildren().add(JfxUtil.createInputRow(new Label("Nickname"), this.nickname, "nickname", -1));
 
         Button ok = new Button("Ok");
-        ok.setPrefWidth(JfxUtil.BUTTON_WIDTH);
-        ok.setPrefHeight(JfxUtil.BUTTON_HEIGHT);
         JfxUtil.buttonPressCallback(ok, stage::close);
 
         Button trust = new Button("Trust");
-        this.username.textProperty().addListener((observable, oldValue, newValue) -> trust.setDisable(ParseUtil.validateUsername(newValue).isError()));
+        this.nickname.textProperty().addListener((observable, oldValue, newValue) -> trust.setDisable(ParseUtil.validateUsername(newValue).isError()));
         trust.setDisable(true);
-        trust.setPrefWidth(JfxUtil.BUTTON_WIDTH);
-        trust.setPrefHeight(JfxUtil.BUTTON_HEIGHT);
         JfxUtil.buttonPressCallback(trust, this::trust);
 
         Button revoke = new Button("Revoke");
-        revoke.setPrefWidth(JfxUtil.BUTTON_WIDTH);
-        revoke.setPrefHeight(JfxUtil.BUTTON_HEIGHT);
         JfxUtil.buttonPressCallback(revoke, this::revoke);
 
         this.selection.selectionModelProperty().addListener((observable, oldValue, newValue) -> {
             if (!newValue.isEmpty()) {
-                username.setText(newValue.getSelectedItem().username());
-                username.setDisable(false);
+                nickname.setText(newValue.getSelectedItem().username());
+                nickname.setDisable(false);
                 trust.setDisable(false);
                 revoke.setDisable(this.client.isTrusted(newValue.getSelectedItem()));
             } else {
-                username.setText("");
-                username.setDisable(true);
+                nickname.setText("");
+                nickname.setDisable(true);
                 trust.setDisable(true);
                 revoke.setDisable(true);
             }
         });
 
-        Pane pad = new Pane();
-
-        HBox hBox = new HBox(revoke, trust, pad, ok);
-        HBox.setHgrow(pad, Priority.ALWAYS);
-        HBox.setHgrow(revoke, Priority.NEVER);
-        HBox.setHgrow(trust, Priority.NEVER);
-        HBox.setHgrow(ok, Priority.NEVER);
-        VBox.setVgrow(hBox, Priority.ALWAYS);
-        hBox.setSpacing(PADDING);
-        vBox.getChildren().add(hBox);
+        vBox.getChildren().add(JfxUtil.createButtonRow(revoke, trust, null, ok));
 
         Scene scene = new Scene(vBox);
         stage.setTitle("Export account");
@@ -133,7 +100,7 @@ public class UserTrustScreen {
 
     private void trust() {
         SingleSelectionModel<User> selectionModel = this.selection.getSelectionModel();
-        String username = this.username.getText();
+        String username = this.nickname.getText();
         if (ParseUtil.validateUsername(username).isError()) {
             return;
         }

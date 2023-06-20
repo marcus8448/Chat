@@ -34,8 +34,14 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
+/**
+ * Client configuration file
+ */
 public class Config {
     private static final Logger LOGGER = LogManager.getLogger();
+    /**
+     * Google JSON
+     */
     public static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping()
             .excludeFieldsWithoutExposeAnnotation()
             .registerTypeAdapter(ObservableList.class,
@@ -43,67 +49,74 @@ public class Config {
             .registerTypeAdapter(Account.class, new Account.Serializer())
             .registerTypeAdapter(AccountData.EncryptedAccountData.class, AccountData.EncryptedAccountData.Serializer.INSTANCE)
             .create();
-
-    @Expose
-    public int lastAccount = 0;
-
+    /**
+     * List of available accounts
+     */
     @Expose
     public final ObservableList<Account> accounts = FXCollections.observableArrayList();
-
+    /**
+     * The last account selected on the login screen
+     */
+    @Expose
+    public int lastAccount = 0;
+    /**
+     * Whether the config file is in the process of loading (disables saving on changes)
+     */
     private boolean isLoading = true;
 
+    /**
+     * The associated file to write to
+     */
     private File configFile = null;
 
+    /**
+     * Creates a new config instance
+     */
     public Config() {
     }
 
-    private void save() {
-        if (!this.isLoading) {
-            LOGGER.trace("Saving config file");
-            try (FileWriter writer = new FileWriter(configFile)) {
-                GSON.toJson(this, writer);
-                writer.flush();
-            } catch (IOException e) {
-                LOGGER.error("Failed to save config file: ", e);
-            }
-        } else {
-            LOGGER.warn("Not saving config file as it is still loading");
-        }
-    }
-
+    /**
+     * Loads a configuration from a file, or creates a new one if it does not exist
+     *
+     * @param configFile the file to load from
+     * @return the configuration represented by the file, or a new configuration if it does not exist
+     */
     public static Config load(File configFile) {
         LOGGER.trace("Loading configuration file at {}", configFile.getPath());
-        if (configFile.exists()) {
-            try (Reader reader = new FileReader(configFile)) {
-                Config config = GSON.fromJson(reader, Config.class);
-                config.isLoading = false;
-                config.configFile = configFile;
-                List<RSAPublicKey> keys = new ArrayList<>(config.accounts.size());
-                for (Iterator<Account> iterator = config.accounts.iterator(); iterator.hasNext(); ) {
-                    Account account = iterator.next();
-                    if (keys.contains(account.publicKey())) {
+        if (configFile.exists()) { // check if the file exists
+            try (Reader reader = new FileReader(configFile)) { // read the file
+                Config config = GSON.fromJson(reader, Config.class); // parse the file
+                config.isLoading = false; // mark config as loaded
+                config.configFile = configFile; // set the associated config file
+                List<RSAPublicKey> visited = new ArrayList<>(config.accounts.size()); // list of keys already seen
+                for (Iterator<Account> iterator = config.accounts.iterator(); iterator.hasNext(); ) {//iterate over keys
+                    Account account = iterator.next(); // get the next account
+                    if (visited.contains(account.publicKey())) { // check if we have already seen this key
                         LOGGER.warn("Removing account '{}' as a account already exists with the same key.", account.username());
-                        iterator.remove();
+                        iterator.remove(); // remove the key
                     } else {
-                        keys.add(account.publicKey());
+                        visited.add(account.publicKey()); // add the key to the list of visited ones
                     }
                 }
-                return config;
-            } catch (IOException e) {
+                return config; // return the config
+            } catch (IOException e) { // I/O error, so just crash.
                 LOGGER.fatal("Failed to open config file", e);
                 throw new RuntimeException(e);
-            } catch (JsonSyntaxException e) {
+            } catch (JsonSyntaxException e) { // parse error - invalid config format
                 try {
                     LOGGER.warn("Failed to load existing config file", e);
-                    Path old = new File(configFile.getParentFile(), "chat.json.old").toPath();
-                    try {
-                        Files.delete(old);
-                    } catch (Exception ignored) {}
-                    Files.move(configFile.toPath(), old);
+                    Path old = new File(configFile.getParentFile(), "chat.json.old").toPath(); // place to copy config
+                    if (old.toFile().exists()) {
+                        try {
+                            Files.delete(old); // delete any previously invalid configs, if present
+                        } catch (Exception ignored) {
+                        }
+                    }
+                    Files.move(configFile.toPath(), old); // move the invalid config to the new location
                 } catch (IOException ex) {
                     try {
-                        Files.delete(configFile.toPath());
-                    } catch (IOException exc) {
+                        Files.delete(configFile.toPath()); // just delete the old config - we've tried everything else
+                    } catch (IOException exc) { // something is not right - just crash.
                         RuntimeException exception = new RuntimeException(exc);
                         exception.addSuppressed(ex);
                         exception.addSuppressed(e);
@@ -115,11 +128,28 @@ public class Config {
             }
         }
         LOGGER.warn("Failed to find existing config file - generating a new one");
-        Config config = new Config();
-        config.isLoading = false;
-        config.configFile = configFile;
-        config.save();
-        return config;
+        Config config = new Config(); //create a new config instance
+        config.isLoading = false; // mark as loaded
+        config.configFile = configFile; // set the associated value
+        config.save(); // save the config
+        return config; // return it
+    }
+
+    /**
+     * Saves the configuration file
+     */
+    private void save() {
+        if (!this.isLoading) { // Check if we are still loading the file
+            LOGGER.trace("Saving config file"); // we're not loading it, so we can save
+            try (FileWriter writer = new FileWriter(configFile)) { // open the file for writing
+                GSON.toJson(this, writer); // write the values
+                writer.flush(); // flush the buffer
+            } catch (IOException e) {
+                LOGGER.error("Failed to save config file: ", e);
+            }
+        } else {
+            LOGGER.warn("Not saving config file as it is still loading");
+        }
     }
 
     public ObservableList<Account> getAccounts() {

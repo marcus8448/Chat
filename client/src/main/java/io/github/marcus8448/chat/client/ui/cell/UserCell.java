@@ -29,20 +29,31 @@ import javafx.scene.layout.VBox;
 import javafx.scene.shape.Circle;
 
 public class UserCell extends ListCell<User> {
+    /**
+     * displays the user's profile picture
+     */
     private final Circle picture = new Circle();
+    /**
+     * display's the user's name
+     */
     private final Label name = new Label();
+    /**
+     * The client instance
+     */
     private final Client client;
 
     public UserCell(Client client) {
         super();
         this.client = client;
         this.setEditable(false);
+        // set growth properties
         HBox.setHgrow(picture, Priority.NEVER);
         VBox.setVgrow(name, Priority.ALWAYS);
         HBox hBox = new HBox(picture, name);
-        this.setGraphic(hBox);
-        this.setText(null);
+        this.setGraphic(hBox); // set cell data
+        this.setText(null); // disable text flow
 
+        // create context menu
         MenuItem trust = new MenuItem("Manage trust");
         trust.setOnAction(e -> this.client.openTrustScreen(this.getItem()));
         ContextMenu contextMenu = new ContextMenu(trust);
@@ -53,8 +64,12 @@ public class UserCell extends ListCell<User> {
     protected void updateItem(User item, boolean empty) {
         super.updateItem(item, empty);
         if (!empty && item != null) {
-            this.name.setText(this.client.getName(item));
-            this.setOnMouseClicked(this::openAccount);
+            this.name.setText(this.client.getName(item)); // update account name
+            this.setOnMouseClicked(this::openAccount); // set click handler
+        } else {
+            // clear properties
+            this.name.setText("");
+            this.setOnMouseClicked(null);
         }
     }
 

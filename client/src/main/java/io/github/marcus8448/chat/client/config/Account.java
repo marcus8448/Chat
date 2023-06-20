@@ -23,6 +23,15 @@ import java.lang.reflect.Type;
 import java.security.interfaces.RSAPublicKey;
 import java.util.Base64;
 
+/**
+ * A user account (to be serialized into the client config file)
+ * Most data is encrypted, so it's not very useful outside of serialization
+ *
+ * @param username  the username of this account
+ * @param publicKey the (RSA) public key of this account
+ * @param data      the encrypted data associated with this account
+ * @see AccountData
+ */
 public record Account(String username, RSAPublicKey publicKey, AccountData.EncryptedAccountData data) {
     public static class Serializer implements JsonSerializer<Account>, JsonDeserializer<Account> {
         @Override

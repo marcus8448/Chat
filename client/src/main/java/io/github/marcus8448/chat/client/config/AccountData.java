@@ -35,6 +35,13 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Private data associated with an account
+ *
+ * @param privateKey    the full RSA private key of the account
+ * @param knownAccounts map of user public key -> name, for accounts that have been manually trusted
+ * @param knownServers  map of "hostname:port" -> public key, to identify trusted servers and avoid MitM attacks
+ */
 public record AccountData(RSAPrivateKey privateKey, Map<RSAPublicKey, String> knownAccounts, Map<String, RSAPublicKey> knownServers) implements PrivateData<AccountData.EncryptedAccountData> {
     @Override
     public EncryptedAccountData encrypt(Cipher cipher) throws IllegalBlockSizeException, BadPaddingException {
@@ -52,7 +59,13 @@ public record AccountData(RSAPrivateKey privateKey, Map<RSAPublicKey, String> kn
         return new EncryptedAccountData(cipher.doFinal(privateKey.getEncoded()), encodedAccounts, encodedServers);
     }
 
-    public record EncryptedAccountData(byte[] privateKey, Map<byte[], byte[]> knownAccounts, Map<byte[], byte[]> knownServers) implements Encrypted<AccountData> {
+    /**
+     * Encrypted form of account data. Must be decrypted to be useful
+     *
+     * @see AccountData
+     */
+    public record EncryptedAccountData(byte[] privateKey, Map<byte[], byte[]> knownAccounts,
+                                       Map<byte[], byte[]> knownServers) implements Encrypted<AccountData> {
         @Contract("_ -> new")
         @Override
         public @NotNull AccountData decrypt(@NotNull Cipher cipher) throws IllegalBlockSizeException, BadPaddingException, InvalidKeySpecException {
@@ -68,20 +81,26 @@ public record AccountData(RSAPrivateKey privateKey, Map<RSAPublicKey, String> kn
             return new AccountData(rsaPrivateKey, decodedAccounts, decodedServers);
         }
 
+        /**
+         * Serializes the data for a config file
+         * All encrypted values are encoded in base64 before being written (since it's a JSON/text config)
+         */
         public static class Serializer implements JsonSerializer<EncryptedAccountData>, JsonDeserializer<EncryptedAccountData> {
             public static final Serializer INSTANCE = new Serializer();
 
-            private Serializer() {}
+            private Serializer() {
+            }
+
             @Override
             public EncryptedAccountData deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
                 Base64.Decoder decoder = Base64.getDecoder();
                 JsonObject obj = json.getAsJsonObject();
-                Map<String, JsonElement> map = obj.get("known_accounts").getAsJsonObject().asMap();
-                Map<String, JsonElement> map2 = obj.get("known_servers").getAsJsonObject().asMap();
+                Map<String, JsonElement> accountsJ = obj.get("known_accounts").getAsJsonObject().asMap();
+                Map<String, JsonElement> serversJ = obj.get("known_servers").getAsJsonObject().asMap();
                 Map<byte[], byte[]> knownAccounts = new HashMap<>();
-                map.forEach((k, v) -> knownAccounts.put(decoder.decode(k), decoder.decode(v.getAsString())));
+                accountsJ.forEach((k, v) -> knownAccounts.put(decoder.decode(k), decoder.decode(v.getAsString())));
                 Map<byte[], byte[]> knownServers = new HashMap<>();
-                map2.forEach((k, v) -> knownServers.put(decoder.decode(k), decoder.decode(v.getAsString())));
+                serversJ.forEach((k, v) -> knownServers.put(decoder.decode(k), decoder.decode(v.getAsString())));
                 return new EncryptedAccountData(decoder.decode(obj.get("private_key").getAsString()), knownAccounts, knownServers);
             }
 

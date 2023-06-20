@@ -20,36 +20,42 @@ import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.config.Account;
 import io.github.marcus8448.chat.client.config.Config;
 import io.github.marcus8448.chat.client.util.JfxUtil;
-import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.SingleSelectionModel;
-import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import java.io.File;
 import java.io.FileWriter;
-import java.io.IOException;
 import java.io.Writer;
 
-
+/**
+ * Screen that allows the user to export an (encrypted) account to a file
+ */
 public class ExportAccountScreen {
-    private static final int PADDING = 12;
+    private static final Logger LOGGER = LogManager.getLogger();
 
+    /**
+     * Combo box to select what account should be exported
+     */
     private final ComboBox<Account> selection;
+    /**
+     * The current (probably non-primary) stage.
+     */
     private final Stage stage;
 
     public ExportAccountScreen(Client client, Stage stage) {
         this.stage = stage;
 
         VBox vBox = new VBox();
-        vBox.setPadding(new Insets(PADDING));
-        vBox.setSpacing(PADDING);
+        JfxUtil.initializePadding(vBox);
 
         this.selection = new ComboBox<>(client.config.getAccounts());
 
@@ -64,53 +70,47 @@ public class ExportAccountScreen {
         padding.setMinHeight(0);
 
         Button cancel = new Button("Cancel");
-        cancel.setPrefWidth(JfxUtil.BUTTON_WIDTH);
-        cancel.setPrefHeight(JfxUtil.BUTTON_HEIGHT);
-        JfxUtil.buttonPressCallback(cancel, stage::close);
-
         Button export = new Button("Export");
-        export.setPrefWidth(JfxUtil.BUTTON_WIDTH);
-        export.setPrefHeight(JfxUtil.BUTTON_HEIGHT);
+        JfxUtil.buttonPressCallback(cancel, stage::close);
         JfxUtil.buttonPressCallback(export, this::export);
-
-        Pane pad = new Pane();
-
-        HBox hBox = new HBox(pad, cancel, export);
-        HBox.setHgrow(pad, Priority.ALWAYS);
-        HBox.setHgrow(cancel, Priority.NEVER);
-        HBox.setHgrow(export, Priority.NEVER);
-        VBox.setVgrow(hBox, Priority.ALWAYS);
-        hBox.setSpacing(PADDING);
-        vBox.getChildren().add(hBox);
+        vBox.getChildren().add(JfxUtil.createButtonRow(null, cancel, export));
 
         Scene scene = new Scene(vBox);
         stage.setTitle("Export account");
         stage.setWidth(350);
-        stage.setHeight(125);
+        stage.setHeight(120);
         stage.setScene(scene);
     }
 
+    /**
+     * Exports the account
+     */
     private void export() {
         SingleSelectionModel<Account> selectionModel = this.selection.getSelectionModel();
         if (selectionModel.isEmpty()) return;
         Account selected = selectionModel.getSelectedItem();
+
+        // prompt to select a file to output to
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Export account");
         chooser.setInitialFileName(selected.username() + ".account");
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Chat account", "*.account"));
-        File file = chooser.showSaveDialog(this.stage.getOwner());
-        if (file == null) {
+        File file = chooser.showSaveDialog(this.stage.getOwner()); //open prompt
+
+        if (file == null) { //no file selected, so cancel
             this.stage.close();
             return;
         }
 
+        // write the selected account out
         try (Writer writer = new FileWriter(file)) {
             Config.GSON.toJson(selected, writer);
             writer.flush();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            LOGGER.fatal("Failed to export account", e);
+            return;
         }
 
-        this.stage.close();
+        this.stage.close(); // close the window
     }
 }
