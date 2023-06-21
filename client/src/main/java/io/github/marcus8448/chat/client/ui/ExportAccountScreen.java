@@ -23,9 +23,8 @@ import io.github.marcus8448.chat.client.util.JfxUtil;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
 import javafx.scene.control.ComboBox;
+import javafx.scene.control.Label;
 import javafx.scene.control.SingleSelectionModel;
-import javafx.scene.layout.Pane;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
@@ -58,16 +57,10 @@ public class ExportAccountScreen {
         JfxUtil.initializePadding(vBox);
 
         this.selection = new ComboBox<>(client.config.getAccounts());
-
-        this.selection.setPrefWidth(Integer.MAX_VALUE);
         this.selection.setConverter(JfxUtil.ACCOUNT_STRING_CONVERTER);
-        VBox.setVgrow(this.selection, Priority.NEVER);
-        vBox.getChildren().add(this.selection);
 
-        Pane padding = new Pane();
-        VBox.setVgrow(padding, Priority.ALWAYS);
-        vBox.getChildren().add(padding);
-        padding.setMinHeight(0);
+        vBox.getChildren().add(JfxUtil.createComboInputRow(new Label("Account"), this.selection, -1));
+        vBox.getChildren().add(JfxUtil.createSpacing());
 
         Button cancel = new Button("Cancel");
         Button export = new Button("Export");
@@ -75,11 +68,11 @@ public class ExportAccountScreen {
         JfxUtil.buttonPressCallback(export, this::export);
         vBox.getChildren().add(JfxUtil.createButtonRow(null, cancel, export));
 
+        JfxUtil.unescapedEnterCallback(this.selection, this::export);
+
         Scene scene = new Scene(vBox);
         stage.setTitle("Export account");
-        stage.setWidth(350);
-        stage.setHeight(120);
-        stage.setScene(scene);
+        JfxUtil.resizeAutoHeight(stage, scene, 700.0);
     }
 
     /**

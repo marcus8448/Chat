@@ -18,6 +18,7 @@ package io.github.marcus8448.chat.core.api.network.packet.server;
 
 import io.github.marcus8448.chat.core.api.account.User;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
+import io.github.marcus8448.chat.core.api.misc.Identifier;
 import io.github.marcus8448.chat.core.api.network.NetworkedData;
 import io.github.marcus8448.chat.core.api.network.io.BinaryInput;
 import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
@@ -26,7 +27,13 @@ import java.io.IOException;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 
+/**
+ * Sent to clients when a new user connects to the server
+ */
 public class UserConnect implements NetworkedData {
+    /**
+     * The new user added
+     */
     private final User user;
 
     public UserConnect(User user) {
@@ -35,13 +42,13 @@ public class UserConnect implements NetworkedData {
 
     public UserConnect(BinaryInput input) throws IOException {
         int sessionId = input.readInt();
-        RSAPublicKey key = null;
+        RSAPublicKey key;
         try {
             key = CryptoHelper.decodeRsaPublicKey(input.readByteArray());
         } catch (InvalidKeySpecException e) {
             throw new RuntimeException(e);
         }
-        String username = input.readString();
+        Identifier username = Identifier.create(input.readString());
         this.user = new User(sessionId, username, key, null);
     }
 
@@ -49,7 +56,7 @@ public class UserConnect implements NetworkedData {
     public void write(BinaryOutput output) throws IOException {
         output.writeInt(user.sessionId());
         output.writeByteArray(user.key().getEncoded());
-        output.writeString(user.username());
+        output.writeString(user.username().getValue());
     }
 
     public User getUser() {

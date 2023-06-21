@@ -21,7 +21,16 @@ import io.github.marcus8448.chat.core.api.message.TextMessage;
 
 import java.nio.charset.StandardCharsets;
 
-public record TextMessageImpl(long timestamp, MessageAuthor author, String contents, byte[] signature) implements TextMessage {
+/**
+ * Default implementation of a text message
+ *
+ * @param timestamp when the server received the message
+ * @param author    who wrote the message
+ * @param contents  the message contents
+ * @param signature attributes the contents to the author
+ */
+public record TextMessageImpl(long timestamp, MessageAuthor author, String contents,
+                              byte[] signature) implements TextMessage {
     @Override
     public long getTimestamp() {
         return this.timestamp;

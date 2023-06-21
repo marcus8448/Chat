@@ -56,7 +56,8 @@ public class GrowingBinaryOutputImpl extends BaseBinaryOutput implements Growing
     }
 
     @Override
-    public void close() throws IOException {}
+    public void close() throws IOException {
+    }
 
     @Override
     public int getCount() {

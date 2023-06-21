@@ -22,15 +22,40 @@ import org.jetbrains.annotations.NotNull;
 
 import java.security.interfaces.RSAPublicKey;
 
+/**
+ * Represents the source of a message
+ *
+ * @see io.github.marcus8448.chat.core.api.account.User
+ */
 public interface MessageAuthor {
+    /**
+     * Creates a new system (server) author type
+     *
+     * @param key the public key of the server
+     * @return an author that represents the server the client is connected to
+     */
     @Contract("_ -> new")
     static @NotNull MessageAuthor system(RSAPublicKey key) {
         return new SystemAccount(key);
     }
 
-    String getFormattedName();
+    /**
+     * @return a formatted string containing the name and truncated id of the author
+     */
+    String getShortIdName();
 
+    /**
+     * @return a formatted string containing the name and full id of the author
+     */
+    String getLongIdName();
+
+    /**
+     * @return the author's username
+     */
     String getName();
 
+    /**
+     * @return the unique public key representing the author
+     */
     RSAPublicKey getPublicKey();
 }

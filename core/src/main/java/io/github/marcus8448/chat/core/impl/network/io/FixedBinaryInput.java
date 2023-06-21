@@ -16,8 +16,6 @@
 
 package io.github.marcus8448.chat.core.impl.network.io;
 
-import java.io.IOException;
-
 /**
  * Binary input that wraps an array of fixed size
  * Will throw if it runs out of space
@@ -37,10 +35,11 @@ public class FixedBinaryInput extends BaseBinaryInput {
     }
 
     @Override
-    public int readByte() throws IOException {
+    public int readByte() {
         return this.bytes[this.pos++];
     }
 
     @Override
-    public void close() {}
+    public void close() {
+    }
 }

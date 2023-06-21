@@ -16,6 +16,14 @@
 
 package io.github.marcus8448.chat.core.api.message;
 
+/**
+ * A message that contains an image (no text)
+ *
+ * @param timestamp when the message was received on the server
+ * @param author    who sent the message
+ * @param image     the image data
+ * @param signature the signature of the author, which verifies the message's authenticity
+ */
 public record ImageMessage(long timestamp, MessageAuthor author, byte[] image, byte[] signature) implements Message {
     @Override
     public long getTimestamp() {

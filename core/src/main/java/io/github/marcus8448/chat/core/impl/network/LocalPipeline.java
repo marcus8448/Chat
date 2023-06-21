@@ -39,10 +39,6 @@ public class LocalPipeline implements PacketPipeline {
      */
     private final List<Packet<?>> pending = new ArrayList<>();
     /**
-     * The connected client/server
-     */
-    private LocalPipeline peer = null;
-    /**
      * Lock to solve concurrency issues
      */
     private final Lock lock = new ReentrantLock();
@@ -50,6 +46,10 @@ public class LocalPipeline implements PacketPipeline {
      * Marker for when a packet is available
      */
     private final Condition condition = lock.newCondition();
+    /**
+     * The connected client/server
+     */
+    private LocalPipeline peer = null;
 
     public LocalPipeline() {
     }
@@ -93,7 +93,8 @@ public class LocalPipeline implements PacketPipeline {
     }
 
     @Override
-    public void close() throws IOException {}
+    public void close() throws IOException {
+    }
 
     @Override
     public boolean isOpen() {

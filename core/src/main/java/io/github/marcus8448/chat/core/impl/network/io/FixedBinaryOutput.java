@@ -45,5 +45,6 @@ public class FixedBinaryOutput extends BaseBinaryOutput {
     }
 
     @Override
-    public void close() throws IOException {}
+    public void close() throws IOException {
+    }
 }

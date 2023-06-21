@@ -18,9 +18,18 @@ package io.github.marcus8448.chat.core.util;
 
 import java.util.HexFormat;
 
+/**
+ * Miscellaneous utilities
+ */
 public class Utils {
     private static final HexFormat HEX_FORMAT = HexFormat.of();
 
+    /**
+     * Converts bytes into a hex string
+     *
+     * @param bytes the bytes to convert
+     * @return the bytes, represented hexadecimally
+     */
     public static String toHexString(byte[] bytes) {
         return HEX_FORMAT.formatHex(bytes);
     }

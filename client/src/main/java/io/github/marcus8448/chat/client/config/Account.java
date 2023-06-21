@@ -18,6 +18,7 @@ package io.github.marcus8448.chat.client.config;
 
 import com.google.gson.*;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
+import io.github.marcus8448.chat.core.api.misc.Identifier;
 
 import java.lang.reflect.Type;
 import java.security.interfaces.RSAPublicKey;
@@ -32,13 +33,13 @@ import java.util.Base64;
  * @param data      the encrypted data associated with this account
  * @see AccountData
  */
-public record Account(String username, RSAPublicKey publicKey, AccountData.EncryptedAccountData data) {
+public record Account(Identifier username, RSAPublicKey publicKey, AccountData.EncryptedAccountData data) {
     public static class Serializer implements JsonSerializer<Account>, JsonDeserializer<Account> {
         @Override
         public Account deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
             try {
                 JsonObject obj = json.getAsJsonObject();
-                String username = obj.get("username").getAsString();
+                Identifier username = Identifier.parse(obj.get("username").getAsString()).unwrap();
                 RSAPublicKey publicKey = CryptoHelper.decodeRsaPublicKey(Base64.getDecoder().decode(obj.get("public_key").getAsString()));
                 AccountData.EncryptedAccountData data = context.deserialize(obj.get("data"), AccountData.EncryptedAccountData.class);
                 return new Account(username, publicKey, data);
@@ -50,7 +51,7 @@ public record Account(String username, RSAPublicKey publicKey, AccountData.Encry
         @Override
         public JsonElement serialize(Account src, Type typeOfSrc, JsonSerializationContext context) {
             JsonObject obj = new JsonObject();
-            obj.addProperty("username", src.username());
+            obj.addProperty("username", src.username().toString());
             obj.addProperty("public_key", Base64.getEncoder().encodeToString(src.publicKey.getEncoded()));
             obj.add("data", context.serialize(src.data));
             return obj;

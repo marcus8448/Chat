@@ -22,9 +22,14 @@ import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
 
 import java.io.IOException;
 
+/**
+ * A request with an empty body
+ */
 public class EmptyRequest implements NetworkedData {
-    public EmptyRequest(BinaryInput input) {}
+    public EmptyRequest(BinaryInput input) {
+    }
 
     @Override
-    public void write(BinaryOutput output) throws IOException {}
+    public void write(BinaryOutput output) throws IOException {
+    }
 }

@@ -17,12 +17,10 @@
 package io.github.marcus8448.chat.core.room;
 
 import io.github.marcus8448.chat.core.api.account.User;
-import io.github.marcus8448.chat.core.api.message.Message;
 
 import java.util.List;
 
 public class ChatRoom {
-    List<Message> messages;
     List<User> participants;
 
 }

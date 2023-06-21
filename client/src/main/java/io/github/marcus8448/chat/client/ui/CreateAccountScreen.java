@@ -22,6 +22,7 @@ import io.github.marcus8448.chat.client.config.AccountData;
 import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.client.util.ParseUtil;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
+import io.github.marcus8448.chat.core.api.misc.Identifier;
 import io.github.marcus8448.chat.core.api.misc.Result;
 import javafx.scene.Scene;
 import javafx.scene.control.Button;
@@ -87,23 +88,22 @@ public class CreateAccountScreen {
         JfxUtil.setupFailureLabel(this.failureReason);
         vBox.getChildren().add(this.failureReason);
 
-        vBox.getChildren().add(JfxUtil.zeroSpacing());
+        vBox.getChildren().add(JfxUtil.createSpacing());
 
         Button cancel = new Button("Cancel"); // cancel button
         Button create = new Button("Create Account"); // create account button
         JfxUtil.buttonPressCallback(cancel, stage::close); // close the account creation window
         JfxUtil.buttonPressCallback(create, this::createAccount); // create the account
 
+        JfxUtil.unescapedEnterCallback(this.passwordField, this::createAccount);
+
         vBox.getChildren().add(JfxUtil.createButtonRow(cancel, null, create));
 
         // create the scene, set up the stage
         Scene scene = new Scene(vBox);
 
-        stage.setWidth(300);
-        stage.setHeight(180);
-        stage.setResizable(true);
         stage.setTitle("Create an Account");
-        stage.setScene(scene);
+        JfxUtil.resizeAutoHeight(stage, scene, 700.0);
     }
 
     /**
@@ -111,12 +111,12 @@ public class CreateAccountScreen {
      */
     private void createAccount() {
         // maybe i've been doing too much rust...
-        Result<String, String> res = ParseUtil.validateUsername(this.username.getText()); // validate username
+        Result<Identifier, String> res = Identifier.parse(this.username.getText()); // validate username
         if (res.isError()) { // check if invalid
             this.failureReason.setText(INVALID_USERNAME.formatted(res.unwrapError()));
             return; // cancel
         }
-        String username = res.unwrap();
+        Identifier username = res.unwrap();
 
         String password = this.passwordField.getText(); // get password
         Result<Void, String> result = ParseUtil.validatePassword(password); // validate password
@@ -127,7 +127,7 @@ public class CreateAccountScreen {
 
         SecretKey passKey; // AES key generated based on the username and password
         try {
-            passKey = CryptoHelper.generateUserPassKey(password.toCharArray(), username);
+            passKey = CryptoHelper.generateUserPassKey(password.toCharArray(), username.getValue());
         } catch (InvalidKeySpecException e) {
             this.failureReason.setText("Failed to calculate password hash.");
             LOGGER.error("PBKDF2 key derivation failure", e);
@@ -156,11 +156,5 @@ public class CreateAccountScreen {
         }
 
         this.stage.close(); // close the window
-    }
-
-    private double alignLabel(Label label) {
-        double hostname1 = JfxUtil.getTextWidth("Username");
-        label.setPrefWidth(hostname1);
-        return hostname1;
     }
 }

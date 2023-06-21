@@ -35,7 +35,8 @@ public class CountingBinaryOutputImpl extends BaseBinaryOutput implements Counti
     }
 
     @Override
-    public void close() throws IOException {}
+    public void close() throws IOException {
+    }
 
     @Override
     public int getCount() {

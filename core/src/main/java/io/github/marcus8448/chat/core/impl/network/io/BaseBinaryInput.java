@@ -38,14 +38,14 @@ public abstract class BaseBinaryInput implements BinaryInput {
 
     @Override
     public int readShort() throws IOException {
-        return (short)(((short)this.readByte() & 0xFF) << 8 | ((short)this.readByte() & 0xFF));
+        return (short) (((short) this.readByte() & 0xFF) << 8 | ((short) this.readByte() & 0xFF));
     }
 
     @Override
     public long readLong() throws IOException {
-        return ((long)this.readByte() & 0xFF) << 56 | ((long) (this.readByte() & 0xFF)) << 48 | ((long) (this.readByte() & 0xFF)) << 40
-                | ((long) (this.readByte() & 0xFF)) << 32 | ((long) (this.readByte() & 0xFF)) << 24 | ((long)(this.readByte() & 0xFF) << 16)
-                | ((long)(this.readByte() & 0xFF) << 8) | ((long)(this.readByte() & 0xFF));
+        return ((long) this.readByte() & 0xFF) << 56 | ((long) (this.readByte() & 0xFF)) << 48 | ((long) (this.readByte() & 0xFF)) << 40
+                | ((long) (this.readByte() & 0xFF)) << 32 | ((long) (this.readByte() & 0xFF)) << 24 | ((long) (this.readByte() & 0xFF) << 16)
+                | ((long) (this.readByte() & 0xFF) << 8) | ((long) (this.readByte() & 0xFF));
     }
 
     @Override

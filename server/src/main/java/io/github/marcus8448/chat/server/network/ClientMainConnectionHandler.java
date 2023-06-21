@@ -47,9 +47,9 @@ public class ClientMainConnectionHandler implements ClientConnectionHandler {
     public <Data extends NetworkedData> void handle(Packet<Data> packet) {
         PacketType<? extends Data> type = packet.type();
         if (type == ClientPacketTypes.SEND_MESSAGE) {
-            long time = Utils.currentTimeNonDecreasing();
+            long time = System.currentTimeMillis();
             SendMessage send = packet.getAs(ClientPacketTypes.SEND_MESSAGE);
-            this.server.executor.submit(() -> this.server.receiveMessage(time, this.user, send.getChecksum(), send.getMessage()));
+            this.server.executor.submit(() -> this.server.receiveMessage(time, this.user, send.getSignature(), send.getMessage()));
         }
     }
 
@@ -60,7 +60,7 @@ public class ClientMainConnectionHandler implements ClientConnectionHandler {
                 this.handle(this.pipeline.receivePacket());
             }
         } catch (EOFException e) {
-            LOGGER.info("User " + this.user.getFormattedName() + " disconnected.");
+            LOGGER.info("User " + this.user.getLongIdName() + " disconnected.");
         } catch (Exception e) {
             if (!this.server.shutdown) LOGGER.error("Error in client communications - connection closed.", e);
         }
@@ -69,11 +69,10 @@ public class ClientMainConnectionHandler implements ClientConnectionHandler {
 
     @Override
     public void shutdown() {
+        this.server.executor.execute(() -> this.server.disconnect(this, this.user));
         try {
             this.pipeline.close();
-            this.server.executor.execute(() -> this.server.disconnect(this, this.user));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (IOException ignored) {
         }
     }
 

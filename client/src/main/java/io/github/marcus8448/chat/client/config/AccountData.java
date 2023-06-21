@@ -42,7 +42,8 @@ import java.util.Map;
  * @param knownAccounts map of user public key -> name, for accounts that have been manually trusted
  * @param knownServers  map of "hostname:port" -> public key, to identify trusted servers and avoid MitM attacks
  */
-public record AccountData(RSAPrivateKey privateKey, Map<RSAPublicKey, String> knownAccounts, Map<String, RSAPublicKey> knownServers) implements PrivateData<AccountData.EncryptedAccountData> {
+public record AccountData(RSAPrivateKey privateKey, Map<RSAPublicKey, String> knownAccounts,
+                          Map<String, RSAPublicKey> knownServers) implements PrivateData<AccountData.EncryptedAccountData> {
     @Override
     public EncryptedAccountData encrypt(Cipher cipher) throws IllegalBlockSizeException, BadPaddingException {
         Map<byte[], byte[]> encodedAccounts = new HashMap<>(knownAccounts.size());

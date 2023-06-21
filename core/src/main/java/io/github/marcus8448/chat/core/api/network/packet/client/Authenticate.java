@@ -16,6 +16,7 @@
 
 package io.github.marcus8448.chat.core.api.network.packet.client;
 
+import io.github.marcus8448.chat.core.api.misc.Identifier;
 import io.github.marcus8448.chat.core.api.network.NetworkedData;
 import io.github.marcus8448.chat.core.api.network.io.BinaryInput;
 import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
@@ -27,6 +28,7 @@ import java.io.IOException;
 
 /**
  * The client's response to the server's authentication/identity challenge
+ *
  * @see AuthenticationRequest The server's challenge
  * @see AuthenticationSuccess Server response (success)
  * @see AuthenticationFailure Server response (failure)
@@ -35,30 +37,30 @@ public class Authenticate implements NetworkedData {
     /**
      * The username of the user connecting
      */
-    private final String username;
+    private final Identifier username;
     /**
      * The data sent in the {@link AuthenticationRequest}, but
      * encrypted with the server's key.
      */
     private final byte[] data;
 
-    public Authenticate(String username, byte[] data) {
+    public Authenticate(Identifier username, byte[] data) {
         this.username = username;
         this.data = data;
     }
 
     public Authenticate(BinaryInput input) throws IOException {
-        this.username = input.readString();
+        this.username = Identifier.create(input.readString());
         this.data = input.readByteArray();
     }
 
     @Override
     public void write(BinaryOutput output) throws IOException {
-        output.writeString(this.username);
+        output.writeString(this.username.getValue());
         output.writeByteArray(this.data);
     }
 
-    public String getUsername() {
+    public Identifier getUsername() {
         return username;
     }
 

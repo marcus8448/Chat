@@ -38,7 +38,6 @@ import java.util.List;
  * Client configuration file
  */
 public class Config {
-    private static final Logger LOGGER = LogManager.getLogger();
     /**
      * Google JSON
      */
@@ -49,6 +48,7 @@ public class Config {
             .registerTypeAdapter(Account.class, new Account.Serializer())
             .registerTypeAdapter(AccountData.EncryptedAccountData.class, AccountData.EncryptedAccountData.Serializer.INSTANCE)
             .create();
+    private static final Logger LOGGER = LogManager.getLogger();
     /**
      * List of available accounts
      */
@@ -101,7 +101,7 @@ public class Config {
                 return config; // return the config
             } catch (IOException e) { // I/O error, so just crash.
                 LOGGER.fatal("Failed to open config file", e);
-                throw new RuntimeException(e);
+                throw new IllegalStateException(e);
             } catch (JsonSyntaxException e) { // parse error - invalid config format
                 try {
                     LOGGER.warn("Failed to load existing config file", e);
@@ -117,7 +117,7 @@ public class Config {
                     try {
                         Files.delete(configFile.toPath()); // just delete the old config - we've tried everything else
                     } catch (IOException exc) { // something is not right - just crash.
-                        RuntimeException exception = new RuntimeException(exc);
+                        RuntimeException exception = new IllegalStateException(exc);
                         exception.addSuppressed(ex);
                         exception.addSuppressed(e);
                         LOGGER.fatal("Failed to refresh config file", ex);
@@ -156,11 +156,6 @@ public class Config {
         return accounts;
     }
 
-    public void setLastAccount(int lastAccount) {
-        this.lastAccount = lastAccount;
-        this.save();
-    }
-
     public void addAccount(Account account) {
         this.accounts.add(account);
         this.save();
@@ -189,5 +184,10 @@ public class Config {
 
     public int getLastAccount() {
         return lastAccount;
+    }
+
+    public void setLastAccount(int lastAccount) {
+        this.lastAccount = lastAccount;
+        this.save();
     }
 }

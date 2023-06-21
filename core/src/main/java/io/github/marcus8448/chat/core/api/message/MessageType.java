@@ -16,10 +16,22 @@
 
 package io.github.marcus8448.chat.core.api.message;
 
+/**
+ * Represents different types of messages
+ */
 public enum MessageType {
+    /**
+     * A message containing markdown-formatted text
+     */
     TEXT(TextMessage.class),
+    /**
+     * A message containing an image
+     */
     IMAGE(ImageMessage.class);
 
+    /**
+     * The class that represents this type
+     */
     private final Class<? extends Message> subClass;
 
     MessageType(Class<? extends Message> subClass) {

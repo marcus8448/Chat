@@ -23,6 +23,7 @@ import javafx.event.EventHandler;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
 import javafx.scene.Node;
+import javafx.scene.Scene;
 import javafx.scene.control.ComboBox;
 import javafx.scene.control.Control;
 import javafx.scene.control.Label;
@@ -35,6 +36,7 @@ import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.scene.paint.Paint;
 import javafx.scene.text.Text;
+import javafx.stage.Stage;
 import javafx.util.StringConverter;
 
 public class JfxUtil {
@@ -56,10 +58,19 @@ public class JfxUtil {
     public static final Paint LINK_COLOUR = Paint.valueOf("#21a7ff");
     public static final Paint FAILURE_COLOUR = Paint.valueOf("#ee1100");
     public static final Paint NOT_VERIFIED_COLOUR = Paint.valueOf("#e87474");
+    private static final Text TEXT_HOLDER = new Text();
 
     public static void buttonPressCallback(Node button, Runnable r) {
         button.setOnKeyPressed(enterKeyCallback(r));
-        button.setOnMouseClicked(e -> r.run());
+        button.setOnMouseClicked(e -> Platform.runLater(r));
+    }
+
+    public static void unescapedEnterCallback(Node field, Runnable r) {
+        field.setOnKeyPressed(e -> {
+            if (e.getCode() == KeyCode.ENTER && !e.isShiftDown()) {
+                Platform.runLater(r);
+            }
+        });
     }
 
     public static EventHandler<? super KeyEvent> enterKeyCallback(Runnable r) {
@@ -130,8 +141,6 @@ public class JfxUtil {
         VBox.setVgrow(hBox, Priority.NEVER);
     }
 
-    private static final Text TEXT_HOLDER = new Text();
-
     public static double getTextWidth(String text) {
         TEXT_HOLDER.setText(text);
         return TEXT_HOLDER.getBoundsInLocal().getWidth();
@@ -142,11 +151,21 @@ public class JfxUtil {
         vBox.setSpacing(JfxUtil.SPACING);
     }
 
-    public static Pane zeroSpacing() {
+    public static Pane createSpacing() {
         Pane pane = new Pane();
         pane.setPrefHeight(0);
         pane.setPadding(Insets.EMPTY);
         VBox.setVgrow(pane, Priority.ALWAYS);
         return pane;
+    }
+
+    public static void resizeAutoHeight(Stage stage, Scene scene, double width) {
+        stage.setResizable(true);
+        stage.setScene(scene);
+        stage.sizeToScene();
+        Platform.runLater(() -> {
+            stage.setWidth(width);
+            stage.centerOnScreen();
+        });
     }
 }

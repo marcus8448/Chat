@@ -25,6 +25,7 @@ import java.io.IOException;
 
 /**
  * Represents a new message sent from the client -> server
+ *
  * @see AddMessage The server's expected response to ALL clients
  */
 public class SendMessage implements NetworkedData {
@@ -35,29 +36,29 @@ public class SendMessage implements NetworkedData {
     /**
      * The checksum verifying the contents of the message
      */
-    private final byte[] checksum;
+    private final byte[] signature;
 
     public SendMessage(BinaryInput input) throws IOException {
         this.message = input.readString();
-        this.checksum = input.readByteArray();
+        this.signature = input.readByteArray();
     }
 
-    public SendMessage(String message, byte[] checksum) {
+    public SendMessage(String message, byte[] signature) {
         this.message = message;
-        this.checksum = checksum;
+        this.signature = signature;
     }
 
     @Override
     public void write(BinaryOutput output) throws IOException {
         output.writeString(this.message);
-        output.writeByteArray(this.checksum);
+        output.writeByteArray(this.signature);
     }
 
     public String getMessage() {
         return message;
     }
 
-    public byte[] getChecksum() {
-        return checksum;
+    public byte[] getSignature() {
+        return signature;
     }
 }

@@ -30,6 +30,7 @@ import javafx.collections.ListChangeListener;
 import javafx.collections.ObservableList;
 import javafx.geometry.Insets;
 import javafx.geometry.Pos;
+import javafx.geometry.Rectangle2D;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
@@ -37,11 +38,10 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.Pane;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
+import javafx.stage.Screen;
 import javafx.stage.Stage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-
-import java.io.IOException;
 
 /**
  * The main chat window.
@@ -85,7 +85,7 @@ public class ChatView {
     /**
      * Right pane - list of users
      */
-    private final ListView<User> usersList;
+    private final ListView<User> userList;
 
     public ChatView(Client client, Stage stage) {
         this.client = client;
@@ -93,12 +93,12 @@ public class ChatView {
         VBox vBox = new VBox(); // root pane
 
         //setup scene/stage
-        Scene scene = new Scene(vBox, 900, 600);
-        vBox.setPrefHeight(600);
-        vBox.setPrefWidth(900);
-        stage.setWidth(900);
-        stage.setHeight(600);
+        Scene scene = new Scene(vBox);
+        Rectangle2D bounds = Screen.getPrimary().getBounds();
+        stage.setWidth(bounds.getWidth() / 4.0 * 3.0);
+        stage.setHeight(bounds.getHeight() / 4.0 * 3.0);
         stage.setTitle("Chat");
+        stage.centerOnScreen();
 
         // create top toolbar
         MenuItem preferences = new MenuItem("Preferences"); //TODO
@@ -170,11 +170,11 @@ public class ChatView {
 
         VBox centerPane = new VBox(messagesList, messageSendBox); // create center pane
 
-        usersList = new ListView<>(this.client.userList); // create right panel (users)
-        usersList.setCellFactory(c -> new UserCell(this.client)); // see user cell
+        userList = new ListView<>(this.client.userList); // create right panel (users)
+        userList.setCellFactory(c -> new UserCell(this.client)); // see user cell
 
-        SplitPane pane = new SplitPane(channelsList, centerPane, usersList); // Create main content pane
-        pane.setDividerPositions(0.2, 1.0 - 0.2); // allocate space: 20%, 60%, 20%
+        SplitPane pane = new SplitPane(channelsList, centerPane, userList); // Create main content pane
+        pane.setDividerPositions(0.10, 1.0 - 0.10); // allocate space: 10%, 80%, 10%
         pane.setFocusTraversable(true);
         vBox.getChildren().add(pane);
 
@@ -195,7 +195,10 @@ public class ChatView {
         stage.setScene(scene); // set the scene
         this.client.setView(this); // inform the client of our existence
 
-        stage.setOnCloseRequest(s -> this.client.close()); // when the app is closed, shutdown the entire client
+        stage.setOnCloseRequest(s -> {
+            LOGGER.info("Closing app...");
+            this.client.close();
+        }); // when the app is closed, shutdown the entire client
     }
 
     /**
@@ -211,7 +214,7 @@ public class ChatView {
         try {
             this.client.connection.send(ClientPacketTypes.SEND_MESSAGE, new SendMessage(message, this.client.signMessage(message)));
             this.messageBox.setText("");
-        } catch (IOException e) {
+        } catch (Exception e) {
             LOGGER.fatal("Failed to send message", e);
         }
     }
@@ -237,7 +240,7 @@ public class ChatView {
      */
     public void refresh() {
         this.channelsList.refresh();
-        this.usersList.refresh();
+        this.userList.refresh();
         this.messagesList.refresh();
     }
 }

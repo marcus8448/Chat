@@ -87,10 +87,12 @@ public class LoginScreen {
         vBox.getChildren().add(JfxUtil.createComboInputRow(new Label("Account"), this.accountBox, len));
         vBox.getChildren().add(JfxUtil.createInputRow(new Label("Password"), this.passwordField, "password", len));
 
+        JfxUtil.unescapedEnterCallback(this.passwordField, this::login);
+
         JfxUtil.setupFailureLabel(this.failureReason);
         vBox.getChildren().add(this.failureReason);
 
-        vBox.getChildren().add(JfxUtil.zeroSpacing());
+        vBox.getChildren().add(JfxUtil.createSpacing());
 
         Label createAccountPrompt = new Label("No account? Create one!");
         createAccountPrompt.setTextFill(JfxUtil.LINK_COLOUR);
@@ -107,10 +109,9 @@ public class LoginScreen {
         VBox root = new VBox(menuBar, vBox);
         Scene scene = new Scene(root);
 
-        stage.setWidth(400);
-        stage.setHeight(250);
         stage.setResizable(true);
         stage.setScene(scene);
+        JfxUtil.resizeAutoHeight(stage, scene, 700.0);
     }
 
     private void createAccount() {
@@ -195,7 +196,7 @@ public class LoginScreen {
         LOGGER.debug("All required fields supplied");
         SecretKey aesKey;
         try {
-            aesKey = CryptoHelper.generateUserPassKey(password.toCharArray(), account.username());
+            aesKey = CryptoHelper.generateUserPassKey(password.toCharArray(), account.username().getValue());
         } catch (InvalidKeySpecException e) {
             this.failureReason.setText("Invalid account/password");
             LOGGER.error("Failed to generate AES secret", e);
@@ -275,7 +276,7 @@ public class LoginScreen {
             try {
                 key = CryptoHelper.decodeAesKey(encodedKey);
             } catch (InvalidKeySpecException e) {
-                throw new RuntimeException(e);
+                throw new IllegalStateException(e);
             }
 
             LOGGER.info("Authenticating...");

@@ -64,6 +64,7 @@ public interface Message {
 
     /**
      * Verifies that the message checksum matches the contents (message was actually authored by the author)
+     *
      * @return whether the message checksum is valid
      */
     default boolean verifySignature() {

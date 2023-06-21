@@ -40,19 +40,25 @@ public interface BinaryInput extends Closeable {
     }
 
     int readByte() throws IOException;
+
     int readInt() throws IOException;
+
     int readShort() throws IOException;
+
     long readLong() throws IOException;
 
     boolean readBoolean() throws IOException;
 
     byte[] readByteArray() throws IOException;
+
     byte[] readByteArray(int len) throws IOException;
 
     int[] readIntArray() throws IOException;
+
     int[] readIntArray(int len) throws IOException;
 
     String readString() throws IOException;
+
     String readString(int len) throws IOException;
 
     void seekToIdentifier(int id) throws IOException;

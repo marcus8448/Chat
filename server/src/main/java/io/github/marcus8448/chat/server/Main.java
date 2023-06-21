@@ -26,7 +26,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.security.KeyPair;
 import java.security.interfaces.RSAPrivateCrtKey;
-import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.RSAPublicKeySpec;
@@ -36,6 +35,7 @@ public class Main {
 
     public static void main(String[] args) throws IOException, InvalidKeySpecException {
         LOGGER.info("Loading Chat Server v{}", Constants.VERSION);
+        LOGGER.info("Running on Java {} ({} version {} from {})", System.getProperty("java.version"), System.getProperty("java.vm.name"), System.getProperty("java.vm.version"), System.getProperty("java.specification.vendor"));
         File privateKeyFile = new File("server.key");
         RSAPublicKey publicKey;
         RSAPrivateCrtKey privateKey;
@@ -44,13 +44,14 @@ public class Main {
             KeyPair keyPair = CryptoHelper.RSA_KEY_GENERATOR.generateKeyPair();
             privateKey = (RSAPrivateCrtKey) keyPair.getPrivate();
             publicKey = (RSAPublicKey) keyPair.getPublic();
-            LOGGER.info("Server keypair successfully generated. ID: {}", CryptoHelper.sha256Hash(keyPair.getPublic().getEncoded()));
+            LOGGER.info("Server keypair successfully generated");
             Files.write(privateKeyFile.toPath(), privateKey.getEncoded());
         } else {
             privateKey = CryptoHelper.decodeRsaPrivateKey(Files.readAllBytes(privateKeyFile.toPath()));
             publicKey = (RSAPublicKey) CryptoHelper.RSA_KEY_FACTORY.generatePublic(new RSAPublicKeySpec(privateKey.getModulus(), privateKey.getPublicExponent(), privateKey.getParams()));
-            LOGGER.info("Server keypair loaded successfully. ID: {}", CryptoHelper.sha256Hash(publicKey.getEncoded()));
+            LOGGER.info("Server keypair loaded successfully");
         }
+        LOGGER.info("Identity: {}", CryptoHelper.sha256Hash(publicKey.getEncoded()));
         try (Server server = new Server(Constants.PORT, publicKey, privateKey)) {
             server.launch();
         }

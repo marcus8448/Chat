@@ -19,14 +19,6 @@ package io.github.marcus8448.chat.client.util;
 import io.github.marcus8448.chat.core.api.misc.Result;
 
 public class ParseUtil {
-    public static Result<String, String> validateUsername(String username) {
-        if (username.length() < 4) return Result.error("Too short");
-        for (char c : username.toCharArray()) {
-            if (!Character.isDigit(c) && !Character.isAlphabetic(c) && c != '_') return Result.error("Non a-z 0-9 _ character");
-        }
-        return Result.ok(username);
-    }
-
     public static Result<Void, String> validatePassword(String password) {
         if (password.length() < 8) return Result.error("Too short");
         boolean digit = false, lower = false, upper = false, symbol = false;

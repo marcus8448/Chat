@@ -99,8 +99,8 @@ public class ClientLoginConnectionHandler implements ClientConnectionHandler {
                     byte[] bytes1 = rsaCipher.doFinal(auth.getData());
 
                     if (Arrays.equals(bytes1, encoded)) {
-                        if (!this.server.isConnected(hello.getKey())) {
-                            LOGGER.info("Client successfully connected!");
+                        if (this.server.canAccept(hello.getKey())) {
+                            LOGGER.info("New client successfully connected");
                             this.server.executor.execute(() -> {
                                 User user = this.server.createUser(auth.getUsername(), hello.getKey(), null);
                                 try {

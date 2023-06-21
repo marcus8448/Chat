@@ -18,10 +18,7 @@ package io.github.marcus8448.chat.client.ui.cell;
 
 import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.core.api.account.User;
-import javafx.scene.control.ContextMenu;
-import javafx.scene.control.Label;
-import javafx.scene.control.ListCell;
-import javafx.scene.control.MenuItem;
+import javafx.scene.control.*;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
@@ -64,12 +61,14 @@ public class UserCell extends ListCell<User> {
     protected void updateItem(User item, boolean empty) {
         super.updateItem(item, empty);
         if (!empty && item != null) {
-            this.name.setText(this.client.getName(item)); // update account name
+            this.name.setText(this.client.getShortName(item)); // update account name
             this.setOnMouseClicked(this::openAccount); // set click handler
+            this.setTooltip(new Tooltip(item.getLongIdName()));
         } else {
             // clear properties
             this.name.setText("");
             this.setOnMouseClicked(null);
+            this.setTooltip(null);
         }
     }
 

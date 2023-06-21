@@ -17,6 +17,7 @@
 package io.github.marcus8448.chat.core.api.misc;
 
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 /**
  * Effectively, a string with extra constraints.
@@ -24,6 +25,9 @@ import org.jetbrains.annotations.NotNull;
  * Only allows string with these characters: [0-9], [a-Z], _ and of length 4-16
  */
 public class Identifier {
+    /**
+     * The wrapped string
+     */
     private final @NotNull String value;
 
     private Identifier(@NotNull String value) {
@@ -32,17 +36,32 @@ public class Identifier {
 
     /**
      * Creates a new identifier
+     *
      * @param value the name of the identifier
      * @return a new identifier
      * @throws IllegalArgumentException if the string contains illegal characters
      */
     public static @NotNull Identifier create(String value) {
-        if (!Identifier.verify(value)) throw new IllegalArgumentException("Invalid id!");
+        String failure = Identifier.failureReason(value);
+        if (failure != null) throw new IllegalArgumentException(failure);
         return new Identifier(value);
     }
 
     /**
+     * Optionally creates a new identifier
+     *
+     * @param value the name of the identifier
+     * @return a new identifier, or an error message saying why it was invalid
+     */
+    public static @NotNull Result<Identifier, String> parse(String value) {
+        String failure = Identifier.failureReason(value);
+        if (failure == null) return Result.ok(new Identifier(value));
+        return Result.error(failure);
+    }
+
+    /**
      * Verifies the validity of a string to become an identifier
+     *
      * @param s the string to test
      * @return whether the string is a valid identifier
      */
@@ -54,6 +73,31 @@ public class Identifier {
             }
         }
         return true;
+    }
+
+    /**
+     * Verifies the validity of a string to become an identifier
+     *
+     * @param s the string to test
+     * @return whether the string is a valid identifier
+     */
+    public static @Nullable String failureReason(String s) {
+        if (s.length() < 4) {
+            return "Too short";
+        } else if (s.length() > 16) {
+            return "Too long";
+        }
+
+        for (char c : s.toCharArray()) {
+            if (!Character.isAlphabetic(c) && !Character.isDigit(c) && c != '_') {
+                return "Non [a-Z] [0-9] _ character!";
+            }
+        }
+        return null;
+    }
+
+    public @NotNull String getValue() {
+        return this.value;
     }
 
     @Override
@@ -71,6 +115,6 @@ public class Identifier {
 
     @Override
     public String toString() {
-        return this.value;
+        return this.getValue();
     }
 }

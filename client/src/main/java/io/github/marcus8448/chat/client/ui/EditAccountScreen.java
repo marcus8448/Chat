@@ -22,7 +22,7 @@ import io.github.marcus8448.chat.client.config.AccountData;
 import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.client.util.ParseUtil;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
-import io.github.marcus8448.chat.core.api.misc.Result;
+import io.github.marcus8448.chat.core.api.misc.Identifier;
 import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
@@ -96,15 +96,6 @@ public class EditAccountScreen {
         VBox root = new VBox();
         JfxUtil.initializePadding(root);
 
-        this.accounts.getSelectionModel().selectedItemProperty().addListener((ChangeListener<? super Account>) (o, old, newValue) -> {
-            if (newValue == null) {
-                this.username.setPromptText("");
-            } else {
-                if (this.username.getText().isBlank()) this.username.setText(newValue.username());
-                this.username.setPromptText(newValue.username());
-            }
-        });
-
         double len = JfxUtil.getTextWidth("Username");
 
         root.getChildren().add(JfxUtil.createComboInputRow(new Label("Account"), this.accounts, len));
@@ -120,6 +111,47 @@ public class EditAccountScreen {
         root.getChildren().add(JfxUtil.createInputRow(new Label("New Password"), this.newPasswordField, "password", -1));
         root.getChildren().add(JfxUtil.createInputRow(new Label("New Password (again)"), this.newPasswordField2, "password (repeat)", -1));
 
+        JfxUtil.setupFailureLabel(this.failureReason);
+        root.getChildren().add(this.failureReason);
+
+        root.getChildren().add(JfxUtil.createSpacing());
+
+        Button delete = new Button("Delete");
+        Button cancel = new Button("Cancel");
+        Button save = new Button("Update");
+        JfxUtil.buttonPressCallback(cancel, stage::close);
+        JfxUtil.buttonPressCallback(delete, this::deleteAccount);
+        JfxUtil.buttonPressCallback(save, this::updateAccount);
+
+        root.getChildren().add(JfxUtil.createButtonRow(cancel, delete, null, save));
+
+        JfxUtil.unescapedEnterCallback(this.passwordField, () -> {
+            if (!this.changePassword.isSelected()) {
+                this.updateAccount();
+            }
+        });
+
+        JfxUtil.unescapedEnterCallback(this.newPasswordField2, () -> {
+            if (this.changePassword.isSelected()) {
+                this.updateAccount();
+            }
+        });
+
+        this.accounts.getSelectionModel().selectedItemProperty().addListener((ChangeListener<? super Account>) (o, old, newValue) -> {
+            if (newValue == null) {
+                this.username.setPromptText("");
+                save.setDisable(true);
+                delete.setDisable(true);
+            } else {
+                if (this.username.getText().isBlank()) this.username.setText(newValue.username().getValue());
+                this.username.setPromptText(newValue.username().getValue());
+                save.setDisable(false);
+                delete.setDisable(false);
+            }
+        });
+        delete.setDisable(true);
+        save.setDisable(true);
+
         this.changePassword.setOnAction(e -> {
             if (this.changePassword.isSelected()) { // enable/disable new password fields based on state
                 this.newPasswordField.setDisable(false);
@@ -132,27 +164,11 @@ public class EditAccountScreen {
         this.newPasswordField.setDisable(true);
         this.newPasswordField2.setDisable(true);
 
-        JfxUtil.setupFailureLabel(this.failureReason);
-        root.getChildren().add(this.failureReason);
-
-        root.getChildren().add(JfxUtil.zeroSpacing());
-
-        Button delete = new Button("Delete");
-        Button cancel = new Button("Cancel");
-        Button save = new Button("Update");
-        JfxUtil.buttonPressCallback(cancel, stage::close);
-        JfxUtil.buttonPressCallback(delete, this::deleteAccount);
-        JfxUtil.buttonPressCallback(save, this::updateAccount);
-        root.getChildren().add(JfxUtil.createButtonRow(cancel, delete, null, save));
-
         // set up the scene and stage
         Scene scene = new Scene(root);
 
-        stage.setWidth(400);
-        stage.setHeight(330);
-        stage.setResizable(true);
         stage.setTitle("Edit Account");
-        stage.setScene(scene);
+        JfxUtil.resizeAutoHeight(stage, scene, 700.0);
     }
 
     /**
@@ -186,12 +202,12 @@ public class EditAccountScreen {
         Account selectedAccount = this.accounts.getSelectionModel().getSelectedItem();
 
         // verify that the username is valid
-        Result<String, String> res = ParseUtil.validateUsername(this.username.getText());
+        var res = Identifier.parse(this.username.getText());
         if (res.isError()) {
             this.failureReason.setText(INVALID_USERNAME.formatted(res.unwrapError()));
             return;
         }
-        String username = res.unwrap();
+        Identifier username = res.unwrap();
 
         SecretKey passKey; // AES config encryption key
         String oldPassword = this.passwordField.getText(); // the current password text
@@ -214,7 +230,7 @@ public class EditAccountScreen {
 
         try {
             // create an AES key based on the username and current password, for config decryption
-            passKey = CryptoHelper.generateUserPassKey(oldPassword.toCharArray(), selectedAccount.username());
+            passKey = CryptoHelper.generateUserPassKey(oldPassword.toCharArray(), selectedAccount.username().getValue());
         } catch (InvalidKeySpecException e) {
             this.failureReason.setText("Failed to calculate password hash.");
             LOGGER.error("PBKDF2 key derivation failure", e);
@@ -243,7 +259,7 @@ public class EditAccountScreen {
 
         try {
             // generate another secret key for encryption using the new password/username
-            passKey = CryptoHelper.generateUserPassKey(newPassword.toCharArray(), username);
+            passKey = CryptoHelper.generateUserPassKey(newPassword.toCharArray(), username.getValue());
         } catch (InvalidKeySpecException e) {
             this.failureReason.setText("Failed to calculate password hash.");
             LOGGER.error("PBKDF2 key derivation failure", e);

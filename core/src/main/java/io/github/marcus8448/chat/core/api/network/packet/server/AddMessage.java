@@ -25,11 +25,12 @@ import java.io.IOException;
 
 /**
  * Propagates a new message to the connected client(s)
+ *
  * @see SendMessage
  */
 public class AddMessage implements NetworkedData {
     /**
-     * WHen the message was recieved on the server
+     * WHen the message was received on the server
      */
     private final long timestamp;
     /**

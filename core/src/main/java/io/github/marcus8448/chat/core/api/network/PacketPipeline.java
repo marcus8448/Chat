@@ -39,6 +39,7 @@ public interface PacketPipeline extends Closeable {
 
     /**
      * Creates a new packet pipeline backed by a socket connection
+     *
      * @param header the packet header to use
      * @param socket the backing socket
      * @return a new packet pipeline
@@ -47,8 +48,8 @@ public interface PacketPipeline extends Closeable {
     static @NotNull PacketPipeline createNetwork(int header, @NotNull Socket socket) {
         try {
             return new NetworkPacketPipeline(header, socket, BinaryInput.stream(socket.getInputStream()), BinaryOutput.stream(socket.getOutputStream()));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            throw new IllegalStateException(e);
         }
     }
 
@@ -56,6 +57,7 @@ public interface PacketPipeline extends Closeable {
      * Encrypts this packet pipeline with the given AES key
      * Does not support recursive encryption
      * (e.g. a.encryptWith(x).encryptWith(y) is the same as a.encryptWith(y))
+     *
      * @param secretKey the AES key to use (other formats not supported)
      * @return the encrypted pipeline
      */
@@ -63,14 +65,16 @@ public interface PacketPipeline extends Closeable {
 
     /**
      * Sends a packet through the pipeline
-     * @param type the type of packet to send
+     *
+     * @param type          the type of packet to send
      * @param networkedData the packet's contents
-     * @param <Data> the type of packet
+     * @param <Data>        the type of packet
      */
     <Data extends NetworkedData> void send(PacketType<Data> type, Data networkedData) throws IOException;
 
     /**
      * Blocks until a packet is received
+     *
      * @param <Data> the type of packet received
      */
     <Data extends NetworkedData> Packet<Data> receivePacket() throws IOException;
@@ -78,9 +82,10 @@ public interface PacketPipeline extends Closeable {
     /**
      * Blocks until a packet of the given type is received.
      * If a packet not of this type is received, it is discarded.
-     * @param type the type of packet to search for
-     * @return the received packet
+     *
+     * @param type   the type of packet to search for
      * @param <Data> the type of packet
+     * @return the received packet
      */
     default <Data extends NetworkedData> Packet<Data> receivePacket(PacketType<Data> type) throws IOException {
         // receive any type of packet (as per usual)

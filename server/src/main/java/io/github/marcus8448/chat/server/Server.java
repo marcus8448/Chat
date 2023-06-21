@@ -19,8 +19,8 @@ package io.github.marcus8448.chat.server;
 import io.github.marcus8448.chat.core.api.Constants;
 import io.github.marcus8448.chat.core.api.account.User;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
-import io.github.marcus8448.chat.core.api.message.Message;
-import io.github.marcus8448.chat.core.api.misc.Cell;
+import io.github.marcus8448.chat.core.api.misc.Identifier;
+import io.github.marcus8448.chat.core.api.misc.OnceCell;
 import io.github.marcus8448.chat.core.api.network.NetworkedData;
 import io.github.marcus8448.chat.core.api.network.PacketPipeline;
 import io.github.marcus8448.chat.core.api.network.packet.PacketType;
@@ -31,7 +31,7 @@ import io.github.marcus8448.chat.core.api.network.packet.server.UserConnect;
 import io.github.marcus8448.chat.core.api.network.packet.server.UserDisconnect;
 import io.github.marcus8448.chat.server.network.ClientConnectionHandler;
 import io.github.marcus8448.chat.server.network.ClientLoginConnectionHandler;
-import io.github.marcus8448.chat.server.thread.ThreadPerTaskExecutor;
+import io.github.marcus8448.chat.server.thread.ConnectionThreadFactory;
 import io.github.marcus8448.chat.server.util.Users;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -57,12 +57,12 @@ import java.util.concurrent.Executors;
 
 public class Server implements Closeable {
     private static final Logger LOGGER = LogManager.getLogger();
-    private final Cell<Thread> mainThread = new Cell<>();
     public final ExecutorService executor;
-    private final ExecutorService connectionExecutor;
-    private final Signature rsaSignature = CryptoHelper.createRsaSignature();
     public final RSAPublicKey publicKey;
     public final RSAPrivateKey privateKey;
+    private final OnceCell<Thread> mainThread = new OnceCell<>();
+    private final ExecutorService connectionExecutor;
+    private final Signature rsaSignature = CryptoHelper.createRsaSignature();
     private final List<ClientConnectionHandler> connectionHandlers = new ArrayList<>();
     private final Users users = new Users();
     private final ServerSocket socket;
@@ -74,17 +74,19 @@ public class Server implements Closeable {
         ExecutorService service;
         try {
             service = (ExecutorService) Executors.class.getMethod("newVirtualThreadPerTaskExecutor").invoke(null);
-            LOGGER.info("Using virtual thread per task executor");
+            LOGGER.info("Using virtual thread executor");
         } catch (Exception e) {
-            service = new ThreadPerTaskExecutor();
+            service = Executors.newCachedThreadPool(new ConnectionThreadFactory());
+            LOGGER.info("Using cached thread pool executor (JDK 19/20 preview features are not available)");
         }
         try {
             this.rsaSignature.initSign(this.privateKey);
         } catch (InvalidKeyException e) {
-            throw new RuntimeException(e);
+            LOGGER.fatal("Failed to initialize signature with private key.", e);
+            System.exit(0);
         }
         this.connectionExecutor = service;
-        this.executor = Executors.newSingleThreadExecutor(r -> mainThread.setValue(new Thread(r, "Server Main")));
+        this.executor = Executors.newSingleThreadExecutor(r -> this.mainThread.setValue(new Thread(r, "Server Main")));
         this.socket = new ServerSocket(port);
     }
 
@@ -144,8 +146,9 @@ public class Server implements Closeable {
     public void updateConnection(ClientConnectionHandler oldHandler, ClientConnectionHandler newHandler, User user) {
         this.executor.execute(() -> {
             if (this.connectionHandlers.remove(oldHandler)) {
+                LOGGER.info("User " + user.getLongIdName() + "has logged in.");
                 this.sendToAll(ServerPacketTypes.USER_CONNECT, new UserConnect(user));
-                this.sendMessage(user.getFormattedName() + " has joined the chat!");
+                this.sendMessage(user.getShortIdName() + " has joined the chat!");
 
                 this.connectionHandlers.add(newHandler);
                 this.connectionExecutor.submit(newHandler);
@@ -157,7 +160,7 @@ public class Server implements Closeable {
 
     private void assertOnThread() {
         if (Thread.currentThread() != this.mainThread.getValue()) {
-            throw new WrongThreadException();
+            throw new IllegalStateException();
         }
     }
 
@@ -173,12 +176,13 @@ public class Server implements Closeable {
         this.executor.shutdown();
         try {
             this.socket.close();
-        } catch (IOException ignored) {}
+        } catch (IOException ignored) {
+        }
         LOGGER.info("Shutdown successful.");
     }
 
-    public boolean isConnected(RSAPublicKey key) {
-        return this.users.contains(key);
+    public boolean canAccept(RSAPublicKey key) {
+        return this.users.canAccept(key);
     }
 
     protected <Data extends NetworkedData> void sendToAll(PacketType<Data> type, Data data) {
@@ -192,7 +196,7 @@ public class Server implements Closeable {
         this.sendToAll(ServerPacketTypes.ADD_MESSAGE, new AddMessage(time, user.sessionId(), message, checksum));
     }
 
-    public @NotNull User createUser(String username, RSAPublicKey key, byte @Nullable [] icon) {
+    public @NotNull User createUser(Identifier username, RSAPublicKey key, byte @Nullable [] icon) {
         this.assertOnThread();
         return this.users.createUser(username, key, icon);
     }
@@ -204,7 +208,7 @@ public class Server implements Closeable {
             this.users.remove(user);
 
             this.sendToAll(ServerPacketTypes.USER_DISCONNECT, new UserDisconnect(user.sessionId()));
-            this.sendMessage(user.getFormattedName() + " has left the chat.");
+            this.sendMessage(user.getShortIdName() + " has left the chat.");
         }
     }
 

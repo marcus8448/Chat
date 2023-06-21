@@ -18,11 +18,9 @@ package io.github.marcus8448.chat.client.ui;
 
 import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.util.JfxUtil;
-import io.github.marcus8448.chat.client.util.ParseUtil;
 import io.github.marcus8448.chat.core.api.account.User;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
-import javafx.scene.layout.Priority;
 import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.StringConverter;
@@ -31,10 +29,13 @@ import javafx.util.StringConverter;
 public class UserTrustScreen {
     private final ComboBox<User> selection;
     private final TextField nickname = new TextField();
+    private final Label failureReason = new Label();
     private final Client client;
+    private final Stage stage;
 
     public UserTrustScreen(Client client, Stage stage) {
         this.client = client;
+        this.stage = stage;
 
         VBox vBox = new VBox();
         JfxUtil.initializePadding(vBox);
@@ -45,7 +46,7 @@ public class UserTrustScreen {
         this.selection.setConverter(new StringConverter<>() {
             @Override
             public String toString(User object) {
-                return object.getFormattedName();
+                return object == null ? "" : object.getLongIdName();
             }
 
             @Override
@@ -53,24 +54,33 @@ public class UserTrustScreen {
                 return null;
             }
         });
-        VBox.setVgrow(this.selection, Priority.NEVER);
-        vBox.getChildren().add(this.selection);
-        vBox.getChildren().add(JfxUtil.createInputRow(new Label("Nickname"), this.nickname, "nickname", -1));
 
-        Button ok = new Button("Ok");
-        JfxUtil.buttonPressCallback(ok, stage::close);
+        double len = JfxUtil.getTextWidth("Nickname");
+        vBox.getChildren().add(JfxUtil.createComboInputRow(new Label("Account"), this.selection, len));
+        vBox.getChildren().add(JfxUtil.createInputRow(new Label("Nickname"), this.nickname, "nickname", len));
+
+        JfxUtil.setupFailureLabel(this.failureReason);
+        vBox.getChildren().add(this.failureReason);
+
+        Button cancel = new Button("Cancel");
+        JfxUtil.buttonPressCallback(cancel, this.stage::close);
+        cancel.setPrefWidth(JfxUtil.BUTTON_WIDTH);
 
         Button trust = new Button("Trust");
-        this.nickname.textProperty().addListener((observable, oldValue, newValue) -> trust.setDisable(ParseUtil.validateUsername(newValue).isError()));
+        this.nickname.textProperty().addListener((observable, oldValue, newValue) -> trust.setDisable(newValue.isBlank()));
         trust.setDisable(true);
         JfxUtil.buttonPressCallback(trust, this::trust);
+        trust.setPrefWidth(JfxUtil.BUTTON_WIDTH);
 
         Button revoke = new Button("Revoke");
         JfxUtil.buttonPressCallback(revoke, this::revoke);
+        revoke.setPrefWidth(JfxUtil.BUTTON_WIDTH);
+
+        JfxUtil.unescapedEnterCallback(this.nickname, this::trust);
 
         this.selection.selectionModelProperty().addListener((observable, oldValue, newValue) -> {
             if (!newValue.isEmpty()) {
-                nickname.setText(newValue.getSelectedItem().username());
+                nickname.setText(newValue.getSelectedItem().username().getValue());
                 nickname.setDisable(false);
                 trust.setDisable(false);
                 revoke.setDisable(this.client.isTrusted(newValue.getSelectedItem()));
@@ -82,31 +92,38 @@ public class UserTrustScreen {
             }
         });
 
-        vBox.getChildren().add(JfxUtil.createButtonRow(revoke, trust, null, ok));
+        vBox.getChildren().add(JfxUtil.createButtonRow(cancel, null, revoke, trust));
 
         Scene scene = new Scene(vBox);
-        stage.setTitle("Export account");
-        stage.setWidth(350);
-        stage.setHeight(170);
-        stage.setScene(scene);
+        stage.setTitle("Manage Trust");
+        JfxUtil.resizeAutoHeight(stage, scene, 700.0);
     }
 
     private void revoke() {
         SingleSelectionModel<User> selectionModel = this.selection.getSelectionModel();
-        if (selectionModel.isEmpty()) return;
+        if (selectionModel.isEmpty()) {
+            this.failureReason.setText("You must select a user");
+            return;
+        }
         User selected = selectionModel.getSelectedItem();
         this.client.revokeTrust(selected);
+        this.stage.close();
     }
 
     private void trust() {
         SingleSelectionModel<User> selectionModel = this.selection.getSelectionModel();
-        String username = this.nickname.getText();
-        if (ParseUtil.validateUsername(username).isError()) {
+        if (selectionModel.isEmpty()) {
+            this.failureReason.setText("You must select a user");
             return;
         }
-        if (selectionModel.isEmpty()) return;
+        String nickname = this.nickname.getText();
+        if (nickname.isBlank()) {
+            this.failureReason.setText("Nickname cannot be blank");
+            return;
+        }
         User selected = selectionModel.getSelectedItem();
-        this.client.trustUser(selected, username);
+        this.client.trustUser(selected, nickname);
+        this.stage.close();
     }
 
     public void select(User item) {

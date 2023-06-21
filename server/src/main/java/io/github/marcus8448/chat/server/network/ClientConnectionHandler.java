@@ -22,6 +22,8 @@ import io.github.marcus8448.chat.core.api.network.packet.PacketType;
 
 public interface ClientConnectionHandler extends Runnable {
     void shutdown();
+
     <Data extends NetworkedData> void handle(Packet<Data> packet);
+
     <Data extends NetworkedData> void send(PacketType<Data> type, Data data);
 }

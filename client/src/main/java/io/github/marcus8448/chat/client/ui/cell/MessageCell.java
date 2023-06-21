@@ -30,6 +30,9 @@ import javafx.scene.input.DataFormat;
 import javafx.scene.input.MouseEvent;
 import javafx.scene.layout.*;
 import javafx.scene.shape.Circle;
+import javafx.scene.text.Font;
+import javafx.scene.text.FontPosture;
+import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextFlow;
 
 import java.io.ByteArrayInputStream;
@@ -43,7 +46,9 @@ public class MessageCell extends ListCell<Message> {
     /**
      * Background to use when a message signature is invalid
      */
-    private final Background NOT_VERIFIED_BG = Background.fill(JfxUtil.NOT_VERIFIED_COLOUR);
+    private static final Background NOT_VERIFIED_BG = Background.fill(JfxUtil.NOT_VERIFIED_COLOUR);
+
+    private static final Font AUTHOR_FONT = Font.font(Font.getDefault().getFamily(), FontWeight.NORMAL, FontPosture.REGULAR, Font.getDefault().getSize() + 2);
 
     /**
      * Circular picture of message author
@@ -87,6 +92,8 @@ public class MessageCell extends ListCell<Message> {
         this.setGraphic(hBox); // set the contents
         this.setText(null); // we don't want the default text flow
 
+        this.authorName.setFont(AUTHOR_FONT);
+
         // lock the width of the contents to the width of the available space
         this.textMessageContents.prefWidthProperty().bind(centerContent.widthProperty().subtract(16.0));
 
@@ -129,7 +136,7 @@ public class MessageCell extends ListCell<Message> {
             String hash = CryptoHelper.sha256Hash(item.getAuthor().getPublicKey().getEncoded()); //get the key id of the author
             if (item.verifySignature()) { // check that the message signature is valid
                 if (this.client.isTrusted(item.getAuthor())) { // check if the author is trusted
-                    this.authorName.setTooltip(new Tooltip(item.getAuthor().getFormattedName())); // set the tooltip to be the full id
+                    this.authorName.setTooltip(new Tooltip(item.getAuthor().getShortIdName())); // set the tooltip to be the full id
                 } else {
                     this.authorName.setTooltip(new Tooltip(hash)); // set the tooltip to be just the hash
                 }

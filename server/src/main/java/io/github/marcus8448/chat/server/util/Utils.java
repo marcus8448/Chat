@@ -21,6 +21,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 public class Utils {
     private static final AtomicLong previousTime = new AtomicLong(0);
+
     // clock that always goes up
     public static long currentTimeNonDecreasing() {
         long l = System.currentTimeMillis();
@@ -35,7 +36,7 @@ public class Utils {
 
     public static void shiftLeft(ByteBuffer buffer) {
         int n = buffer.limit() - buffer.position();
-        for(int i = 0; i < n; i++) {
+        for (int i = 0; i < n; i++) {
             buffer.put(i, buffer.get());
         }
         buffer.position(0);

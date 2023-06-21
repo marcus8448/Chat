@@ -18,6 +18,7 @@ package io.github.marcus8448.chat.core.api.network.packet.server;
 
 import io.github.marcus8448.chat.core.api.account.User;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
+import io.github.marcus8448.chat.core.api.misc.Identifier;
 import io.github.marcus8448.chat.core.api.network.NetworkedData;
 import io.github.marcus8448.chat.core.api.network.io.BinaryInput;
 import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
@@ -29,6 +30,12 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
+/**
+ * Sent upon successful authentication of a client
+ *
+ * @see AuthenticationFailure
+ * @see io.github.marcus8448.chat.core.api.network.packet.client.Authenticate
+ */
 public class AuthenticationSuccess implements NetworkedData {
     private final List<User> users;
 
@@ -47,7 +54,7 @@ public class AuthenticationSuccess implements NetworkedData {
             } catch (InvalidKeySpecException e) {
                 throw new RuntimeException(e);
             }
-            String username = input.readString();
+            Identifier username = Identifier.create(input.readString());
 //            byte[] icon = input.readByteArray();
             this.users.add(new User(sessionId, username, key, null));
         }
@@ -59,7 +66,7 @@ public class AuthenticationSuccess implements NetworkedData {
         for (User user : this.users) {
             output.writeInt(user.sessionId());
             output.writeByteArray(user.key().getEncoded());
-            output.writeString(user.username());
+            output.writeString(user.username().getValue());
 //            output.writeByteArray(user.icon());
         }
     }

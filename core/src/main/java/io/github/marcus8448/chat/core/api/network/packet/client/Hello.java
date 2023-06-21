@@ -29,6 +29,7 @@ import java.security.spec.InvalidKeySpecException;
 /**
  * First packet sent on client connection with a server
  * Initial part of connection handshake - nothing is encrypted yet
+ *
  * @see AuthenticationRequest The server's (expected) response
  */
 public class Hello implements NetworkedData {
@@ -57,7 +58,7 @@ public class Hello implements NetworkedData {
         try {
             this.key = CryptoHelper.decodeRsaPublicKey(input.readByteArray());
         } catch (InvalidKeySpecException e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException(e);
         }
     }
 

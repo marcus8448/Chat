@@ -20,7 +20,14 @@ import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
 // i wish i was using rust.
-public interface Result<Ok, Error> {
+
+/**
+ * Similar to an {@link java.util.Optional} but has a value for failures
+ *
+ * @param <Ok>    the successful result type
+ * @param <Error> the failed result type
+ */
+public sealed interface Result<Ok, Error> {
     @Contract(value = "_ -> new", pure = true)
     static <Ok, Error> @NotNull Result<Ok, Error> ok(Ok ok) {
         return (Result<Ok, Error>) new Success<>(ok);
@@ -31,18 +38,39 @@ public interface Result<Ok, Error> {
         return (Result<Ok, Error>) new Failure<>(error);
     }
 
+    /**
+     * @return the value of a successful result
+     * @throws UnsupportedOperationException if the result is a failure
+     */
     Ok unwrap();
 
+    /**
+     * @return whether the result is successful
+     */
     boolean isOk();
 
+    /**
+     * @return the value of an unsuccessful result
+     * @throws UnsupportedOperationException if the result is a success
+     */
     Error unwrapError();
 
+
+    /**
+     * @return whether the result is a failure
+     */
     boolean isError();
 
     <NewError> Result<Ok, NewError> coerce();
 
     <NewOk> Result<NewOk, Error> coerceError();
 
+    /**
+     * A successful result
+     *
+     * @param value the value of the result
+     * @param <Ok>  the type held
+     */
     record Success<Ok>(Ok value) implements Result<Ok, Void> {
         @Override
         public Ok unwrap() {
@@ -76,10 +104,16 @@ public interface Result<Ok, Error> {
 
     }
 
+    /**
+     * A failed result
+     *
+     * @param error   the value held
+     * @param <Error> the type held
+     */
     record Failure<Error>(Error error) implements Result<Void, Error> {
         @Override
         public Void unwrap() {
-            throw new UnsupportedOperationException();
+            throw new UnsupportedOperationException(this.error.toString());
         }
 
         @Override

@@ -28,6 +28,7 @@ import io.github.marcus8448.chat.core.api.message.Message;
 import io.github.marcus8448.chat.core.api.message.MessageAuthor;
 import io.github.marcus8448.chat.core.api.message.MessageType;
 import io.github.marcus8448.chat.core.api.message.TextMessage;
+import io.github.marcus8448.chat.core.api.misc.Identifier;
 import io.github.marcus8448.chat.core.api.network.PacketPipeline;
 import io.github.marcus8448.chat.core.api.network.packet.ClientPacketTypes;
 import io.github.marcus8448.chat.core.api.network.packet.Packet;
@@ -74,29 +75,26 @@ import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.util.List;
 
-public class Client extends Application implements Runnable{
+public class Client extends Application implements Runnable {
     private static final Logger LOGGER = LogManager.getLogger();
+    public final ObservableList<Message> messages = FXCollections.observableArrayList();
+    public final ObservableMap<Integer, User> users = FXCollections.observableHashMap();
+    public final ObservableList<User> userList = FXCollections.observableArrayList();
     private final Cipher aesCipher = CryptoHelper.createAesCipher();
     private final Signature rsaSignature = CryptoHelper.createRsaSignature();
-
-    public volatile boolean shutdown = false;
-
+    public volatile boolean closeConnection = false;
     public Config config;
-    private ChatView screen;
     public PacketPipeline connection;
+    private ChatView screen;
     private SecretKey passKey;
     private RSAPublicKey publicKey;
     private RSAPublicKey serverPubKey;
     private AccountData accountData;
-    public final ObservableList<Message> messages = FXCollections.observableArrayList();
-    public final ObservableMap<Integer, User> users = FXCollections.observableHashMap();
-    public final ObservableList<User> userList = FXCollections.observableArrayList();
-
     private Stage primaryStage;
     private SystemTray systemTray;
     private TrayIcon trayIcon;
     private InetSocketAddress address;
-    private String username;
+    private Identifier username;
 
     public Client() {
         this.users.addListener((MapChangeListener<Integer, User>) change -> {
@@ -122,18 +120,20 @@ public class Client extends Application implements Runnable{
             if (iconStream != null) {
                 primaryStage.getIcons().add(new Image(iconStream));
             } else {
-                LOGGER.error("Failed to load icon image!");
+                LOGGER.error("Missing icon!");
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+        } catch (Exception e) {
+            LOGGER.warn("Failed to load icon image", e);
         }
         primaryStage.show();
     }
 
     public void logout(Stage stage) {
+        this.closeConnection = true;
         try {
             this.connection.close();
-        } catch (IOException ignored) {}
+        } catch (IOException ignored) {
+        }
         this.connection = null;
         this.passKey = null;
         this.serverPubKey = null;
@@ -151,8 +151,9 @@ public class Client extends Application implements Runnable{
         this.beginLoginProcess(stage);
     }
 
-    public void initialize(PacketPipeline pipeline, SecretKey passKey, RSAPublicKey serverKey, RSAPublicKey publicKey, @NotNull AccountData data, List<User> users, String username, InetSocketAddress address) {
+    public void initialize(PacketPipeline pipeline, SecretKey passKey, RSAPublicKey serverKey, RSAPublicKey publicKey, @NotNull AccountData data, List<User> users, Identifier username, InetSocketAddress address) {
         this.connection = pipeline;
+        this.closeConnection = false;
         this.address = address;
         this.passKey = passKey;
         this.publicKey = publicKey;
@@ -166,7 +167,9 @@ public class Client extends Application implements Runnable{
         try {
             this.rsaSignature.initSign(privateKey);
         } catch (InvalidKeyException e) {
-            throw new RuntimeException(e);
+            LOGGER.fatal("Failed to initialize signature", e);
+            this.shutdown();
+            return;
         }
 
         Thread thread = new Thread(this, "Client Main");
@@ -208,7 +211,7 @@ public class Client extends Application implements Runnable{
             this.rsaSignature.update(contents.getBytes(StandardCharsets.UTF_8));
             return this.rsaSignature.sign();
         } catch (SignatureException e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException(e);
         }
     }
 
@@ -233,15 +236,15 @@ public class Client extends Application implements Runnable{
                 } else if (packet.type() == ServerPacketTypes.SYSTEM_MESSAGE) {
                     SystemMessage systemMessage = packet.getAs(ServerPacketTypes.SYSTEM_MESSAGE);
                     Platform.runLater(() -> {
-                        TextMessage text = Message.text(systemMessage.getTimestamp(), MessageAuthor.system(this.serverPubKey), systemMessage.getContents(), systemMessage.getChecksum());
+                        TextMessage text = Message.text(systemMessage.getTimestamp(), MessageAuthor.system(this.serverPubKey), systemMessage.getContents(), systemMessage.getSignature());
                         addMessage(text);
                     });
                 }
             }
         } catch (IOException e) {
-            LOGGER.error("Connection error", e);
+            if (!this.closeConnection) LOGGER.error("Connection error", e);
         }
-        if (!this.shutdown) {
+        if (!this.closeConnection) {
             if (this.screen != null) {
                 Platform.runLater(this.screen::markOffline);
             }
@@ -328,7 +331,7 @@ public class Client extends Application implements Runnable{
                 if (message1.length() > 64) {
                     message1 = message1.substring(0, 64 - 3) + "...";
                 }
-                this.trayIcon.displayMessage(this.getName(message.getAuthor()), message1, TrayIcon.MessageType.NONE);
+                this.trayIcon.displayMessage(this.getShortName(message.getAuthor()), message1, TrayIcon.MessageType.NONE);
             }
         }
     }
@@ -339,7 +342,7 @@ public class Client extends Application implements Runnable{
             AccountData.EncryptedAccountData encrypted = this.accountData.encrypt(this.aesCipher);
             this.config.updateAccountData(this.publicKey, encrypted); //todo: make it a username -> account map instead
         } catch (InvalidKeyException | IllegalBlockSizeException | BadPaddingException e) {
-            throw new RuntimeException(e);
+            throw new IllegalStateException(e);
         }
     }
 
@@ -348,7 +351,7 @@ public class Client extends Application implements Runnable{
     }
 
     public void close() {
-        this.shutdown = true;
+        this.closeConnection = true;
         try {
             if (this.connection != null) {
                 this.connection.close();
@@ -369,14 +372,18 @@ public class Client extends Application implements Runnable{
         stage.show();
     }
 
-    public void trustUser(User item, String username) {
-        this.accountData.knownAccounts().put(item.key(), username);
+    public void trustUser(User item, String nickname) {
+        this.accountData.knownAccounts().put(item.key(), nickname);
         this.saveAccountData();
         this.screen.refresh();
     }
 
     public String getName(MessageAuthor account) {
-        return this.accountData.knownAccounts().getOrDefault(account.getPublicKey(), account.getFormattedName());
+        return this.accountData.knownAccounts().getOrDefault(account.getPublicKey(), account.getLongIdName());
+    }
+
+    public String getShortName(MessageAuthor account) {
+        return this.accountData.knownAccounts().getOrDefault(account.getPublicKey(), account.getShortIdName());
     }
 
     public void revokeTrust(User selected) {

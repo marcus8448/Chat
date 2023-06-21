@@ -17,6 +17,7 @@
 package io.github.marcus8448.chat.server.util;
 
 import io.github.marcus8448.chat.core.api.account.User;
+import io.github.marcus8448.chat.core.api.misc.Identifier;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -38,7 +39,7 @@ public class Users {
         return this.users.stream().anyMatch(u -> u.key().equals(key));
     }
 
-    public @NotNull User createUser(String username, RSAPublicKey key, byte @Nullable [] base64Icon) {
+    public @NotNull User createUser(Identifier username, RSAPublicKey key, byte @Nullable [] base64Icon) {
         if (this.contains(key)) throw new UnsupportedOperationException("multiconnect");
         int id = this.current++;
         User user = new User(id, username, key, base64Icon);
@@ -57,5 +58,9 @@ public class Users {
     public void remove(User user) {
         User remove = this.idToUser.remove(user.sessionId());
         assert remove == user;
+    }
+
+    public boolean canAccept(RSAPublicKey key) {
+        return !this.contains(key);
     }
 }

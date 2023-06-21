@@ -34,6 +34,7 @@ import java.net.Socket;
  * A packet pipeline backed by a network connection.
  * Is not encrypted and thereby insecure.
  * Used for initial handshake (before encrypting)
+ *
  * @see EncryptedNetworkPipeline
  */
 public class NetworkPacketPipeline implements PacketPipeline {

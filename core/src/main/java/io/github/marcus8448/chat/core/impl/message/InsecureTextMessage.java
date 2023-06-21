@@ -21,6 +21,13 @@ import io.github.marcus8448.chat.core.api.message.TextMessage;
 
 import java.nio.charset.StandardCharsets;
 
+/**
+ * A message that is explicitly unsigned
+ *
+ * @param timestamp when the server received the message
+ * @param author    the supposed author of the message
+ * @param contents  the message contents
+ */
 public record InsecureTextMessage(long timestamp, MessageAuthor author, String contents) implements TextMessage {
     @Override
     public long getTimestamp() {

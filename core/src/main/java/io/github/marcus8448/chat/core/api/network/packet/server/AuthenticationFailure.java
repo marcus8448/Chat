@@ -25,9 +25,14 @@ import java.io.IOException;
 
 /**
  * Represents a client's failure to meet the server's authentication challenge
+ *
  * @see Authenticate
+ * @see AuthenticationSuccess
  */
 public class AuthenticationFailure implements NetworkedData {
+    /**
+     * The reason authentication failed
+     */
     private final String reason;
 
     public AuthenticationFailure(BinaryInput input) throws IOException {

@@ -22,7 +22,13 @@ import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
 
 import java.io.IOException;
 
+/**
+ * Sent to all clients when a user disconnects from the server
+ */
 public class UserDisconnect implements NetworkedData {
+    /**
+     * The session id of the disconnected user
+     */
     private final int id;
 
     public UserDisconnect(int id) {

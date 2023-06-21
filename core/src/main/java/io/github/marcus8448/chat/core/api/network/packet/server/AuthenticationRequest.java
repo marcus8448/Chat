@@ -26,7 +26,13 @@ import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
 
 public class AuthenticationRequest implements NetworkedData {
+    /**
+     * The server's public key
+     */
     private final RSAPublicKey key;
+    /**
+     * The encoded AES key for future communications
+     */
     private final byte[] authData;
 
     public AuthenticationRequest(RSAPublicKey key, byte[] authData) {

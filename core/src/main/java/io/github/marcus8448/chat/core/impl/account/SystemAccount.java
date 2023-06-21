@@ -20,9 +20,19 @@ import io.github.marcus8448.chat.core.api.message.MessageAuthor;
 
 import java.security.interfaces.RSAPublicKey;
 
+/**
+ * Account that represents the server/system (not a client)
+ *
+ * @param publicKey the server's public key
+ */
 public record SystemAccount(RSAPublicKey publicKey) implements MessageAuthor {
     @Override
-    public String getFormattedName() {
+    public String getShortIdName() {
+        return "SYSTEM";
+    }
+
+    @Override
+    public String getLongIdName() {
         return "SYSTEM";
     }
 

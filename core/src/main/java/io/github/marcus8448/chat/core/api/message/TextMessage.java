@@ -16,7 +16,14 @@
 
 package io.github.marcus8448.chat.core.api.message;
 
+/**
+ * A message containing text.
+ */
 public interface TextMessage extends Message {
+    /**
+     * @return the message contents, parsed as a UTF-8 string
+     * @see #getContents()
+     */
     String getMessage();
 
     @Override

@@ -38,6 +38,7 @@ import java.security.InvalidKeyException;
 
 /**
  * A network pipeline that has been encrypted by an AES key
+ *
  * @see io.github.marcus8448.chat.core.impl.network.NetworkPacketPipeline
  */
 public class EncryptedNetworkPipeline implements PacketPipeline {

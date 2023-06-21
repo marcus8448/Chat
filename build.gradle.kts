@@ -13,9 +13,8 @@ subprojects {
     version = rootProject.version
 
     configure<JavaPluginExtension> {
-        toolchain {
-            languageVersion.set(JavaLanguageVersion.of(20))
-        }
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
     }
 
     configure<org.cadixdev.gradle.licenser.LicenseExtension> {
@@ -27,11 +26,9 @@ subprojects {
         mavenCentral()
     }
 
-    tasks.withType<JavaCompile> {
-        options.compilerArgs.add("--enable-preview")
-    }
-
     tasks.withType<JavaExec> {
-        jvmArguments.add("--enable-preview")
+        if (Runtime.version().feature() in 19..20) {
+            jvmArguments.add("--enable-preview")
+        }
     }
 }

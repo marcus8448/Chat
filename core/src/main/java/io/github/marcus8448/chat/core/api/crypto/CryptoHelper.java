@@ -60,6 +60,21 @@ public class CryptoHelper {
      */
     private static final MessageDigest SHA256_DIGEST = createSha256Digest();
 
+    static {
+        try {
+            AES_KEY_GENERATOR = KeyGenerator.getInstance("AES");
+            AES_KEY_GENERATOR.init(256, SecureRandom.getInstanceStrong());
+
+            RSA_KEY_FACTORY = KeyFactory.getInstance("RSA");
+            RSA_KEY_GENERATOR = KeyPairGenerator.getInstance("RSA");
+            RSA_KEY_GENERATOR.initialize(4096, SecureRandom.getInstanceStrong());
+
+            PBKDF2_SECRET_KEY_FACTORY = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
+        } catch (NoSuchAlgorithmException e) {
+            throw new UnsupportedOperationException(e);
+        }
+    }
+
     public static String sha256Hash(byte[] key) {
         return Utils.toHexString(SHA256_DIGEST.digest(key)).toUpperCase(Locale.ROOT);
     }
@@ -81,7 +96,7 @@ public class CryptoHelper {
         try {
             return Cipher.getInstance("AES");
         } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
-            throw new RuntimeException(e);
+            throw new UnsupportedOperationException(e);
         }
     }
 
@@ -89,7 +104,7 @@ public class CryptoHelper {
         try {
             return Cipher.getInstance("RSA");
         } catch (NoSuchAlgorithmException | NoSuchPaddingException e) {
-            throw new RuntimeException(e);
+            throw new UnsupportedOperationException(e);
         }
     }
 
@@ -97,7 +112,7 @@ public class CryptoHelper {
         try {
             return Signature.getInstance("SHA256withRSA");
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            throw new UnsupportedOperationException(e);
         }
     }
 
@@ -105,23 +120,7 @@ public class CryptoHelper {
         try {
             return MessageDigest.getInstance("SHA256");
         } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-
-    static {
-        try {
-            AES_KEY_GENERATOR = KeyGenerator.getInstance("AES");
-            AES_KEY_GENERATOR.init(256, SecureRandom.getInstanceStrong());
-
-            RSA_KEY_FACTORY = KeyFactory.getInstance("RSA");
-            RSA_KEY_GENERATOR = KeyPairGenerator.getInstance("RSA");
-            RSA_KEY_GENERATOR.initialize(4096, SecureRandom.getInstanceStrong());
-
-            PBKDF2_SECRET_KEY_FACTORY = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256");
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+            throw new UnsupportedOperationException(e);
         }
     }
 

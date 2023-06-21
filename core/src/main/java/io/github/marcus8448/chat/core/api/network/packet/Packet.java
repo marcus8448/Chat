@@ -18,7 +18,22 @@ package io.github.marcus8448.chat.core.api.network.packet;
 
 import io.github.marcus8448.chat.core.api.network.NetworkedData;
 
+/**
+ * Represents a fully-formed packet: type/header + data
+ *
+ * @param type   the type of packet
+ * @param data   the body of the packet
+ * @param <Data> the class type of the data
+ */
 public record Packet<Data extends NetworkedData>(PacketType<Data> type, Data data) {
+    /**
+     * Attempts to coerce the packet data to the desired type
+     *
+     * @param type       the desired type of packet
+     * @param <RealData> the requested data type
+     * @return the data contained in this packet, cast to the new type
+     * @throws UnsupportedOperationException if the type does not match
+     */
     public <RealData extends NetworkedData> RealData getAs(PacketType<RealData> type) {
         if (this.type() != type) throw new UnsupportedOperationException();
         return (RealData) this.data();

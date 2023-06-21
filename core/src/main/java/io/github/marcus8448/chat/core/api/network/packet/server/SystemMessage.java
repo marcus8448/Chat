@@ -22,32 +22,44 @@ import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
 
 import java.io.IOException;
 
+/**
+ * Represents a message sent by the server (not a normal client)
+ */
 public class SystemMessage implements NetworkedData {
+    /**
+     * When the server sent the message
+     */
     private final long timestamp;
+    /**
+     * The text contents of the server's message
+     */
     private final String contents;
-    private final byte[] checksum;
+    /**
+     * The signature, created with the server's RSA key that verifies the message's authenticity
+     */
+    private final byte[] signature;
 
-    public SystemMessage(long timestamp, String contents, byte[] checksum) {
+    public SystemMessage(long timestamp, String contents, byte[] signature) {
         this.timestamp = timestamp;
         this.contents = contents;
-        this.checksum = checksum;
+        this.signature = signature;
     }
 
     public SystemMessage(BinaryInput input) throws IOException {
         this.timestamp = input.readLong();
         this.contents = input.readString();
-        this.checksum = input.readByteArray();
+        this.signature = input.readByteArray();
     }
 
     @Override
     public void write(BinaryOutput output) throws IOException {
         output.writeLong(this.timestamp);
         output.writeString(this.contents);
-        output.writeByteArray(this.checksum);
+        output.writeByteArray(this.signature);
     }
 
-    public byte[] getChecksum() {
-        return checksum;
+    public byte[] getSignature() {
+        return signature;
     }
 
     public String getContents() {

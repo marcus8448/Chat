@@ -20,10 +20,23 @@ import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
 
 import java.io.IOException;
 
+/**
+ * Data that can be sent over the network
+ *
+ * @see io.github.marcus8448.chat.core.api.network.packet.PacketType
+ */
 public interface NetworkedData {
+    /**
+     * @return the serialized length of this data, if available (otherwise -1)
+     */
     default int getLength() {
         return -1;
     }
 
+    /**
+     * Writes the data contained in this type to the stream
+     *
+     * @param output the place to write the data
+     */
     void write(BinaryOutput output) throws IOException;
 }
