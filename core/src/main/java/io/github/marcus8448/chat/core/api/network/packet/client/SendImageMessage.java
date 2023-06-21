@@ -29,25 +29,31 @@ import java.io.IOException;
  *
  * @see AddMessage The server's expected response to ALL clients
  */
-public class SendMessage implements NetworkedData {
+public class SendImageMessage implements NetworkedData {
     private final Identifier channel;
+    private final int width;
+    private final int height;
     /**
      * The contents of the message
      */
-    private final String message;
+    private final int[] message;
     /**
      * The checksum verifying the contents of the message
      */
     private final byte[] signature;
 
-    public SendMessage(BinaryInput input) throws IOException {
+    public SendImageMessage(BinaryInput input) throws IOException {
         this.channel = input.readIdentifier();
-        this.message = input.readString();
+        this.width = input.readShort();
+        this.height = input.readShort();
+        this.message = input.readIntArray(this.width * this.height);
         this.signature = input.readByteArray();
     }
 
-    public SendMessage(Identifier channel, String message, byte[] signature) {
+    public SendImageMessage(Identifier channel, int width, int height, int[] message, byte[] signature) {
         this.channel = channel;
+        this.width = width;
+        this.height = height;
         this.message = message;
         this.signature = signature;
     }
@@ -55,7 +61,9 @@ public class SendMessage implements NetworkedData {
     @Override
     public void write(BinaryOutput output) throws IOException {
         output.writeIdentifier(this.channel);
-        output.writeString(this.message);
+        output.writeShort(this.width);
+        output.writeShort(this.height);
+        output.writeIntArray(this.width * this.height, this.message);
         output.writeByteArray(this.signature);
     }
 
@@ -63,7 +71,15 @@ public class SendMessage implements NetworkedData {
         return channel;
     }
 
-    public String getMessage() {
+    public int getWidth() {
+        return width;
+    }
+
+    public int getHeight() {
+        return height;
+    }
+
+    public int[] getImage() {
         return message;
     }
 

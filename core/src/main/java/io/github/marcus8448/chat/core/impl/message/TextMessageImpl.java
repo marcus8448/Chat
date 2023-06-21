@@ -20,6 +20,9 @@ import io.github.marcus8448.chat.core.api.message.MessageAuthor;
 import io.github.marcus8448.chat.core.api.message.TextMessage;
 
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidKeyException;
+import java.security.Signature;
+import java.security.SignatureException;
 
 /**
  * Default implementation of a text message
@@ -42,13 +45,20 @@ public record TextMessageImpl(long timestamp, MessageAuthor author, String conte
     }
 
     @Override
-    public byte[] getContents() {
-        return this.contents.getBytes(StandardCharsets.UTF_8);
+    public byte[] getSignature() {
+        return this.signature;
     }
 
     @Override
-    public byte[] getSignature() {
-        return this.signature;
+    public boolean verifySignature()  {
+        Signature signature = RSA_SIGNATURE.get(); // get the global RSA signature instance
+        try {
+            signature.initVerify(this.getAuthor().getPublicKey()); // initialize the instance with the author's key
+            signature.update(this.contents.getBytes(StandardCharsets.UTF_8)); // set the data to be the message contents
+            return signature.verify(this.getSignature()); // verify the contents
+        } catch (InvalidKeyException | SignatureException e) {
+            return false; // the verification failed so return false.
+        }
     }
 
     @Override

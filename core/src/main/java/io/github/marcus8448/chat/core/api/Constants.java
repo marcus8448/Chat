@@ -16,6 +16,8 @@
 
 package io.github.marcus8448.chat.core.api;
 
+import io.github.marcus8448.chat.core.api.misc.Identifier;
+
 /**
  * Miscellaneous constant values
  */
@@ -37,4 +39,6 @@ public interface Constants {
      * Application name
      */
     String BRAND = "Chat";
+
+    Identifier BASE_CHANNEL = Identifier.create("default");
 }

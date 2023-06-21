@@ -18,7 +18,9 @@ package io.github.marcus8448.chat.core.api.network.packet;
 
 import io.github.marcus8448.chat.core.api.network.packet.client.Authenticate;
 import io.github.marcus8448.chat.core.api.network.packet.client.Hello;
+import io.github.marcus8448.chat.core.api.network.packet.client.SendImageMessage;
 import io.github.marcus8448.chat.core.api.network.packet.client.SendMessage;
+import io.github.marcus8448.chat.core.api.network.packet.common.ChannelList;
 
 /**
  * Types of packets SENT by the client TO the server
@@ -36,10 +38,16 @@ public interface ClientPacketTypes {
      * @see SendMessage
      */
     PacketType<SendMessage> SEND_MESSAGE = PacketType.create(SendMessage.class, SendMessage::new);
+    PacketType<SendImageMessage> SEND_IMAGE_MESSAGE = PacketType.create(SendImageMessage.class, SendImageMessage::new);
 
-    PacketType<EmptyRequest> CLIENT_REQUEST_CHANNELS = PacketType.create(EmptyRequest.class, EmptyRequest::new);
-    PacketType<EmptyRequest> CLIENT_JOIN_CHANNEL = PacketType.create(EmptyRequest.class, EmptyRequest::new);
-    PacketType<EmptyRequest> CLIENT_CREATE_CHANNEL = PacketType.create(EmptyRequest.class, EmptyRequest::new);
+    /**
+     * @see ChannelList
+     */
+    PacketType<ChannelList> JOIN_CHANNELS = PacketType.create(ChannelList.class, ChannelList::new);
+    /**
+     * @see ChannelList
+     */
+    PacketType<ChannelList> LEAVE_CHANNELS = PacketType.create(ChannelList.class, ChannelList::new);
 
     static void initialize() {
     }

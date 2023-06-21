@@ -18,17 +18,16 @@ package io.github.marcus8448.chat.server;
 
 import io.github.marcus8448.chat.core.api.Constants;
 import io.github.marcus8448.chat.core.api.account.User;
+import io.github.marcus8448.chat.core.api.channel.Channel;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
+import io.github.marcus8448.chat.core.api.misc.Cell;
 import io.github.marcus8448.chat.core.api.misc.Identifier;
-import io.github.marcus8448.chat.core.api.misc.OnceCell;
 import io.github.marcus8448.chat.core.api.network.NetworkedData;
 import io.github.marcus8448.chat.core.api.network.PacketPipeline;
 import io.github.marcus8448.chat.core.api.network.packet.PacketType;
 import io.github.marcus8448.chat.core.api.network.packet.ServerPacketTypes;
-import io.github.marcus8448.chat.core.api.network.packet.server.AddMessage;
-import io.github.marcus8448.chat.core.api.network.packet.server.SystemMessage;
-import io.github.marcus8448.chat.core.api.network.packet.server.UserConnect;
-import io.github.marcus8448.chat.core.api.network.packet.server.UserDisconnect;
+import io.github.marcus8448.chat.core.api.network.packet.common.ChannelList;
+import io.github.marcus8448.chat.core.api.network.packet.server.*;
 import io.github.marcus8448.chat.server.network.ClientConnectionHandler;
 import io.github.marcus8448.chat.server.network.ClientLoginConnectionHandler;
 import io.github.marcus8448.chat.server.thread.ConnectionThreadFactory;
@@ -48,10 +47,7 @@ import java.security.Signature;
 import java.security.SignatureException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -60,11 +56,12 @@ public class Server implements Closeable {
     public final ExecutorService executor;
     public final RSAPublicKey publicKey;
     public final RSAPrivateKey privateKey;
-    private final OnceCell<Thread> mainThread = new OnceCell<>();
+    private final Cell<Thread> mainThread = new Cell<>();
     private final ExecutorService connectionExecutor;
     private final Signature rsaSignature = CryptoHelper.createRsaSignature();
     private final List<ClientConnectionHandler> connectionHandlers = new ArrayList<>();
     private final Users users = new Users();
+    private final Map<Identifier, Channel> channels = new HashMap<>();
     private final ServerSocket socket;
     public volatile boolean shutdown = false;
 
@@ -88,9 +85,10 @@ public class Server implements Closeable {
         this.connectionExecutor = service;
         this.executor = Executors.newSingleThreadExecutor(r -> this.mainThread.setValue(new Thread(r, "Server Main")));
         this.socket = new ServerSocket(port);
+        this.channels.put(Constants.BASE_CHANNEL, new Channel(Constants.BASE_CHANNEL));
     }
 
-    public void sendMessage(String message) {
+    public void sendMessage(Identifier channel, String message) {
         this.assertOnThread();
         long time = System.currentTimeMillis();
         byte[] sign;
@@ -100,7 +98,16 @@ public class Server implements Closeable {
         } catch (SignatureException e) {
             throw new RuntimeException(e);
         }
-        this.sendToAll(ServerPacketTypes.SYSTEM_MESSAGE, new SystemMessage(time, message, sign));
+        this.sendToChannel(channel, ServerPacketTypes.SYSTEM_MESSAGE, new SystemMessage(channel, time, message, sign));
+    }
+
+    protected <Data extends NetworkedData> void sendToChannel(Identifier channel, PacketType<Data> type, Data data) {
+        Channel channel1 = this.channels.get(channel);
+        for (ClientConnectionHandler handler : this.connectionHandlers) {
+            if (channel1.getParticipants().contains(handler.getUser())) {
+                handler.send(type, data);
+            }
+        }
     }
 
     public void launch() {
@@ -146,9 +153,10 @@ public class Server implements Closeable {
     public void updateConnection(ClientConnectionHandler oldHandler, ClientConnectionHandler newHandler, User user) {
         this.executor.execute(() -> {
             if (this.connectionHandlers.remove(oldHandler)) {
-                LOGGER.info("User " + user.getLongIdName() + "has logged in.");
+                LOGGER.info("User " + user.getLongIdName() + " has logged in.");
                 this.sendToAll(ServerPacketTypes.USER_CONNECT, new UserConnect(user));
-                this.sendMessage(user.getShortIdName() + " has joined the chat!");
+                this.sendMessage(Constants.BASE_CHANNEL, user.getShortIdName() + " has joined the chat!");
+                this.channels.get(Constants.BASE_CHANNEL).addParticipant(user);
 
                 this.connectionHandlers.add(newHandler);
                 this.connectionExecutor.submit(newHandler);
@@ -191,9 +199,15 @@ public class Server implements Closeable {
         }
     }
 
-    public void receiveMessage(long time, User user, byte[] checksum, String message) {
+    protected Channel getChannel(Identifier id) {
+        return this.channels.get(id);
+    }
+
+    public void receiveMessage(Identifier channel, long time, User user, byte[] checksum, String message) {
         this.assertOnThread();
-        this.sendToAll(ServerPacketTypes.ADD_MESSAGE, new AddMessage(time, user.sessionId(), message, checksum));
+        if (this.getChannel(channel).contains(user)) {
+            this.sendToChannel(channel, ServerPacketTypes.ADD_MESSAGE, new AddMessage(channel, time, user.sessionId(), message, checksum));
+        }
     }
 
     public @NotNull User createUser(Identifier username, RSAPublicKey key, byte @Nullable [] icon) {
@@ -206,13 +220,51 @@ public class Server implements Closeable {
         this.connectionHandlers.remove(handler);
         if (user != null) {
             this.users.remove(user);
+            for (Channel value : this.channels.values()) {
+                value.removeParticipant(user);
+            }
 
             this.sendToAll(ServerPacketTypes.USER_DISCONNECT, new UserDisconnect(user.sessionId()));
-            this.sendMessage(user.getShortIdName() + " has left the chat.");
+            this.sendMessage(Constants.BASE_CHANNEL, user.getShortIdName() + " has left the chat.");
         }
     }
 
     public Collection<User> getUsers() {
         return this.users.getUsers();
+    }
+
+    public void leaveChannels(ClientConnectionHandler handler, User user, Identifier[] channels) {
+        List<Identifier> successful = new ArrayList<>();
+        for (Identifier channel : channels) {
+            if (channel.equals(Constants.BASE_CHANNEL)) continue;
+            Channel channel1 = this.channels.get(channel);
+            if (channel1 != null) {
+                if (channel1.contains(user)) {
+                    channel1.removeParticipant(user);
+                    successful.add(channel);
+                }
+            }
+        }
+        handler.send(ServerPacketTypes.REMOVE_CHANNELS, new ChannelList(successful.toArray(new Identifier[0])));
+    }
+
+    public void joinChannels(ClientConnectionHandler handler, User user, Identifier[] channels) {
+        List<Identifier> successful = new ArrayList<>();
+        for (Identifier channel : channels) {
+            if (channel.equals(Constants.BASE_CHANNEL)) continue;
+            Channel channel1 = this.channels.computeIfAbsent(channel, Channel::new);
+            if (!channel1.contains(user)) {
+                channel1.addParticipant(user);
+                successful.add(channel);
+            }
+        }
+        handler.send(ServerPacketTypes.ADD_CHANNELS, new ChannelList(successful.toArray(new Identifier[0])));
+    }
+
+    public void receiveImageMessage(Identifier channel, long l, User user, byte[] signature, int[] image, int width, int height) {
+        this.assertOnThread();
+        if (this.getChannel(channel).contains(user)) {
+            this.sendToChannel(channel, ServerPacketTypes.ADD_IMAGE_MESSAGE, new AddImageMessage(channel, l, user.sessionId(), width, height, image, signature));
+        }
     }
 }

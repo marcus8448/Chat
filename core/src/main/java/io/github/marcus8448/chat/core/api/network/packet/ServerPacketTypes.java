@@ -16,6 +16,7 @@
 
 package io.github.marcus8448.chat.core.api.network.packet;
 
+import io.github.marcus8448.chat.core.api.network.packet.common.ChannelList;
 import io.github.marcus8448.chat.core.api.network.packet.server.*;
 
 /**
@@ -51,6 +52,15 @@ public interface ServerPacketTypes {
      * @see UserDisconnect
      */
     PacketType<UserDisconnect> USER_DISCONNECT = PacketType.create(UserDisconnect.class, UserDisconnect::new);
+    /**
+     * @see io.github.marcus8448.chat.core.api.network.packet.common.ChannelList
+     */
+    PacketType<ChannelList> ADD_CHANNELS = PacketType.create(ChannelList.class, ChannelList::new);
+    /**
+     * @see io.github.marcus8448.chat.core.api.network.packet.common.ChannelList
+     */
+    PacketType<ChannelList> REMOVE_CHANNELS = PacketType.create(ChannelList.class, ChannelList::new);
+    PacketType<AddImageMessage> ADD_IMAGE_MESSAGE = PacketType.create(AddImageMessage.class, AddImageMessage::new);
 
     static void initialize() {
     }

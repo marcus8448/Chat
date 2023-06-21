@@ -23,7 +23,6 @@ import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.client.util.ParseUtil;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
 import io.github.marcus8448.chat.core.api.misc.Identifier;
-import javafx.beans.value.ChangeListener;
 import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
@@ -96,6 +95,12 @@ public class EditAccountScreen {
         VBox root = new VBox();
         JfxUtil.initializePadding(root);
 
+        this.username.disableProperty().bind(this.accounts.getSelectionModel().selectedItemProperty().isNull());
+        this.passwordField.disableProperty().bind(this.accounts.getSelectionModel().selectedItemProperty().isNull());
+        this.accounts.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) this.username.setText(newValue.username().getValue());
+        });
+
         double len = JfxUtil.getTextWidth("Username");
 
         root.getChildren().add(JfxUtil.createComboInputRow(new Label("Account"), this.accounts, len));
@@ -111,6 +116,10 @@ public class EditAccountScreen {
         root.getChildren().add(JfxUtil.createInputRow(new Label("New Password"), this.newPasswordField, "password", -1));
         root.getChildren().add(JfxUtil.createInputRow(new Label("New Password (again)"), this.newPasswordField2, "password (repeat)", -1));
 
+        this.changePassword.disableProperty().bind(this.accounts.getSelectionModel().selectedItemProperty().isNull());
+        this.newPasswordField.disableProperty().bind(this.changePassword.selectedProperty().not().or(this.accounts.getSelectionModel().selectedItemProperty().isNull()));
+        this.newPasswordField2.disableProperty().bind(this.changePassword.selectedProperty().not().or(this.accounts.getSelectionModel().selectedItemProperty().isNull()));
+
         JfxUtil.setupFailureLabel(this.failureReason);
         root.getChildren().add(this.failureReason);
 
@@ -122,6 +131,11 @@ public class EditAccountScreen {
         JfxUtil.buttonPressCallback(cancel, stage::close);
         JfxUtil.buttonPressCallback(delete, this::deleteAccount);
         JfxUtil.buttonPressCallback(save, this::updateAccount);
+
+        delete.disableProperty().bind(this.accounts.getSelectionModel().selectedItemProperty().isNull());
+        save.disableProperty().bind(this.accounts.getSelectionModel().selectedItemProperty().isNull()
+                .or(this.username.textProperty().isEmpty())
+                .or(this.passwordField.textProperty().isEmpty()));
 
         root.getChildren().add(JfxUtil.createButtonRow(cancel, delete, null, save));
 
@@ -136,33 +150,6 @@ public class EditAccountScreen {
                 this.updateAccount();
             }
         });
-
-        this.accounts.getSelectionModel().selectedItemProperty().addListener((ChangeListener<? super Account>) (o, old, newValue) -> {
-            if (newValue == null) {
-                this.username.setPromptText("");
-                save.setDisable(true);
-                delete.setDisable(true);
-            } else {
-                if (this.username.getText().isBlank()) this.username.setText(newValue.username().getValue());
-                this.username.setPromptText(newValue.username().getValue());
-                save.setDisable(false);
-                delete.setDisable(false);
-            }
-        });
-        delete.setDisable(true);
-        save.setDisable(true);
-
-        this.changePassword.setOnAction(e -> {
-            if (this.changePassword.isSelected()) { // enable/disable new password fields based on state
-                this.newPasswordField.setDisable(false);
-                this.newPasswordField2.setDisable(false);
-            } else {
-                this.newPasswordField.setDisable(true);
-                this.newPasswordField2.setDisable(true);
-            }
-        });
-        this.newPasswordField.setDisable(true);
-        this.newPasswordField2.setDisable(true);
 
         // set up the scene and stage
         Scene scene = new Scene(root);

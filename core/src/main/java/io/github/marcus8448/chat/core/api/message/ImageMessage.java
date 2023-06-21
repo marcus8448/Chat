@@ -16,15 +16,22 @@
 
 package io.github.marcus8448.chat.core.api.message;
 
+import java.nio.ByteBuffer;
+import java.security.InvalidKeyException;
+import java.security.Signature;
+import java.security.SignatureException;
+
 /**
  * A message that contains an image (no text)
  *
  * @param timestamp when the message was received on the server
  * @param author    who sent the message
+ * @param width
+ * @param height
  * @param image     the image data
  * @param signature the signature of the author, which verifies the message's authenticity
  */
-public record ImageMessage(long timestamp, MessageAuthor author, byte[] image, byte[] signature) implements Message {
+public record ImageMessage(long timestamp, MessageAuthor author, int width, int height, int[] image, byte[] signature) implements Message {
     @Override
     public long getTimestamp() {
         return this.timestamp;
@@ -36,13 +43,22 @@ public record ImageMessage(long timestamp, MessageAuthor author, byte[] image, b
     }
 
     @Override
-    public byte[] getContents() {
-        return this.image;
+    public byte[] getSignature() {
+        return this.signature;
     }
 
     @Override
-    public byte[] getSignature() {
-        return this.signature;
+    public boolean verifySignature()  {
+        Signature signature = RSA_SIGNATURE.get(); // get the global RSA signature instance
+        try {
+            signature.initVerify(this.getAuthor().getPublicKey()); // initialize the instance with the author's key
+            byte[] bytes = new byte[this.width * this.height * 4]; // so inefficient, but whatever
+            ByteBuffer.wrap(bytes).asIntBuffer().put(this.image);
+            signature.update(bytes); // set the data to be the message contents
+            return signature.verify(this.getSignature()); // verify the contents
+        } catch (InvalidKeyException | SignatureException e) {
+            return false; // the verification failed so return false.
+        }
     }
 
     @Override

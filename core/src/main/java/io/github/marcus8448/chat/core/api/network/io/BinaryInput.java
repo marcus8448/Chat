@@ -16,6 +16,7 @@
 
 package io.github.marcus8448.chat.core.api.network.io;
 
+import io.github.marcus8448.chat.core.api.misc.Identifier;
 import io.github.marcus8448.chat.core.impl.network.io.FixedBinaryInput;
 import io.github.marcus8448.chat.core.impl.network.io.InputStreamInput;
 import org.jetbrains.annotations.Contract;
@@ -61,7 +62,9 @@ public interface BinaryInput extends Closeable {
 
     String readString(int len) throws IOException;
 
-    void seekToIdentifier(int id) throws IOException;
+    Identifier readIdentifier() throws IOException;
+
+    void seekToHeader(int id) throws IOException;
 
     @Override
     void close() throws IOException;

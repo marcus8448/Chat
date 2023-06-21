@@ -16,6 +16,7 @@
 
 package io.github.marcus8448.chat.core.api.network.io;
 
+import io.github.marcus8448.chat.core.api.misc.Identifier;
 import io.github.marcus8448.chat.core.impl.network.io.FixedBinaryOutput;
 import io.github.marcus8448.chat.core.impl.network.io.OutputStreamOutput;
 import org.jetbrains.annotations.Contract;
@@ -60,6 +61,8 @@ public interface BinaryOutput extends Closeable {
     BinaryOutput writeString(@NotNull String s) throws IOException;
 
     BinaryOutput writeString(int len, @NotNull String s) throws IOException;
+
+    BinaryOutput writeIdentifier(@NotNull Identifier id) throws IOException;
 
     @Override
     void close() throws IOException;

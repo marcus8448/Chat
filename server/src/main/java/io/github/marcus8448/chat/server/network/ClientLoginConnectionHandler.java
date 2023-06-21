@@ -33,6 +33,7 @@ import io.github.marcus8448.chat.core.api.network.packet.server.AuthenticationSu
 import io.github.marcus8448.chat.server.Server;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.Nullable;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -149,5 +150,10 @@ public class ClientLoginConnectionHandler implements ClientConnectionHandler {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    @Override
+    public @Nullable User getUser() {
+        return null;
     }
 }

@@ -24,10 +24,7 @@ import io.github.marcus8448.chat.client.ui.UserTrustScreen;
 import io.github.marcus8448.chat.core.api.Constants;
 import io.github.marcus8448.chat.core.api.account.User;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
-import io.github.marcus8448.chat.core.api.message.Message;
-import io.github.marcus8448.chat.core.api.message.MessageAuthor;
-import io.github.marcus8448.chat.core.api.message.MessageType;
-import io.github.marcus8448.chat.core.api.message.TextMessage;
+import io.github.marcus8448.chat.core.api.message.*;
 import io.github.marcus8448.chat.core.api.misc.Identifier;
 import io.github.marcus8448.chat.core.api.network.PacketPipeline;
 import io.github.marcus8448.chat.core.api.network.packet.ClientPacketTypes;
@@ -35,10 +32,8 @@ import io.github.marcus8448.chat.core.api.network.packet.Packet;
 import io.github.marcus8448.chat.core.api.network.packet.ServerPacketTypes;
 import io.github.marcus8448.chat.core.api.network.packet.client.Authenticate;
 import io.github.marcus8448.chat.core.api.network.packet.client.Hello;
-import io.github.marcus8448.chat.core.api.network.packet.server.AddMessage;
-import io.github.marcus8448.chat.core.api.network.packet.server.AuthenticationRequest;
-import io.github.marcus8448.chat.core.api.network.packet.server.AuthenticationSuccess;
-import io.github.marcus8448.chat.core.api.network.packet.server.SystemMessage;
+import io.github.marcus8448.chat.core.api.network.packet.common.ChannelList;
+import io.github.marcus8448.chat.core.api.network.packet.server.*;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.collections.FXCollections;
@@ -66,6 +61,7 @@ import java.io.InputStream;
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.Signature;
@@ -73,11 +69,13 @@ import java.security.SignatureException;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Client extends Application implements Runnable {
     private static final Logger LOGGER = LogManager.getLogger();
-    public final ObservableList<Message> messages = FXCollections.observableArrayList();
+    public final Map<Identifier, ObservableList<Message>> messages = new HashMap<>();
     public final ObservableMap<Integer, User> users = FXCollections.observableHashMap();
     public final ObservableList<User> userList = FXCollections.observableArrayList();
     private final Cipher aesCipher = CryptoHelper.createAesCipher();
@@ -85,6 +83,7 @@ public class Client extends Application implements Runnable {
     public volatile boolean closeConnection = false;
     public Config config;
     public PacketPipeline connection;
+    public ObservableList<Identifier> channels = FXCollections.observableArrayList();
     private ChatView screen;
     private SecretKey passKey;
     private RSAPublicKey publicKey;
@@ -97,11 +96,11 @@ public class Client extends Application implements Runnable {
     private Identifier username;
 
     public Client() {
-        this.users.addListener((MapChangeListener<Integer, User>) change -> {
+        this.users.addListener((MapChangeListener<Integer, User>) change -> { // sync list with map
             if (change.wasAdded()) {
-                this.userList.add(change.getValueAdded());
+                Platform.runLater(() -> this.userList.add(change.getValueAdded()));
             } else {
-                this.userList.remove(change.getValueRemoved());
+                Platform.runLater(() -> this.userList.remove(change.getValueRemoved()));
             }
         });
     }
@@ -134,6 +133,7 @@ public class Client extends Application implements Runnable {
             this.connection.close();
         } catch (IOException ignored) {
         }
+        this.channels.clear();
         this.connection = null;
         this.passKey = null;
         this.serverPubKey = null;
@@ -160,6 +160,8 @@ public class Client extends Application implements Runnable {
         this.serverPubKey = serverKey;
         this.accountData = data;
         this.username = username;
+        this.messages.putIfAbsent(Constants.BASE_CHANNEL, FXCollections.observableArrayList());
+        if (!this.channels.contains(Constants.BASE_CHANNEL)) this.channels.add(0, Constants.BASE_CHANNEL);
         for (User user : users) {
             this.users.put(user.sessionId(), user);
         }
@@ -174,6 +176,14 @@ public class Client extends Application implements Runnable {
 
         Thread thread = new Thread(this, "Client Main");
         thread.start();
+
+        try {
+            this.connection.send(ClientPacketTypes.JOIN_CHANNELS, new ChannelList(this.accountData.channels().stream().map(Identifier::create).toArray(Identifier[]::new)));
+        } catch (Exception e) {
+            LOGGER.fatal("Failed to request channels", e);
+            this.shutdown();
+            return;
+        }
 
         if (this.trayIcon == null) {
             try (InputStream resourceAsStream = Client.class.getClassLoader().getResourceAsStream("icon.png")) {
@@ -225,7 +235,7 @@ public class Client extends Application implements Runnable {
                     AddMessage addMessage = packet.getAs(ServerPacketTypes.ADD_MESSAGE);
                     Platform.runLater(() -> {
                         TextMessage text = Message.text(addMessage.getTimestamp(), this.users.get(addMessage.getAuthorId()), addMessage.getContents(), addMessage.getSignature());
-                        addMessage(text);
+                        addMessage(addMessage.getChannel(), text);
                     });
                 } else if (packet.type() == ServerPacketTypes.USER_CONNECT) {
                     User user = packet.getAs(ServerPacketTypes.USER_CONNECT).getUser();
@@ -237,20 +247,57 @@ public class Client extends Application implements Runnable {
                     SystemMessage systemMessage = packet.getAs(ServerPacketTypes.SYSTEM_MESSAGE);
                     Platform.runLater(() -> {
                         TextMessage text = Message.text(systemMessage.getTimestamp(), MessageAuthor.system(this.serverPubKey), systemMessage.getContents(), systemMessage.getSignature());
-                        addMessage(text);
+                        addMessage(systemMessage.getChannel(), text);
+                    });
+                } else if (packet.type() == ServerPacketTypes.ADD_CHANNELS) {
+                    ChannelList list = packet.getAs(ServerPacketTypes.ADD_CHANNELS);
+                    Identifier[] listChannels = list.getChannels();
+                    Platform.runLater(() -> {
+                        for (Identifier listChannel : listChannels) {
+                            if (!this.channels.contains(listChannel)) {
+                                this.channels.add(listChannel);
+                                this.accountData.channels().add(listChannel.getValue());
+                                this.messages.put(listChannel, FXCollections.observableArrayList());
+                            }
+                        }
+                        this.saveAccountData();
+                    });
+                } else if (packet.type() == ServerPacketTypes.REMOVE_CHANNELS) {
+                    ChannelList list = packet.getAs(ServerPacketTypes.REMOVE_CHANNELS);
+                    Identifier[] listChannels = list.getChannels();
+                    Platform.runLater(() -> {
+                        for (Identifier listChannel : listChannels) {
+                            if (this.channels.remove(listChannel)) {
+                                this.messages.remove(listChannel);
+                                this.accountData.channels().remove(listChannel.getValue());
+                            }
+                        }
+                        this.saveAccountData();
+                    });
+                } else if (packet.type() == ServerPacketTypes.ADD_IMAGE_MESSAGE) {
+                    AddImageMessage msg = packet.getAs(ServerPacketTypes.ADD_IMAGE_MESSAGE);
+                    Platform.runLater(() -> {
+                        ImageMessage img = new ImageMessage(msg.getTimestamp(), this.users.get(msg.getAuthorId()), msg.getWidth(), msg.getHeight(), msg.getContents(), msg.getSignature());
+                        addMessage(msg.getChannel(), img);
                     });
                 }
             }
         } catch (IOException e) {
-            if (!this.closeConnection) LOGGER.error("Connection error", e);
+            if (!this.closeConnection) {
+                LOGGER.error("Connection error", e);
+            } else {
+                return;
+            }
         }
         if (!this.closeConnection) {
+            this.users.clear();
             if (this.screen != null) {
                 Platform.runLater(this.screen::markOffline);
             }
             if (!this.tryReconnect()) {
                 Alert alert = new Alert(Alert.AlertType.ERROR, "Server reconnection failed! Please log in again.");
                 this.logout(primaryStage);
+                alert.showAndWait();
             }
         }
     }
@@ -323,8 +370,9 @@ public class Client extends Application implements Runnable {
         }
     }
 
-    private void addMessage(Message message) {
-        this.messages.add(message);
+    private void addMessage(Identifier channel, Message message) {
+        if (!this.channels.contains(channel) || !this.messages.containsKey(channel)) return;
+        this.messages.get(channel).add(message);
         if (this.trayIcon != null && !this.primaryStage.isFocused()) {
             if (message.getType() == MessageType.TEXT) {
                 String message1 = ((TextMessage) message).getMessage();
@@ -357,6 +405,14 @@ public class Client extends Application implements Runnable {
                 this.connection.close();
             }
         } catch (IOException ignored) {
+        }
+        try {
+            if (this.systemTray != null && this.trayIcon != null) {
+                this.systemTray.remove(this.trayIcon);
+                this.systemTray = null;
+                this.trayIcon = null;
+            }
+        } catch (Exception ignored) {
         }
     }
 
@@ -396,7 +452,32 @@ public class Client extends Application implements Runnable {
         return this.accountData.knownAccounts().containsKey(account.getPublicKey());
     }
 
-    public void openEditSelfScreen() {
+    public void leaveChannel(Identifier item) {
+        if (!this.channels.contains(item)) return;
+        try {
+            this.connection.send(ClientPacketTypes.LEAVE_CHANNELS, new ChannelList(item));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
+    public void joinChannel(Identifier channel) {
+        if (this.channels.contains(channel)) return;
+        try {
+            this.connection.send(ClientPacketTypes.JOIN_CHANNELS, new ChannelList(channel));
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public byte[] signMessage(int[] pixels) {
+        byte[] arr = new byte[pixels.length * 4];
+        ByteBuffer.wrap(arr).asIntBuffer().put(pixels); // too lazy to bother with bits...
+        try {
+            this.rsaSignature.update(arr);
+            return this.rsaSignature.sign();
+        } catch (SignatureException e) {
+            throw new IllegalStateException(e);
+        }
     }
 }

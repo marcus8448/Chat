@@ -43,6 +43,7 @@ import java.security.KeyPair;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
+import java.util.ArrayList;
 import java.util.HashMap;
 
 /**
@@ -148,7 +149,7 @@ public class CreateAccountScreen {
         LOGGER.info("Keypair generation done (id: {})", CryptoHelper.sha256Hash(keyPair.getPublic().getEncoded()));
         try {
             // create and add the new account
-            this.client.config.addAccount(new Account(username, (RSAPublicKey) keyPair.getPublic(), new AccountData((RSAPrivateKey) keyPair.getPrivate(), new HashMap<>(), new HashMap<>()).encrypt(aesCipher)));
+            this.client.config.addAccount(new Account(username, (RSAPublicKey) keyPair.getPublic(), new AccountData((RSAPrivateKey) keyPair.getPrivate(), new HashMap<>(), new HashMap<>(), new ArrayList<>()).encrypt(aesCipher)));
         } catch (IllegalBlockSizeException | BadPaddingException e) {
             this.failureReason.setText("Failed to finalize account.");
             LOGGER.fatal("Account data encryption failed", e);

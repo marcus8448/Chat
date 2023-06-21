@@ -16,9 +16,11 @@
 
 package io.github.marcus8448.chat.server.network;
 
+import io.github.marcus8448.chat.core.api.account.User;
 import io.github.marcus8448.chat.core.api.network.NetworkedData;
 import io.github.marcus8448.chat.core.api.network.packet.Packet;
 import io.github.marcus8448.chat.core.api.network.packet.PacketType;
+import org.jetbrains.annotations.Nullable;
 
 public interface ClientConnectionHandler extends Runnable {
     void shutdown();
@@ -26,4 +28,6 @@ public interface ClientConnectionHandler extends Runnable {
     <Data extends NetworkedData> void handle(Packet<Data> packet);
 
     <Data extends NetworkedData> void send(PacketType<Data> type, Data data);
+
+    @Nullable User getUser();
 }

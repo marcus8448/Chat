@@ -31,9 +31,7 @@ import java.nio.charset.StandardCharsets;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.interfaces.RSAPublicKey;
 import java.security.spec.InvalidKeySpecException;
-import java.util.Base64;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 
 /**
  * Private data associated with an account
@@ -41,9 +39,10 @@ import java.util.Map;
  * @param privateKey    the full RSA private key of the account
  * @param knownAccounts map of user public key -> name, for accounts that have been manually trusted
  * @param knownServers  map of "hostname:port" -> public key, to identify trusted servers and avoid MitM attacks
+ * @param channels      list of channels to join automatically
  */
 public record AccountData(RSAPrivateKey privateKey, Map<RSAPublicKey, String> knownAccounts,
-                          Map<String, RSAPublicKey> knownServers) implements PrivateData<AccountData.EncryptedAccountData> {
+                          Map<String, RSAPublicKey> knownServers, List<String> channels) implements PrivateData<AccountData.EncryptedAccountData> {
     @Override
     public EncryptedAccountData encrypt(Cipher cipher) throws IllegalBlockSizeException, BadPaddingException {
         Map<byte[], byte[]> encodedAccounts = new HashMap<>(knownAccounts.size());
@@ -57,7 +56,11 @@ public record AccountData(RSAPrivateKey privateKey, Map<RSAPublicKey, String> kn
                     cipher.doFinal(entry.getValue().getEncoded())
             );
         }
-        return new EncryptedAccountData(cipher.doFinal(privateKey.getEncoded()), encodedAccounts, encodedServers);
+        List<byte[]> encodedChannels = new ArrayList<>();
+        for (String channel : this.channels) {
+            encodedChannels.add(cipher.doFinal(channel.getBytes(StandardCharsets.UTF_8)));
+        }
+        return new EncryptedAccountData(cipher.doFinal(privateKey.getEncoded()), encodedAccounts, encodedServers, encodedChannels);
     }
 
     /**
@@ -66,7 +69,7 @@ public record AccountData(RSAPrivateKey privateKey, Map<RSAPublicKey, String> kn
      * @see AccountData
      */
     public record EncryptedAccountData(byte[] privateKey, Map<byte[], byte[]> knownAccounts,
-                                       Map<byte[], byte[]> knownServers) implements Encrypted<AccountData> {
+                                       Map<byte[], byte[]> knownServers, List<byte[]> knownChannels) implements Encrypted<AccountData> {
         @Contract("_ -> new")
         @Override
         public @NotNull AccountData decrypt(@NotNull Cipher cipher) throws IllegalBlockSizeException, BadPaddingException, InvalidKeySpecException {
@@ -79,7 +82,11 @@ public record AccountData(RSAPrivateKey privateKey, Map<RSAPublicKey, String> kn
             for (Map.Entry<byte[], byte[]> entry : this.knownServers.entrySet()) {
                 decodedServers.put(new String(cipher.doFinal(entry.getKey()), StandardCharsets.UTF_8), CryptoHelper.decodeRsaPublicKey(cipher.doFinal(entry.getValue())));
             }
-            return new AccountData(rsaPrivateKey, decodedAccounts, decodedServers);
+            List<String> decodedChannels = new ArrayList<>();
+            for (byte[] channel : this.knownChannels) {
+                decodedChannels.add(new String(cipher.doFinal(channel), StandardCharsets.UTF_8));
+            }
+            return new AccountData(rsaPrivateKey, decodedAccounts, decodedServers, decodedChannels);
         }
 
         /**
@@ -98,11 +105,16 @@ public record AccountData(RSAPrivateKey privateKey, Map<RSAPublicKey, String> kn
                 JsonObject obj = json.getAsJsonObject();
                 Map<String, JsonElement> accountsJ = obj.get("known_accounts").getAsJsonObject().asMap();
                 Map<String, JsonElement> serversJ = obj.get("known_servers").getAsJsonObject().asMap();
+                JsonArray channelsJ = obj.get("known_channels").getAsJsonArray();
                 Map<byte[], byte[]> knownAccounts = new HashMap<>();
                 accountsJ.forEach((k, v) -> knownAccounts.put(decoder.decode(k), decoder.decode(v.getAsString())));
                 Map<byte[], byte[]> knownServers = new HashMap<>();
                 serversJ.forEach((k, v) -> knownServers.put(decoder.decode(k), decoder.decode(v.getAsString())));
-                return new EncryptedAccountData(decoder.decode(obj.get("private_key").getAsString()), knownAccounts, knownServers);
+                List<byte[]> knownChannels = new ArrayList<>();
+                for (JsonElement e : channelsJ) {
+                    knownChannels.add(decoder.decode(e.getAsString()));
+                }
+                return new EncryptedAccountData(decoder.decode(obj.get("private_key").getAsString()), knownAccounts, knownServers, knownChannels);
             }
 
             @Override
@@ -111,11 +123,14 @@ public record AccountData(RSAPrivateKey privateKey, Map<RSAPublicKey, String> kn
                 JsonObject object = new JsonObject();
                 JsonObject accounts = new JsonObject();
                 JsonObject servers = new JsonObject();
+                JsonArray channels = new JsonArray();
                 src.knownAccounts.forEach((k, v) -> accounts.addProperty(encoder.encodeToString(k), encoder.encodeToString(v)));
                 src.knownServers.forEach((k, v) -> servers.addProperty(encoder.encodeToString(k), encoder.encodeToString(v)));
+                src.knownChannels.forEach(c -> channels.add(encoder.encodeToString(c)));
                 object.addProperty("private_key", encoder.encodeToString(src.privateKey));
                 object.add("known_accounts", accounts);
                 object.add("known_servers", servers);
+                object.add("known_channels", channels);
                 return object;
             }
         }

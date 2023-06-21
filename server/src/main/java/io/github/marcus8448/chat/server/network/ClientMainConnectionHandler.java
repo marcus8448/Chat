@@ -22,11 +22,13 @@ import io.github.marcus8448.chat.core.api.network.PacketPipeline;
 import io.github.marcus8448.chat.core.api.network.packet.ClientPacketTypes;
 import io.github.marcus8448.chat.core.api.network.packet.Packet;
 import io.github.marcus8448.chat.core.api.network.packet.PacketType;
+import io.github.marcus8448.chat.core.api.network.packet.client.SendImageMessage;
 import io.github.marcus8448.chat.core.api.network.packet.client.SendMessage;
+import io.github.marcus8448.chat.core.api.network.packet.common.ChannelList;
 import io.github.marcus8448.chat.server.Server;
-import io.github.marcus8448.chat.server.util.Utils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.EOFException;
 import java.io.IOException;
@@ -49,7 +51,17 @@ public class ClientMainConnectionHandler implements ClientConnectionHandler {
         if (type == ClientPacketTypes.SEND_MESSAGE) {
             long time = System.currentTimeMillis();
             SendMessage send = packet.getAs(ClientPacketTypes.SEND_MESSAGE);
-            this.server.executor.submit(() -> this.server.receiveMessage(time, this.user, send.getSignature(), send.getMessage()));
+            this.server.executor.submit(() -> this.server.receiveMessage(send.getChannel(), time, this.user, send.getSignature(), send.getMessage()));
+        } else if (type == ClientPacketTypes.JOIN_CHANNELS) {
+            ChannelList list = packet.getAs(ClientPacketTypes.JOIN_CHANNELS);
+            this.server.executor.submit(() -> this.server.joinChannels(this, this.user, list.getChannels()));
+        } else if (type == ClientPacketTypes.LEAVE_CHANNELS) {
+            ChannelList list = packet.getAs(ClientPacketTypes.LEAVE_CHANNELS);
+            this.server.executor.submit(() -> this.server.leaveChannels(this, this.user, list.getChannels()));
+        } else if (type == ClientPacketTypes.SEND_IMAGE_MESSAGE) {
+            SendImageMessage imgMsg = packet.getAs(ClientPacketTypes.SEND_IMAGE_MESSAGE);
+            long l = System.currentTimeMillis();
+            this.server.executor.submit(() -> this.server.receiveImageMessage(imgMsg.getChannel(), l, this.user, imgMsg.getSignature(), imgMsg.getImage(), imgMsg.getWidth(), imgMsg.getHeight()));
         }
     }
 
@@ -83,5 +95,11 @@ public class ClientMainConnectionHandler implements ClientConnectionHandler {
         } catch (IOException e) {
             LOGGER.error("Failed to send packet", e);
         }
+    }
+
+    @NotNull
+    @Override
+    public User getUser() {
+        return user;
     }
 }

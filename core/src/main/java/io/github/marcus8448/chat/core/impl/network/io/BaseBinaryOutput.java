@@ -16,6 +16,7 @@
 
 package io.github.marcus8448.chat.core.impl.network.io;
 
+import io.github.marcus8448.chat.core.api.misc.Identifier;
 import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
 import org.jetbrains.annotations.NotNull;
 
@@ -81,7 +82,7 @@ public abstract class BaseBinaryOutput implements BinaryOutput {
 
     @Override
     public BinaryOutput writeIntArray(int @NotNull [] ints) throws IOException {
-        this.writeShort(ints.length);
+        this.writeInt(ints.length);
         this.writeIntArray(ints.length, ints);
         return this;
     }
@@ -107,6 +108,14 @@ public abstract class BaseBinaryOutput implements BinaryOutput {
         byte[] bytes = s.getBytes(StandardCharsets.UTF_8);
         assert bytes.length == len;
         this.writeByteArray(len, bytes);
+        return this;
+    }
+
+    @Override
+    public BinaryOutput writeIdentifier(@NotNull Identifier id) throws IOException {
+        int length = id.getValue().length();
+        this.writeByte(length); // must be short
+        this.writeByteArray(length, id.getValue().getBytes(StandardCharsets.UTF_8));
         return this;
     }
 }

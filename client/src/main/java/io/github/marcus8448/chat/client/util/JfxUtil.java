@@ -99,7 +99,7 @@ public class JfxUtil {
         label.setMinWidth(labelLen);
 
         field.setPrefHeight(JfxUtil.CONTROL_HEIGHT);
-        field.setPrefWidth(Integer.MAX_VALUE);
+        field.setMaxWidth(Integer.MAX_VALUE);
 
         HBox row = new HBox(label, field); // display: "<label> [combo box]"
         setupRow(label, field, row);
@@ -162,10 +162,18 @@ public class JfxUtil {
     public static void resizeAutoHeight(Stage stage, Scene scene, double width) {
         stage.setResizable(true);
         stage.setScene(scene);
-        stage.sizeToScene();
+        stage.setWidth(100);
+        stage.setHeight(100);
         Platform.runLater(() -> {
+            stage.sizeToScene();
+            stage.setMinWidth(width);
+            stage.setMinHeight(stage.getHeight());
             stage.setWidth(width);
+            stage.close();
+            stage.show();
             stage.centerOnScreen();
+            stage.setHeight(stage.getMinHeight());
+            stage.setWidth(stage.getMinWidth());
         });
     }
 }

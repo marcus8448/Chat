@@ -20,11 +20,15 @@ import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.parse.MarkdownParser;
 import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
+import io.github.marcus8448.chat.core.api.message.ImageMessage;
 import io.github.marcus8448.chat.core.api.message.Message;
 import io.github.marcus8448.chat.core.api.message.MessageType;
 import io.github.marcus8448.chat.core.api.message.TextMessage;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
+import javafx.scene.image.PixelBuffer;
+import javafx.scene.image.PixelFormat;
+import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.MouseEvent;
@@ -35,7 +39,7 @@ import javafx.scene.text.FontPosture;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextFlow;
 
-import java.io.ByteArrayInputStream;
+import java.nio.IntBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -95,7 +99,7 @@ public class MessageCell extends ListCell<Message> {
         this.authorName.setFont(AUTHOR_FONT);
 
         // lock the width of the contents to the width of the available space
-        this.textMessageContents.prefWidthProperty().bind(centerContent.widthProperty().subtract(16.0));
+        this.textMessageContents.prefWidthProperty().bind(centerContent.widthProperty().subtract(20.0));
 
         // create the contxt menu
         MenuItem copyContents = new MenuItem("Copy contents");
@@ -126,9 +130,11 @@ public class MessageCell extends ListCell<Message> {
                 // add image content if it doesn't already exist
                 if (!this.vBox.getChildren().contains(this.imageContents))
                     this.vBox.getChildren().add(this.imageContents);
-                Image image = new Image(new ByteArrayInputStream(item.getContents())); // load the image
+                Image image = new WritableImage(new PixelBuffer<>(((ImageMessage) item).width(), ((ImageMessage) item).height(), IntBuffer.wrap(((ImageMessage) item).image()), PixelFormat.getIntArgbPreInstance())); // load the image
                 // set the image data
                 this.imageContents.setBackground(new Background(new BackgroundImage(image, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.DEFAULT, BackgroundSize.DEFAULT)));
+                this.imageContents.setPrefWidth(image.getWidth());
+                this.imageContents.setPrefHeight(image.getHeight());
             }
             this.authorName.setText(this.client.getName(item.getAuthor())); // set the author text
             this.authorName.setOnMouseClicked(this::openAuthor); // set click handler
@@ -136,7 +142,7 @@ public class MessageCell extends ListCell<Message> {
             String hash = CryptoHelper.sha256Hash(item.getAuthor().getPublicKey().getEncoded()); //get the key id of the author
             if (item.verifySignature()) { // check that the message signature is valid
                 if (this.client.isTrusted(item.getAuthor())) { // check if the author is trusted
-                    this.authorName.setTooltip(new Tooltip(item.getAuthor().getShortIdName())); // set the tooltip to be the full id
+                    this.authorName.setTooltip(new Tooltip(item.getAuthor().getLongIdName())); // set the tooltip to be the full id
                 } else {
                     this.authorName.setTooltip(new Tooltip(hash)); // set the tooltip to be just the hash
                 }
@@ -172,7 +178,7 @@ public class MessageCell extends ListCell<Message> {
      */
     private void copyAuthorName() {
         Map<DataFormat, Object> data = new HashMap<>();
-        data.put(DataFormat.PLAIN_TEXT, this.client.getName(this.getItem().getAuthor()));
+        data.put(DataFormat.PLAIN_TEXT, this.getItem().getAuthor().getName());
         Clipboard.getSystemClipboard().setContent(data);
     }
 
@@ -184,7 +190,7 @@ public class MessageCell extends ListCell<Message> {
         if (this.getItem().getType() == MessageType.TEXT) {
             data.put(DataFormat.PLAIN_TEXT, ((TextMessage) this.getItem()).getMessage());
         } else {
-            data.put(DataFormat.IMAGE, this.getItem().getContents()); //fixme?
+            data.put(DataFormat.IMAGE, ((ImageMessage) this.getItem()).image());
         }
         Clipboard.getSystemClipboard().setContent(data);
     }

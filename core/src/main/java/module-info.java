@@ -4,6 +4,7 @@ module chat.core {
 
     exports io.github.marcus8448.chat.core.api;
     exports io.github.marcus8448.chat.core.api.account;
+    exports io.github.marcus8448.chat.core.api.channel;
     exports io.github.marcus8448.chat.core.api.crypto;
     exports io.github.marcus8448.chat.core.api.misc;
     exports io.github.marcus8448.chat.core.api.message;
@@ -12,4 +13,5 @@ module chat.core {
     exports io.github.marcus8448.chat.core.api.network.packet.client;
     exports io.github.marcus8448.chat.core.api.network.packet.server;
     exports io.github.marcus8448.chat.core.api.network.packet;
+    exports io.github.marcus8448.chat.core.api.network.packet.common;
 }

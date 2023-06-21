@@ -119,15 +119,16 @@ public class EncryptedNetworkPipeline implements PacketPipeline {
             throw new RuntimeException(e);
         }
         // send the data
-        this.output.writeByteArray(bytes);
+        this.output.writeInt(bytes.length);
+        this.output.writeByteArray(bytes.length, bytes);
     }
 
     @Override
     public <Data extends NetworkedData> Packet<Data> receivePacket() throws IOException {
         // Wait for a packet header
-        this.input.seekToIdentifier(this.packetHeader);
+        this.input.seekToHeader(this.packetHeader);
         // read the (encrypted) data
-        byte[] bytes = this.input.readByteArray();
+        byte[] bytes = this.input.readByteArray(this.input.readInt());
         byte[] clear;
         try {
             // decrypt the data

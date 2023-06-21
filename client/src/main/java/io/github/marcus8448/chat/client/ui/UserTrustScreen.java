@@ -19,6 +19,7 @@ package io.github.marcus8448.chat.client.ui;
 import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.core.api.account.User;
+import javafx.beans.binding.BooleanBinding;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
@@ -42,7 +43,6 @@ public class UserTrustScreen {
 
         this.selection = new ComboBox<>(this.client.userList);
 
-        this.selection.setPrefWidth(Integer.MAX_VALUE);
         this.selection.setConverter(new StringConverter<>() {
             @Override
             public String toString(User object) {
@@ -67,8 +67,6 @@ public class UserTrustScreen {
         cancel.setPrefWidth(JfxUtil.BUTTON_WIDTH);
 
         Button trust = new Button("Trust");
-        this.nickname.textProperty().addListener((observable, oldValue, newValue) -> trust.setDisable(newValue.isBlank()));
-        trust.setDisable(true);
         JfxUtil.buttonPressCallback(trust, this::trust);
         trust.setPrefWidth(JfxUtil.BUTTON_WIDTH);
 
@@ -78,19 +76,16 @@ public class UserTrustScreen {
 
         JfxUtil.unescapedEnterCallback(this.nickname, this::trust);
 
-        this.selection.selectionModelProperty().addListener((observable, oldValue, newValue) -> {
-            if (!newValue.isEmpty()) {
-                nickname.setText(newValue.getSelectedItem().username().getValue());
-                nickname.setDisable(false);
-                trust.setDisable(false);
-                revoke.setDisable(this.client.isTrusted(newValue.getSelectedItem()));
-            } else {
-                nickname.setText("");
-                nickname.setDisable(true);
-                trust.setDisable(true);
-                revoke.setDisable(true);
+        this.selection.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
+            if (newValue != null) {
+                nickname.setText(newValue.getName());
             }
         });
+        this.nickname.disableProperty().bind(this.selection.getSelectionModel().selectedItemProperty().isNull());
+        revoke.disableProperty().bind(this.selection.getSelectionModel().selectedItemProperty().map(m -> m == null || !this.client.isTrusted(m)));
+        trust.disableProperty()
+                .bind(BooleanBinding.booleanExpression(this.selection.getSelectionModel().selectedItemProperty().isNull())
+                .or(BooleanBinding.booleanExpression(this.nickname.textProperty().map(String::isBlank))));
 
         vBox.getChildren().add(JfxUtil.createButtonRow(cancel, null, revoke, trust));
 

@@ -21,13 +21,13 @@ import org.jetbrains.annotations.NotNull;
 import java.util.concurrent.ThreadFactory;
 
 public class ConnectionThreadFactory implements ThreadFactory {
-    private final int number = 1;
+    private int number = 1;
 
     public ConnectionThreadFactory() {
     }
 
     @Override
     public Thread newThread(@NotNull Runnable r) {
-        return new Thread(r, "Client Connection #" + number);
+        return new Thread(r, "Client Connection #" + number++);
     }
 }

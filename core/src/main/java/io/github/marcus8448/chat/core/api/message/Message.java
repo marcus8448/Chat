@@ -23,9 +23,7 @@ import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
-import java.security.InvalidKeyException;
 import java.security.Signature;
-import java.security.SignatureException;
 
 /**
  * Represents a message
@@ -45,19 +43,11 @@ public interface Message {
         return new InsecureTextMessage(timestamp, author, contents);
     }
 
-    @Contract(value = "_, _, _, _ -> new", pure = true)
-    static @NotNull Message image(long timestamp, MessageAuthor author, byte[] image, byte[] signature) {
-        return new ImageMessage(timestamp, author, image, signature);
-    }
-
     @Contract(pure = true)
     long getTimestamp();
 
     @Contract(pure = true)
     MessageAuthor getAuthor();
-
-    @Contract(pure = true)
-    byte[] getContents();
 
     @Contract(pure = true)
     byte[] getSignature();
@@ -67,16 +57,7 @@ public interface Message {
      *
      * @return whether the message checksum is valid
      */
-    default boolean verifySignature() {
-        Signature signature = RSA_SIGNATURE.get(); // get the global RSA signature instance
-        try {
-            signature.initVerify(this.getAuthor().getPublicKey()); // initialize the instance with the author's key
-            signature.update(this.getContents()); // set the data to be the message contents
-            return signature.verify(this.getSignature()); // verify the contents
-        } catch (InvalidKeyException | SignatureException e) {
-            return false; // the verification failed so return false.
-        }
-    }
+    boolean verifySignature();
 
     MessageType getType();
 }

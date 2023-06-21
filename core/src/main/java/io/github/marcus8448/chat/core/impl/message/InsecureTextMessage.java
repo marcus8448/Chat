@@ -19,8 +19,6 @@ package io.github.marcus8448.chat.core.impl.message;
 import io.github.marcus8448.chat.core.api.message.MessageAuthor;
 import io.github.marcus8448.chat.core.api.message.TextMessage;
 
-import java.nio.charset.StandardCharsets;
-
 /**
  * A message that is explicitly unsigned
  *
@@ -37,11 +35,6 @@ public record InsecureTextMessage(long timestamp, MessageAuthor author, String c
     @Override
     public MessageAuthor getAuthor() {
         return this.author;
-    }
-
-    @Override
-    public byte[] getContents() {
-        return this.contents.getBytes(StandardCharsets.UTF_8);
     }
 
     @Override

@@ -19,17 +19,17 @@ package io.github.marcus8448.chat.core.api.misc;
 import org.jetbrains.annotations.NotNull;
 
 /**
- * A holder type that can only be set once
+ * A holder type
  *
  * @param <T> the type contained in this object
  */
-public class OnceCell<T> {
+public class Cell<T> {
     /**
      * The value contained in this object
      */
     private T value = null;
 
-    public OnceCell() {
+    public Cell() {
     }
 
     /**
@@ -37,10 +37,8 @@ public class OnceCell<T> {
      *
      * @param value the value to set
      * @return the value set
-     * @throws UnsupportedOperationException if the cell has already been written to
      */
     public @NotNull T setValue(@NotNull T value) {
-        if (this.value != null) throw new UnsupportedOperationException("Overwrite cell");
         this.value = value;
         return this.value;
     }

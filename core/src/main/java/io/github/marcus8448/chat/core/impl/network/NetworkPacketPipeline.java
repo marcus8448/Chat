@@ -79,7 +79,7 @@ public class NetworkPacketPipeline implements PacketPipeline {
 
     @Override
     public <Data extends NetworkedData> Packet<Data> receivePacket() throws IOException {
-        this.input.seekToIdentifier(this.packetHeader); // wait for a packet header
+        this.input.seekToHeader(this.packetHeader); // wait for a packet header
         PacketType<Data> type = (PacketType<Data>) PacketType.getType(this.input.readShort()); // get the packet type
         LOGGER.debug("Received packet {}", type.getDataClass().getName());
         return new Packet<>(type, type.create(this.input)); // read the data and create a packet

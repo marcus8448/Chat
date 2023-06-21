@@ -69,6 +69,7 @@ public class ExportAccountScreen {
         vBox.getChildren().add(JfxUtil.createButtonRow(null, cancel, export));
 
         JfxUtil.unescapedEnterCallback(this.selection, this::export);
+        export.disableProperty().bind(this.selection.getSelectionModel().selectedItemProperty().isNull());
 
         Scene scene = new Scene(vBox);
         stage.setTitle("Export account");

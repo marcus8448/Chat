@@ -16,6 +16,7 @@
 
 package io.github.marcus8448.chat.core.api.network.packet.server;
 
+import io.github.marcus8448.chat.core.api.misc.Identifier;
 import io.github.marcus8448.chat.core.api.network.NetworkedData;
 import io.github.marcus8448.chat.core.api.network.io.BinaryInput;
 import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
@@ -26,6 +27,7 @@ import java.io.IOException;
  * Represents a message sent by the server (not a normal client)
  */
 public class SystemMessage implements NetworkedData {
+    private final Identifier channel;
     /**
      * When the server sent the message
      */
@@ -39,13 +41,15 @@ public class SystemMessage implements NetworkedData {
      */
     private final byte[] signature;
 
-    public SystemMessage(long timestamp, String contents, byte[] signature) {
+    public SystemMessage(Identifier channel, long timestamp, String contents, byte[] signature) {
+        this.channel = channel;
         this.timestamp = timestamp;
         this.contents = contents;
         this.signature = signature;
     }
 
     public SystemMessage(BinaryInput input) throws IOException {
+        this.channel = input.readIdentifier();
         this.timestamp = input.readLong();
         this.contents = input.readString();
         this.signature = input.readByteArray();
@@ -53,9 +57,14 @@ public class SystemMessage implements NetworkedData {
 
     @Override
     public void write(BinaryOutput output) throws IOException {
+        output.writeIdentifier(this.channel);
         output.writeLong(this.timestamp);
         output.writeString(this.contents);
         output.writeByteArray(this.signature);
+    }
+
+    public Identifier getChannel() {
+        return channel;
     }
 
     public byte[] getSignature() {

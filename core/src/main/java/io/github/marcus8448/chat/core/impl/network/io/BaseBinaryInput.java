@@ -16,6 +16,7 @@
 
 package io.github.marcus8448.chat.core.impl.network.io;
 
+import io.github.marcus8448.chat.core.api.misc.Identifier;
 import io.github.marcus8448.chat.core.api.network.io.BinaryInput;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -69,7 +70,7 @@ public abstract class BaseBinaryInput implements BinaryInput {
 
     @Override
     public int[] readIntArray() throws IOException {
-        return this.readIntArray(this.readShort());
+        return this.readIntArray(this.readInt());
     }
 
     @Override
@@ -92,7 +93,13 @@ public abstract class BaseBinaryInput implements BinaryInput {
     }
 
     @Override
-    public void seekToIdentifier(int id) throws IOException {
+    public Identifier readIdentifier() throws IOException {
+        int len = this.readByte();
+        return Identifier.create(new String(this.readByteArray(len), StandardCharsets.UTF_8));
+    }
+
+    @Override
+    public void seekToHeader(int id) throws IOException {
         int p0 = id >> 24 & 0xFF;
         int p1 = id >> 16 & 0xFF;
         int p2 = id >> 8 & 0xFF;
