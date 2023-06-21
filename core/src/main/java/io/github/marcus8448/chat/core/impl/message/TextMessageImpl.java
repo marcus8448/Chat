@@ -50,7 +50,7 @@ public record TextMessageImpl(long timestamp, MessageAuthor author, String conte
     }
 
     @Override
-    public boolean verifySignature()  {
+    public boolean verifySignature() {
         Signature signature = RSA_SIGNATURE.get(); // get the global RSA signature instance
         try {
             signature.initVerify(this.getAuthor().getPublicKey()); // initialize the instance with the author's key

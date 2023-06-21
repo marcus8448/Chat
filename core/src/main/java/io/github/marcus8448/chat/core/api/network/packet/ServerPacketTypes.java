@@ -26,41 +26,41 @@ public interface ServerPacketTypes {
     /**
      * @see AuthenticationRequest
      */
-    PacketType<AuthenticationRequest> AUTHENTICATION_REQUEST = PacketType.create(AuthenticationRequest.class, AuthenticationRequest::new);
+    PacketType<AuthenticationRequest> AUTHENTICATION_REQUEST = PacketType.create(AuthenticationRequest::new);
     /**
      * @see AuthenticationSuccess
      */
-    PacketType<AuthenticationSuccess> AUTHENTICATION_SUCCESS = PacketType.create(AuthenticationSuccess.class, AuthenticationSuccess::new);
+    PacketType<AuthenticationSuccess> AUTHENTICATION_SUCCESS = PacketType.create(AuthenticationSuccess::new);
     /**
      * @see AuthenticationFailure
      */
-    PacketType<AuthenticationFailure> AUTHENTICATION_FAILURE = PacketType.create(AuthenticationFailure.class, AuthenticationFailure::new);
+    PacketType<AuthenticationFailure> AUTHENTICATION_FAILURE = PacketType.create(AuthenticationFailure::new);
 
     /**
      * @see AddMessage
      */
-    PacketType<AddMessage> ADD_MESSAGE = PacketType.create(AddMessage.class, AddMessage::new);
+    PacketType<AddMessage> ADD_MESSAGE = PacketType.create(AddMessage::new);
     /**
      * @see SystemMessage
      */
-    PacketType<SystemMessage> SYSTEM_MESSAGE = PacketType.create(SystemMessage.class, SystemMessage::new);
+    PacketType<SystemMessage> SYSTEM_MESSAGE = PacketType.create(SystemMessage::new);
     /**
      * @see UserConnect
      */
-    PacketType<UserConnect> USER_CONNECT = PacketType.create(UserConnect.class, UserConnect::new);
+    PacketType<UserConnect> USER_CONNECT = PacketType.create(UserConnect::new);
     /**
      * @see UserDisconnect
      */
-    PacketType<UserDisconnect> USER_DISCONNECT = PacketType.create(UserDisconnect.class, UserDisconnect::new);
+    PacketType<UserDisconnect> USER_DISCONNECT = PacketType.create(UserDisconnect::new);
     /**
      * @see io.github.marcus8448.chat.core.api.network.packet.common.ChannelList
      */
-    PacketType<ChannelList> ADD_CHANNELS = PacketType.create(ChannelList.class, ChannelList::new);
+    PacketType<ChannelList> ADD_CHANNELS = PacketType.create(ChannelList::new);
     /**
      * @see io.github.marcus8448.chat.core.api.network.packet.common.ChannelList
      */
-    PacketType<ChannelList> REMOVE_CHANNELS = PacketType.create(ChannelList.class, ChannelList::new);
-    PacketType<AddImageMessage> ADD_IMAGE_MESSAGE = PacketType.create(AddImageMessage.class, AddImageMessage::new);
+    PacketType<ChannelList> REMOVE_CHANNELS = PacketType.create(ChannelList::new);
+    PacketType<AddImageMessage> ADD_IMAGE_MESSAGE = PacketType.create(AddImageMessage::new);
 
     static void initialize() {
     }

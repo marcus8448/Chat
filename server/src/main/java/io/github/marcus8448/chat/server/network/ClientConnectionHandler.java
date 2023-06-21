@@ -23,11 +23,30 @@ import io.github.marcus8448.chat.core.api.network.packet.PacketType;
 import org.jetbrains.annotations.Nullable;
 
 public interface ClientConnectionHandler extends Runnable {
+    /**
+     * Closes the connection with the client
+     */
     void shutdown();
 
+    /**
+     * Acts on received packets
+     *
+     * @param packet the packet received
+     * @param <Data> the type of packet received
+     */
     <Data extends NetworkedData> void handle(Packet<Data> packet);
 
+    /**
+     * Sends a packet to the connected client
+     *
+     * @param type   the type of packet to send
+     * @param data   the packet body
+     * @param <Data> the type of packet body
+     */
     <Data extends NetworkedData> void send(PacketType<Data> type, Data data);
 
+    /**
+     * @return the user associated with this client
+     */
     @Nullable User getUser();
 }

@@ -31,7 +31,8 @@ import java.security.SignatureException;
  * @param image     the image data
  * @param signature the signature of the author, which verifies the message's authenticity
  */
-public record ImageMessage(long timestamp, MessageAuthor author, int width, int height, int[] image, byte[] signature) implements Message {
+public record ImageMessage(long timestamp, MessageAuthor author, int width, int height, int[] image,
+                           byte[] signature) implements Message {
     @Override
     public long getTimestamp() {
         return this.timestamp;
@@ -48,7 +49,7 @@ public record ImageMessage(long timestamp, MessageAuthor author, int width, int 
     }
 
     @Override
-    public boolean verifySignature()  {
+    public boolean verifySignature() {
         Signature signature = RSA_SIGNATURE.get(); // get the global RSA signature instance
         try {
             signature.initVerify(this.getAuthor().getPublicKey()); // initialize the instance with the author's key

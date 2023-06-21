@@ -5,6 +5,7 @@ plugins {
 
 application {
     mainClass.set("io.github.marcus8448.chat.client.Main")
+    mainModule.set("chat.client")
 }
 
 dependencies {

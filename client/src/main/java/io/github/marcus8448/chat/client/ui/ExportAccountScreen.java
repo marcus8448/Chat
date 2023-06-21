@@ -54,7 +54,7 @@ public class ExportAccountScreen {
         this.stage = stage;
 
         VBox vBox = new VBox();
-        JfxUtil.initializePadding(vBox);
+        JfxUtil.initVbox(vBox);
 
         this.selection = new ComboBox<>(client.config.getAccounts());
         this.selection.setConverter(JfxUtil.ACCOUNT_STRING_CONVERTER);

@@ -46,7 +46,13 @@ import java.util.Objects;
 
 public class ClientLoginConnectionHandler implements ClientConnectionHandler {
     private static final Logger LOGGER = LogManager.getLogger();
+    /**
+     * The server instance
+     */
     private final Server server;
+    /**
+     * The connection pipeline
+     */
     private final PacketPipeline pipeline;
 
     public ClientLoginConnectionHandler(Server server, PacketPipeline pipeline) {
@@ -56,7 +62,7 @@ public class ClientLoginConnectionHandler implements ClientConnectionHandler {
 
     @Override
     public <Data extends NetworkedData> void handle(Packet<Data> packet) {
-        throw new UnsupportedOperationException("Login");
+        throw new UnsupportedOperationException("Login cannot handle extra packets");
     }
 
     @Override
@@ -65,16 +71,20 @@ public class ClientLoginConnectionHandler implements ClientConnectionHandler {
             while (!this.server.shutdown && this.pipeline.isOpen()) {
                 Packet<?> packet = this.pipeline.receivePacket();
                 PacketType<?> type = packet.type();
+                // only accept hello packets
                 if (type == ClientPacketTypes.HELLO) {
                     Hello hello = (Hello) packet.data();
                     LOGGER.trace("Hello from '{}' version {}", hello.getBrand(), hello.getVersion());
-                    if (!Objects.equals(hello.getVersion(), Constants.VERSION)) {
+                    if (!Objects.equals(hello.getVersion(), Constants.VERSION)) { // verify that version matches
                         LOGGER.warn("Rejected client due to version mismatch [client: {} | server: {}]", hello.getVersion(), Constants.VERSION);
                         this.pipeline.send(ServerPacketTypes.AUTHENTICATION_FAILURE, new AuthenticationFailure("Version mismatch!"));
                         this.pipeline.close();
                         return;
                     }
-                    SecretKey secretKey = CryptoHelper.AES_KEY_GENERATOR.generateKey();
+                    // generate a session encryption key
+                    SecretKey connectionKey = CryptoHelper.AES_KEY_GENERATOR.generateKey();
+
+                    //setup basic encryption to the client
                     Cipher rsaCipher = CryptoHelper.createRsaCipher();
                     try {
                         rsaCipher.init(Cipher.ENCRYPT_MODE, hello.getKey());
@@ -82,30 +92,36 @@ public class ClientLoginConnectionHandler implements ClientConnectionHandler {
                         throw new RuntimeException(e);
                     }
 
+                    // send the encrypted session key to the client
                     LOGGER.trace("Sending authentication data");
-                    byte[] encoded = secretKey.getEncoded();
+                    byte[] encoded = connectionKey.getEncoded();
                     try {
                         this.pipeline.send(ServerPacketTypes.AUTHENTICATION_REQUEST, new AuthenticationRequest(this.server.publicKey, rsaCipher.doFinal(encoded)));
                     } catch (IllegalBlockSizeException | BadPaddingException e) {
                         throw new RuntimeException(e);
                     }
 
+                    // get the client's response to the authentication data
                     Packet<Authenticate> packet1 = this.pipeline.receivePacket();
+
                     Authenticate auth = packet1.data();
                     try {
                         rsaCipher.init(Cipher.DECRYPT_MODE, this.server.privateKey);
                     } catch (InvalidKeyException e) {
                         throw new RuntimeException(e);
                     }
-                    byte[] bytes1 = rsaCipher.doFinal(auth.getData());
 
-                    if (Arrays.equals(bytes1, encoded)) {
+                    // decrypt the response
+                    byte[] bytes1 = rsaCipher.doFinal(auth.getData());
+                    if (Arrays.equals(bytes1, encoded)) { // verify the client knows the secret key
                         if (this.server.canAccept(hello.getKey())) {
                             LOGGER.info("New client successfully connected");
                             this.server.executor.execute(() -> {
+                                // add the user
                                 User user = this.server.createUser(auth.getUsername(), hello.getKey(), null);
                                 try {
-                                    this.server.updateConnection(this, new ClientMainConnectionHandler(this.server, this.pipeline.encryptWith(secretKey), user), user);
+                                    // update the server state to accept the user
+                                    this.server.updateConnection(this, new ClientMainConnectionHandler(this.server, this.pipeline.encryptWith(connectionKey), user), user);
                                     this.pipeline.send(ServerPacketTypes.AUTHENTICATION_SUCCESS, new AuthenticationSuccess(this.server.getUsers()));
                                 } catch (IOException e) {
                                     LOGGER.error(e);
@@ -137,7 +153,7 @@ public class ClientLoginConnectionHandler implements ClientConnectionHandler {
     public void shutdown() {
         try {
             this.pipeline.close();
-            server.executor.execute(() -> server.disconnect(this, null));
+            this.server.executor.execute(() -> this.server.disconnect(this, null));
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

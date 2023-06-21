@@ -19,6 +19,14 @@ package io.github.marcus8448.chat.client.util;
 import io.github.marcus8448.chat.core.api.misc.Result;
 
 public class ParseUtil {
+    /**
+     * Validates the given password to be secure.
+     * 1+ digit, lowercase letter, uppercase letter, and symbol.
+     * Length: 8+ characters.
+     *
+     * @param password the password is secure
+     * @return Ok, if the password is secure, otherwise the reason it is insecure
+     */
     public static Result<Void, String> validatePassword(String password) {
         if (password.length() < 8) return Result.error("Too short");
         boolean digit = false, lower = false, upper = false, symbol = false;

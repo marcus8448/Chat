@@ -28,10 +28,25 @@ import javafx.util.StringConverter;
 
 
 public class UserTrustScreen {
+    /**
+     * List of users to modify
+     */
     private final ComboBox<User> selection;
+    /**
+     * The nickname input field
+     */
     private final TextField nickname = new TextField();
+    /**
+     * The reason why the nickname could not be set
+     */
     private final Label failureReason = new Label();
+    /**
+     * The client instance
+     */
     private final Client client;
+    /**
+     * The current stagez
+     */
     private final Stage stage;
 
     public UserTrustScreen(Client client, Stage stage) {
@@ -39,11 +54,11 @@ public class UserTrustScreen {
         this.stage = stage;
 
         VBox vBox = new VBox();
-        JfxUtil.initializePadding(vBox);
+        JfxUtil.initVbox(vBox);
 
         this.selection = new ComboBox<>(this.client.userList);
 
-        this.selection.setConverter(new StringConverter<>() {
+        this.selection.setConverter(new StringConverter<>() { // creates the text in the combo box
             @Override
             public String toString(User object) {
                 return object == null ? "" : object.getLongIdName();
@@ -55,13 +70,17 @@ public class UserTrustScreen {
             }
         });
 
+        //input rows
         double len = JfxUtil.getTextWidth("Nickname");
         vBox.getChildren().add(JfxUtil.createComboInputRow(new Label("Account"), this.selection, len));
         vBox.getChildren().add(JfxUtil.createInputRow(new Label("Nickname"), this.nickname, "nickname", len));
 
+        // failure label
         JfxUtil.setupFailureLabel(this.failureReason);
         vBox.getChildren().add(this.failureReason);
 
+
+        // buttons
         Button cancel = new Button("Cancel");
         JfxUtil.buttonPressCallback(cancel, this.stage::close);
         cancel.setPrefWidth(JfxUtil.BUTTON_WIDTH);
@@ -78,14 +97,15 @@ public class UserTrustScreen {
 
         this.selection.getSelectionModel().selectedItemProperty().addListener((observable, oldValue, newValue) -> {
             if (newValue != null) {
-                nickname.setText(newValue.getName());
+                nickname.setText(newValue.getName()); // when the selection changes, set the nickname to the username
             }
         });
+        // disable buttons when in invalid state
         this.nickname.disableProperty().bind(this.selection.getSelectionModel().selectedItemProperty().isNull());
         revoke.disableProperty().bind(this.selection.getSelectionModel().selectedItemProperty().map(m -> m == null || !this.client.isTrusted(m)));
         trust.disableProperty()
                 .bind(BooleanBinding.booleanExpression(this.selection.getSelectionModel().selectedItemProperty().isNull())
-                .or(BooleanBinding.booleanExpression(this.nickname.textProperty().map(String::isBlank))));
+                        .or(BooleanBinding.booleanExpression(this.nickname.textProperty().map(String::isBlank))));
 
         vBox.getChildren().add(JfxUtil.createButtonRow(cancel, null, revoke, trust));
 
@@ -94,6 +114,9 @@ public class UserTrustScreen {
         JfxUtil.resizeAutoHeight(stage, scene, 700.0);
     }
 
+    /**
+     * Revoke the selected user's trust
+     */
     private void revoke() {
         SingleSelectionModel<User> selectionModel = this.selection.getSelectionModel();
         if (selectionModel.isEmpty()) {
@@ -105,6 +128,9 @@ public class UserTrustScreen {
         this.stage.close();
     }
 
+    /**
+     * Trust the selected user
+     */
     private void trust() {
         SingleSelectionModel<User> selectionModel = this.selection.getSelectionModel();
         if (selectionModel.isEmpty()) {
@@ -121,6 +147,11 @@ public class UserTrustScreen {
         this.stage.close();
     }
 
+    /**
+     * selects the given item
+     *
+     * @param item the item to select
+     */
     public void select(User item) {
         this.selection.getSelectionModel().select(item);
     }

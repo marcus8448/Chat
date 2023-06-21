@@ -22,8 +22,6 @@ import io.github.marcus8448.chat.core.api.network.io.BinaryInput;
 import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
 import io.github.marcus8448.chat.core.api.network.packet.Packet;
 import io.github.marcus8448.chat.core.api.network.packet.PacketType;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import javax.crypto.SecretKey;
@@ -38,7 +36,6 @@ import java.net.Socket;
  * @see EncryptedNetworkPipeline
  */
 public class NetworkPacketPipeline implements PacketPipeline {
-    private static final Logger LOGGER = LogManager.getLogger();
 
     /**
      * The packet header in use
@@ -71,7 +68,6 @@ public class NetworkPacketPipeline implements PacketPipeline {
 
     @Override
     public synchronized <Data extends NetworkedData> void send(PacketType<Data> type, Data networkedData) throws IOException {
-        LOGGER.debug("Sending packet {}", type.getDataClass().getName());
         this.output.writeInt(this.packetHeader); // write the packet header
         this.output.writeShort(type.getId()); // write the packet id
         networkedData.write(this.output); // write the raw data - no length knowledge required.
@@ -81,7 +77,6 @@ public class NetworkPacketPipeline implements PacketPipeline {
     public <Data extends NetworkedData> Packet<Data> receivePacket() throws IOException {
         this.input.seekToHeader(this.packetHeader); // wait for a packet header
         PacketType<Data> type = (PacketType<Data>) PacketType.getType(this.input.readShort()); // get the packet type
-        LOGGER.debug("Received packet {}", type.getDataClass().getName());
         return new Packet<>(type, type.create(this.input)); // read the data and create a packet
     }
 

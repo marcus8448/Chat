@@ -42,7 +42,8 @@ import java.util.*;
  * @param channels      list of channels to join automatically
  */
 public record AccountData(RSAPrivateKey privateKey, Map<RSAPublicKey, String> knownAccounts,
-                          Map<String, RSAPublicKey> knownServers, List<String> channels) implements PrivateData<AccountData.EncryptedAccountData> {
+                          Map<String, RSAPublicKey> knownServers,
+                          List<String> channels) implements PrivateData<AccountData.EncryptedAccountData> {
     @Override
     public EncryptedAccountData encrypt(Cipher cipher) throws IllegalBlockSizeException, BadPaddingException {
         Map<byte[], byte[]> encodedAccounts = new HashMap<>(knownAccounts.size());
@@ -69,7 +70,8 @@ public record AccountData(RSAPrivateKey privateKey, Map<RSAPublicKey, String> kn
      * @see AccountData
      */
     public record EncryptedAccountData(byte[] privateKey, Map<byte[], byte[]> knownAccounts,
-                                       Map<byte[], byte[]> knownServers, List<byte[]> knownChannels) implements Encrypted<AccountData> {
+                                       Map<byte[], byte[]> knownServers,
+                                       List<byte[]> knownChannels) implements Encrypted<AccountData> {
         @Contract("_ -> new")
         @Override
         public @NotNull AccountData decrypt(@NotNull Cipher cipher) throws IllegalBlockSizeException, BadPaddingException, InvalidKeySpecException {

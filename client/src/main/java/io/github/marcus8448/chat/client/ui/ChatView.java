@@ -66,7 +66,7 @@ public class ChatView {
     /**
      * The status display on the left side
      */
-    private final Label leftStatus = new Label("...");
+    private final Label leftStatus = new Label("");
     /**
      * The status display on the right side
      * Displays online/offline base don connection state
@@ -110,9 +110,6 @@ public class ChatView {
         stage.centerOnScreen();
 
         // create top toolbar
-//        MenuItem preferences = new MenuItem("Preferences"); //TODO
-//        preferences.setOnAction(e -> {
-//        });
         MenuItem logOut = new MenuItem("Log out");
         logOut.setOnAction(e -> this.client.logout(stage)); // logs out the user (to login screen)
         MenuItem exit = new MenuItem("Exit");
@@ -125,11 +122,7 @@ public class ChatView {
                         new SeparatorMenuItem(),
                         logOut,
                         exit
-                )/*,
-                new Menu("Account", null,
-                        new SeparatorMenuItem(),
-                        trust
-                )*/
+                ) // there used to be more stuff
         );
         VBox.setVgrow(bar, Priority.NEVER); // disable growth of the bar
         vBox.getChildren().add(bar); // add the bar to the window
@@ -163,15 +156,21 @@ public class ChatView {
             messagesList.setItems(messages);
 
         });
+
+        // CHANNELS column
         Label channelsHeader = new Label("Channels");
         TextField channelInput = new TextField();
-        channelInput.setPromptText("channel");
+        channelInput.setPromptText("add channel");
+
         Button addChannelButton = new Button();
         addChannelButton.setPrefHeight(30);
+        // make button square
         addChannelButton.minWidthProperty().bind(addChannelButton.heightProperty());
         addChannelButton.prefWidthProperty().bind(addChannelButton.heightProperty());
+        // disable button when channel invalid
         addChannelButton.disableProperty().bind(channelInput.textProperty().map(s -> !Identifier.verify(s) || this.client.channels.size() >= 50 || this.client.channels.contains(Identifier.create(s))));
 
+        // add channel input row
         HBox addChannel = new HBox(channelInput, addChannelButton);
         addChannel.setPadding(new Insets(3.0));
         addChannel.setSpacing(3);
@@ -210,6 +209,7 @@ public class ChatView {
         HBox messageSendBox = new HBox(messageBox, sendButton);
         messageSendBox.setPadding(new Insets(3.0));
         sendButton.setMaxHeight(Integer.MAX_VALUE);
+        // make button square
         sendButton.minWidthProperty().bind(sendButton.heightProperty());
         sendButton.prefHeightProperty().bind(sendButton.heightProperty());
         messageBox.setOnKeyPressed(e -> {
@@ -261,12 +261,15 @@ public class ChatView {
             LOGGER.info("Closing app...");
             this.client.shutdown();
         }); // when the app is closed, shutdown the entire client
+
+        // IMAGE UPLOADING
         this.messageBox.setOnDragOver(e -> {
             Dragboard dragboard = e.getDragboard();
             if (dragboard.hasFiles()) {
-                e.acceptTransferModes(TransferMode.COPY, TransferMode.MOVE);
+                e.acceptTransferModes(TransferMode.COPY, TransferMode.MOVE); //accept files for upload
             }
         });
+
         this.messageBox.setOnDragDropped(e -> {
             if (e.getDragboard().hasFiles()) {
                 boolean anyConsumed = false;
@@ -274,29 +277,33 @@ public class ChatView {
                     if (file.exists()) {
                         Image image;
                         try {
-                            image = new Image(new FileInputStream(file));
-                            this.sendImage(image);
+                            image = new Image(new FileInputStream(file)); // parse image
+                            this.sendImage(image); //send it
                             anyConsumed = true;
                         } catch (FileNotFoundException ignored) {
                         }
                     }
                 }
+                // we used the files
                 e.setDropCompleted(anyConsumed);
             }
         });
     }
 
-    private void sendImage(Image dragView) {
+    private void sendImage(Image dragView) { // todo: send raw image, not pixels
         if (this.sendButton.isDisabled()) return; // if we can't send, don't bother
         int width = (int) dragView.getWidth();
         int height = (int) dragView.getHeight();
         int[] pixels = new int[width * height];
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
+                // read pixels (oh no)
                 pixels[y * width + x] = dragView.getPixelReader().getArgb(x, y) | 0xFF000000;
             }
         }
+
         try {
+            //send the image
             this.client.connection.send(ClientPacketTypes.SEND_IMAGE_MESSAGE, new SendImageMessage(this.channel, width, height, pixels, client.signMessage(pixels)));
         } catch (IOException e) {
             LOGGER.fatal("Failed to send image message", e);

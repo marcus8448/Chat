@@ -53,16 +53,49 @@ import java.util.concurrent.Executors;
 
 public class Server implements Closeable {
     private static final Logger LOGGER = LogManager.getLogger();
+    /**
+     * The main executor service
+     */
     public final ExecutorService executor;
+    /**
+     * This server's public RSA key
+     */
     public final RSAPublicKey publicKey;
+    /**
+     * This server's private RSA key
+     */
     public final RSAPrivateKey privateKey;
+    /**
+     * The current main executor thread
+     */
     private final Cell<Thread> mainThread = new Cell<>();
+    /**
+     * The executor service that manages all client connections
+     */
     private final ExecutorService connectionExecutor;
+    /**
+     * RSA signature instance initialized with the server's private key
+     */
     private final Signature rsaSignature = CryptoHelper.createRsaSignature();
+    /**
+     * Active client connections
+     */
     private final List<ClientConnectionHandler> connectionHandlers = new ArrayList<>();
+    /**
+     * Active (online) users
+     */
     private final Users users = new Users();
+    /**
+     * Map of channel names -> channels
+     */
     private final Map<Identifier, Channel> channels = new HashMap<>();
+    /**
+     * The main (incoming connection) socket
+     */
     private final ServerSocket socket;
+    /**
+     * Whether the server is/should be shutting down
+     */
     public volatile boolean shutdown = false;
 
     public Server(int port, RSAPublicKey publicKey, RSAPrivateKey privateKey) throws IOException {
@@ -70,49 +103,72 @@ public class Server implements Closeable {
         this.privateKey = privateKey;
         ExecutorService service;
         try {
+            // use virtual threads if possible
             service = (ExecutorService) Executors.class.getMethod("newVirtualThreadPerTaskExecutor").invoke(null);
             LOGGER.info("Using virtual thread executor");
         } catch (Exception e) {
+            // unavailable, so use a normal executor
             service = Executors.newCachedThreadPool(new ConnectionThreadFactory());
             LOGGER.info("Using cached thread pool executor (JDK 19/20 preview features are not available)");
         }
         try {
+            // initialize our signature
             this.rsaSignature.initSign(this.privateKey);
         } catch (InvalidKeyException e) {
             LOGGER.fatal("Failed to initialize signature with private key.", e);
             System.exit(0);
         }
+
         this.connectionExecutor = service;
         this.executor = Executors.newSingleThreadExecutor(r -> this.mainThread.setValue(new Thread(r, "Server Main")));
         this.socket = new ServerSocket(port);
+        // add the default channel
         this.channels.put(Constants.BASE_CHANNEL, new Channel(Constants.BASE_CHANNEL));
     }
 
+    /**
+     * Send a SYSTEM message to all clients listening to a channel
+     *
+     * @param channel the channel to send to
+     * @param message the message
+     */
     public void sendMessage(Identifier channel, String message) {
         this.assertOnThread();
         long time = System.currentTimeMillis();
         byte[] sign;
+        // sign the message
         try {
             this.rsaSignature.update(message.getBytes(StandardCharsets.UTF_8));
             sign = this.rsaSignature.sign();
         } catch (SignatureException e) {
             throw new RuntimeException(e);
         }
+        // send the message
         this.sendToChannel(channel, ServerPacketTypes.SYSTEM_MESSAGE, new SystemMessage(channel, time, message, sign));
     }
 
+    /**
+     * Sends the given packet to all clients listening to a channel
+     *
+     * @param channel the channel to send to
+     * @param type    the type of packet
+     * @param data    the packet contents
+     * @param <Data>  the type of packet data
+     */
     protected <Data extends NetworkedData> void sendToChannel(Identifier channel, PacketType<Data> type, Data data) {
         Channel channel1 = this.channels.get(channel);
-        for (ClientConnectionHandler handler : this.connectionHandlers) {
-            if (channel1.getParticipants().contains(handler.getUser())) {
-                handler.send(type, data);
+        for (ClientConnectionHandler handler : this.connectionHandlers) { // iterate over all connections
+            if (channel1.getParticipants().contains(handler.getUser())) { // check if user is in the channel
+                handler.send(type, data); // send packet
             }
         }
     }
 
     public void launch() {
-        Thread thread = new Thread(this::serverAdministration);
-        thread.start();
+        // start the server admin system off-thread
+//        Thread thread = new Thread(this::serverAdministration);
+//        thread.start();
+
         while (!this.socket.isClosed() && !this.shutdown) {
             try {
                 Socket accepted = this.socket.accept();
@@ -132,6 +188,9 @@ public class Server implements Closeable {
         }
     }
 
+    /**
+     * Accepts server administration commands via stdin
+     */
     private void serverAdministration() {
         Scanner scanner = new Scanner(System.in);
         while (!this.shutdown && !this.executor.isShutdown()) {
@@ -140,25 +199,30 @@ public class Server implements Closeable {
             switch (command) {
                 case "kick" -> {
                 }
-                case "exit" -> {
-                    this.close();
-                }
-                default -> {
-                    LOGGER.error("Invalid command!");
-                }
+                case "exit", "close", "stop" -> this.close();
+                default -> LOGGER.error("Invalid command!");
             }
         }
     }
 
+    /**
+     * Updates the state of a connection handler
+     *
+     * @param oldHandler the old connection handler
+     * @param newHandler the upgraded handler
+     * @param user       the new user
+     */
     public void updateConnection(ClientConnectionHandler oldHandler, ClientConnectionHandler newHandler, User user) {
-        this.executor.execute(() -> {
-            if (this.connectionHandlers.remove(oldHandler)) {
+        this.executor.execute(() -> { // execute on main thread
+            if (this.connectionHandlers.remove(oldHandler)) { // remove the old handler
                 LOGGER.info("User " + user.getLongIdName() + " has logged in.");
-                this.sendToAll(ServerPacketTypes.USER_CONNECT, new UserConnect(user));
+                this.sendToAll(ServerPacketTypes.USER_CONNECT, new UserConnect(user)); // notify clients of user
                 this.sendMessage(Constants.BASE_CHANNEL, user.getShortIdName() + " has joined the chat!");
-                this.channels.get(Constants.BASE_CHANNEL).addParticipant(user);
+                this.channels.get(Constants.BASE_CHANNEL).addParticipant(user); // add user to base channel
 
+                // add new connection handler
                 this.connectionHandlers.add(newHandler);
+                // start the handler
                 this.connectionExecutor.submit(newHandler);
             } else {
                 throw new RuntimeException("Failed to replace handler");
@@ -166,6 +230,11 @@ public class Server implements Closeable {
         });
     }
 
+    /**
+     * Verifies that code is running on the correct (main) thread
+     *
+     * @throws IllegalStateException if the thread is incorrect
+     */
     private void assertOnThread() {
         if (Thread.currentThread() != this.mainThread.getValue()) {
             throw new IllegalStateException();
@@ -178,52 +247,97 @@ public class Server implements Closeable {
         this.shutdown = true;
         List<ClientConnectionHandler> handlers = new ArrayList<>(this.connectionHandlers);
         for (ClientConnectionHandler handler : handlers) {
-            handler.shutdown();
+            handler.shutdown(); // stop all connections
         }
         this.connectionExecutor.shutdown();
         this.executor.shutdown();
         try {
-            this.socket.close();
+            this.socket.close(); // stop accepting incoming connections
         } catch (IOException ignored) {
         }
         LOGGER.info("Shutdown successful.");
     }
 
+    /**
+     * @return whether the server can accept a user with the given key
+     */
     public boolean canAccept(RSAPublicKey key) {
-        return this.users.canAccept(key);
+        return this.users.canAccept(key) && !key.equals(this.publicKey);
     }
 
+    /**
+     * Sends a packet to all available connections
+     *
+     * @param type   the packet type
+     * @param data   the packet body
+     * @param <Data> the type of the packet body
+     */
     protected <Data extends NetworkedData> void sendToAll(PacketType<Data> type, Data data) {
         for (ClientConnectionHandler handler : this.connectionHandlers) {
-            handler.send(type, data);
+            try {
+                handler.send(type, data);
+            } catch (Exception ignored) {
+            }
         }
     }
 
+    /**
+     * @return the channel with the given id (or null if it does not exist)
+     */
     protected Channel getChannel(Identifier id) {
         return this.channels.get(id);
     }
 
+    /**
+     * Sends a given message from a client to all subscribed clients
+     *
+     * @param channel  the channel to send to
+     * @param time     when the message was received
+     * @param user     the user that sent the message
+     * @param checksum the signature of the contents
+     * @param message  the message contents
+     */
     public void receiveMessage(Identifier channel, long time, User user, byte[] checksum, String message) {
         this.assertOnThread();
-        if (this.getChannel(channel).contains(user)) {
+        if (this.getChannel(channel).contains(user)) { // verify that the user can send to this channel
+            // send the packet to the channel
             this.sendToChannel(channel, ServerPacketTypes.ADD_MESSAGE, new AddMessage(channel, time, user.sessionId(), message, checksum));
         }
     }
 
+    /**
+     * Creates a new user instance
+     *
+     * @param username the username of the new user
+     * @param key      the public key of the user
+     * @param icon     the user's profile picture icon
+     * @return a new user instance
+     */
     public @NotNull User createUser(Identifier username, RSAPublicKey key, byte @Nullable [] icon) {
         this.assertOnThread();
         return this.users.createUser(username, key, icon);
     }
 
+    /**
+     * Disconnects the given connection handler and user and propagates the change to other clients
+     *
+     * @param handler the handler to remove
+     * @param user    the user to remove
+     */
     public void disconnect(ClientConnectionHandler handler, User user) {
         this.assertOnThread();
+        // remove the handler
         this.connectionHandlers.remove(handler);
+
         if (user != null) {
+            // remove the user
             this.users.remove(user);
             for (Channel value : this.channels.values()) {
+                // remove the user from channel subscriptions
                 value.removeParticipant(user);
             }
 
+            // tell all clients that a user left
             this.sendToAll(ServerPacketTypes.USER_DISCONNECT, new UserDisconnect(user.sessionId()));
             this.sendMessage(Constants.BASE_CHANNEL, user.getShortIdName() + " has left the chat.");
         }
@@ -233,37 +347,68 @@ public class Server implements Closeable {
         return this.users.getUsers();
     }
 
+    /**
+     * Removes a user from the given channels
+     *
+     * @param handler  the user's client connection
+     * @param user     the user
+     * @param channels the channels to remove
+     */
     public void leaveChannels(ClientConnectionHandler handler, User user, Identifier[] channels) {
+        // list of channels actually removed
         List<Identifier> successful = new ArrayList<>();
         for (Identifier channel : channels) {
             if (channel.equals(Constants.BASE_CHANNEL)) continue;
+            // get the channel
             Channel channel1 = this.channels.get(channel);
-            if (channel1 != null) {
-                if (channel1.contains(user)) {
-                    channel1.removeParticipant(user);
-                    successful.add(channel);
+            if (channel1 != null) { // check that it exists
+                if (channel1.contains(user)) { // check that the user is a part of it
+                    channel1.removeParticipant(user); // remove the user from it
+                    successful.add(channel); // add to removed channels
                 }
             }
         }
+        // inform the client of the subscription changes
         handler.send(ServerPacketTypes.REMOVE_CHANNELS, new ChannelList(successful.toArray(new Identifier[0])));
     }
 
+    /**
+     * Adds a user to the given channels
+     *
+     * @param handler  the user's client connection
+     * @param user     the user
+     * @param channels the channels to add
+     */
     public void joinChannels(ClientConnectionHandler handler, User user, Identifier[] channels) {
-        List<Identifier> successful = new ArrayList<>();
+        List<Identifier> successful = new ArrayList<>(); // channels actually added
         for (Identifier channel : channels) {
             if (channel.equals(Constants.BASE_CHANNEL)) continue;
+            // get or create the channel
             Channel channel1 = this.channels.computeIfAbsent(channel, Channel::new);
-            if (!channel1.contains(user)) {
+            if (!channel1.contains(user)) { // add the user if it is not a part of it
                 channel1.addParticipant(user);
                 successful.add(channel);
             }
         }
+        // send the list of added channels
         handler.send(ServerPacketTypes.ADD_CHANNELS, new ChannelList(successful.toArray(new Identifier[0])));
     }
 
+    /**
+     * Propagates an image message to all subscribed clients
+     *
+     * @param channel   the channel to send the image to
+     * @param l         when the message was received
+     * @param user      the user that sent the image
+     * @param signature the image data signature
+     * @param image     the image data
+     * @param width     the width of the image
+     * @param height    the height of the image
+     */
     public void receiveImageMessage(Identifier channel, long l, User user, byte[] signature, int[] image, int width, int height) {
         this.assertOnThread();
-        if (this.getChannel(channel).contains(user)) {
+        if (this.getChannel(channel).contains(user)) { // verify that the user can send to the channel
+            // send the image
             this.sendToChannel(channel, ServerPacketTypes.ADD_IMAGE_MESSAGE, new AddImageMessage(channel, l, user.sessionId(), width, height, image, signature));
         }
     }

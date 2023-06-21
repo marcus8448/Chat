@@ -80,7 +80,7 @@ public class CreateAccountScreen {
         this.client = client;
         this.stage = stage;
         VBox vBox = new VBox(); // root content pane
-        JfxUtil.initializePadding(vBox);
+        JfxUtil.initVbox(vBox);
 
         double len = JfxUtil.getTextWidth("Username");
         vBox.getChildren().add(JfxUtil.createInputRow(new Label("Username"), this.username, "example", len));

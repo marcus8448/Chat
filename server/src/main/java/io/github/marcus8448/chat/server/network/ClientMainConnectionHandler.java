@@ -35,8 +35,17 @@ import java.io.IOException;
 
 public class ClientMainConnectionHandler implements ClientConnectionHandler {
     private static final Logger LOGGER = LogManager.getLogger();
+    /**
+     * The server instance
+     */
     private final Server server;
+    /**
+     * The client connection
+     */
     private final PacketPipeline pipeline;
+    /**
+     * The user associated with the client
+     */
     private final User user;
 
     public ClientMainConnectionHandler(Server server, PacketPipeline pipeline, User user) {

@@ -198,7 +198,14 @@ public class MessageCell extends ListCell<Message> {
     /**
      * Opens a window describing the author of the message
      */
-    private void openAuthor(MouseEvent unused) { // TODO
-
+    private void openAuthor(MouseEvent unused) {
+        Message item = this.getItem();
+        if (item == null) return;
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("User Information");
+        alert.setHeaderText(item.getAuthor().getName());
+        alert.setContentText("Nickname: " + (this.client.isTrusted(item.getAuthor()) ? this.client.getName(item.getAuthor()) : "N/A") + '\n'
+                + "Key ID: " + CryptoHelper.sha256Hash(item.getAuthor().getPublicKey().getEncoded()));
+        alert.show();
     }
 }

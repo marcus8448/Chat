@@ -60,13 +60,34 @@ import java.util.List;
 public class LoginScreen {
     private static final Logger LOGGER = LogManager.getLogger();
 
+    /**
+     * The client instance
+     */
     private final Client client;
 
+    /**
+     * The password input field
+     */
     private final PasswordField passwordField = new PasswordField();
+    /**
+     * Account selection box
+     */
     private final ComboBox<Account> accountBox;
+    /**
+     * The hostname of the server to connect to
+     */
     private final TextField hostname = new TextField("127.0.0.1");
+    /**
+     * The port of the server to connect to
+     */
     private final TextField port = new TextField(String.valueOf(Constants.PORT));
+    /**
+     * Displays the reason why the login failed
+     */
     private final Label failureReason = new Label();
+    /**
+     * The primary stage
+     */
     private final Stage stage;
 
     public LoginScreen(Client client, Stage stage) {
@@ -75,34 +96,44 @@ public class LoginScreen {
         this.stage.setTitle("Login");
         this.accountBox = new ComboBox<>(this.client.config.getAccounts());
         int lastAccount = this.client.config.getLastAccount();
+
+        // select the last selected account (according to the config)
         if (lastAccount >= 0 && lastAccount < this.client.config.getAccounts().size()) {
             this.accountBox.getSelectionModel().select(lastAccount);
         }
         this.accountBox.setConverter(JfxUtil.ACCOUNT_STRING_CONVERTER);
-        VBox vBox = new VBox();
-        JfxUtil.initializePadding(vBox);
 
+        VBox vBox = new VBox();
+        JfxUtil.initVbox(vBox);
+
+        // create input fields
         double len = JfxUtil.getTextWidth("Hostname");
         vBox.getChildren().add(this.createServerSelection(len));
         vBox.getChildren().add(JfxUtil.createComboInputRow(new Label("Account"), this.accountBox, len));
         vBox.getChildren().add(JfxUtil.createInputRow(new Label("Password"), this.passwordField, "password", len));
 
+        // when enter is pressed login
         JfxUtil.unescapedEnterCallback(this.passwordField, this::login);
 
+        // add failure reason label
         JfxUtil.setupFailureLabel(this.failureReason);
         vBox.getChildren().add(this.failureReason);
 
+        // put spacing between the input and buttons
         vBox.getChildren().add(JfxUtil.createSpacing());
 
+        // create buttons
         Label createAccountPrompt = new Label("No account? Create one!");
         createAccountPrompt.setTextFill(JfxUtil.LINK_COLOUR);
         Button cancel = new Button("Cancel");
         Button login = new Button("Login");
+        // set callbacks
         JfxUtil.buttonPressCallback(cancel, this.client::shutdown);
         JfxUtil.buttonPressCallback(login, this::login);
         JfxUtil.buttonPressCallback(createAccountPrompt, this::createAccount);
         vBox.getChildren().add(JfxUtil.createButtonRow(createAccountPrompt, null, cancel, login));
 
+        // create top menu bar
         MenuBar menuBar = createMenuBar();
         VBox.setVgrow(menuBar, Priority.NEVER);
         VBox.setVgrow(vBox, Priority.ALWAYS);
@@ -114,6 +145,9 @@ public class LoginScreen {
         JfxUtil.resizeAutoHeight(stage, scene, 700.0);
     }
 
+    /**
+     * Opens the account creation window
+     */
     private void createAccount() {
         LOGGER.info("Opening account creation screen");
         Stage stage = new Stage();
@@ -121,22 +155,27 @@ public class LoginScreen {
         stage.showAndWait();
     }
 
+    /**
+     * Opens the account import window
+     */
     private void importAccount() {
         LOGGER.info("Importing account");
         FileChooser chooser = new FileChooser();
         chooser.setTitle("Import account");
         chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Chat account", "*.account"));
+        // prompt the user to select files to open
         List<File> files = chooser.showOpenMultipleDialog(this.accountBox.getScene().getWindow());
         if (files == null) {
             LOGGER.debug("No files selected for import");
             return;
         }
 
+        // add the accounts
         for (File file : files) {
             LOGGER.debug("Importing account from file: {}", file);
-            try (FileReader reader = new FileReader(file)) {
-                Account account = Config.GSON.fromJson(reader, Account.class);
-                this.client.config.addAccount(account);
+            try (FileReader reader = new FileReader(file)) { // read the file
+                Account account = Config.GSON.fromJson(reader, Account.class); //parse the account
+                this.client.config.addAccount(account); // add the account
             } catch (IOException e) {
                 LOGGER.error("Failed to read account file", e);
                 Alert alert = new Alert(Alert.AlertType.ERROR, "Failed to read account file!");
@@ -149,6 +188,9 @@ public class LoginScreen {
         }
     }
 
+    /**
+     * Open the account export screen
+     */
     private void exportAccount() {
         LOGGER.info("Opening account export screen");
         Stage stage = new Stage();
@@ -156,6 +198,9 @@ public class LoginScreen {
         stage.showAndWait();
     }
 
+    /**
+     * Open the account edit screen
+     */
     private void editAccount() {
         LOGGER.info("Opening account edit screen");
         Stage stage = new Stage();
@@ -163,8 +208,14 @@ public class LoginScreen {
         stage.showAndWait();
     }
 
+    /**
+     * Login to the server
+     */
     private void login() {
         LOGGER.info("Attempting to login");
+
+        // check that all input is valid
+
         if (this.accountBox.getSelectionModel().isEmpty()) {
             this.failureReason.setText("You must select an account");
             return;
@@ -194,9 +245,11 @@ public class LoginScreen {
         Account account = this.accountBox.getSelectionModel().getSelectedItem();
 
         LOGGER.debug("All required fields supplied");
-        SecretKey aesKey;
+
+        // create the config decryption key
+        SecretKey passKey;
         try {
-            aesKey = CryptoHelper.generateUserPassKey(password.toCharArray(), account.username().getValue());
+            passKey = CryptoHelper.generateUserPassKey(password.toCharArray(), account.username().getValue());
         } catch (InvalidKeySpecException e) {
             this.failureReason.setText("Invalid account/password");
             LOGGER.error("Failed to generate AES secret", e);
@@ -206,14 +259,16 @@ public class LoginScreen {
         RSAPublicKey publicKey = account.publicKey();
         Cipher aesCipher = CryptoHelper.createAesCipher();
         try {
-            aesCipher.init(Cipher.DECRYPT_MODE, aesKey);
+            aesCipher.init(Cipher.DECRYPT_MODE, passKey);
         } catch (InvalidKeyException e) {
             this.failureReason.setText("Failed to initialize AES cipher");
             LOGGER.error("Failed to initialize AES cipher with key", e);
             return;
         }
 
+        //set the last used account to this one
         this.client.config.setLastAccount(this.accountBox.getSelectionModel().getSelectedIndex());
+        // decrypt account data
         AccountData accountData;
         try {
             accountData = account.data().decrypt(aesCipher);
@@ -223,23 +278,42 @@ public class LoginScreen {
             return;
         }
 
-        this.connectToServer(address, account, aesKey, publicKey, accountData);
+        //connect to the server.
+        this.connectToServer(address, account, passKey, publicKey, accountData);
     }
 
+    /**
+     * Connects to the server at the given address with the given account details
+     *
+     * @param address     the server's address
+     * @param account     the account to use
+     * @param aesKey      the key to use for config encryption/decryption
+     * @param publicKey   the user's public key
+     * @param accountData the data associated with the account
+     */
     private void connectToServer(InetSocketAddress address, Account account, SecretKey aesKey, RSAPublicKey publicKey, AccountData accountData) {
         PacketPipeline connect;
         try {
             Socket socket = new Socket();
             socket.bind(null);
-            socket.connect(address);
+            socket.connect(address); // connect to the address
+
+            // create a pipeline for the connection
             connect = PacketPipeline.createNetwork(Constants.PACKET_HEADER, socket);
+            // send initial packet
             connect.send(ClientPacketTypes.HELLO, new Hello(Constants.BRAND, Constants.VERSION, publicKey));
 
+            // get the server's response
             Packet<AuthenticationRequest> packet = connect.receivePacket();
+
             RSAPublicKey serverKey = packet.data().getServerKey();
+
+            // manage server keys
             String keyHash = CryptoHelper.sha256Hash(serverKey.getEncoded());
             LOGGER.info("Server key id: {}", keyHash);
             String host = address.getHostString() + ":" + address.getPort();
+
+            // verify that the server is the correct one
             RSAPublicKey expectedKey = accountData.knownServers().get(host);
             if (expectedKey == null) {
                 LOGGER.info("Awaiting key confirmation");
@@ -264,6 +338,7 @@ public class LoginScreen {
                 accountData.knownServers().put(host, serverKey);
             }
 
+            //setup encryption for server connection
             LOGGER.info("Initializing ciphers");
             Cipher cipher = CryptoHelper.createRsaCipher();
             cipher.init(Cipher.DECRYPT_MODE, accountData.privateKey());
@@ -271,31 +346,39 @@ public class LoginScreen {
             cipher.init(Cipher.ENCRYPT_MODE, serverKey);
             byte[] output = cipher.doFinal(encodedKey);
 
-            LOGGER.info("Decoding symmetric (AES) key");
-            SecretKey key;
+            // get the server connection session key
+            LOGGER.info("Decoding session key");
+            SecretKey sessionKey;
             try {
-                key = CryptoHelper.decodeAesKey(encodedKey);
+                sessionKey = CryptoHelper.decodeAesKey(encodedKey);
             } catch (InvalidKeySpecException e) {
                 throw new IllegalStateException(e);
             }
 
             LOGGER.info("Authenticating...");
+            // send the client's data to the server
             connect.send(ClientPacketTypes.AUTHENTICATE, new Authenticate(account.username(), output));
+
             Packet<?> response = connect.receivePacket();
+            // check the server's response
             if (response.type() == ServerPacketTypes.AUTHENTICATION_SUCCESS) {
                 LOGGER.info("Successfully authenticated to the server");
                 AuthenticationSuccess success = response.getAs(ServerPacketTypes.AUTHENTICATION_SUCCESS);
-                this.client.initialize(connect.encryptWith(key), aesKey, serverKey, publicKey, accountData, success.getUsers(), account.username(), address);
+                // initialize the client with the new account data and connection info
+                this.client.initialize(connect.encryptWith(sessionKey), aesKey, serverKey, publicKey, accountData, success.getUsers(), account.username(), address);
                 this.client.saveAccountData();
                 this.stage.close();
+                // OPEN the main window
                 ChatView chatView = new ChatView(this.client, this.stage);
                 this.stage.show();
             } else if (response.type() == ServerPacketTypes.AUTHENTICATION_FAILURE) {
+                //the connection failed so tell the user why
                 String failure = response.getAs(ServerPacketTypes.AUTHENTICATION_FAILURE).getReason();
                 LOGGER.error("Server denied connection: {}", failure);
                 this.failureReason.setText(failure);
             } else {
                 LOGGER.error("Server sent invalid id: " + response.type());
+                this.failureReason.setText("Invalid server response");
             }
         } catch (IOException e) {
             LOGGER.error("Communication I/O error", e);
@@ -306,7 +389,14 @@ public class LoginScreen {
         }
     }
 
+    /**
+     * Creates a row of input for the server address and port
+     *
+     * @param len the alignment for the "Hostname" label
+     * @return the new row of input boxes
+     */
     private @NotNull HBox createServerSelection(double len) {
+        // Hostname [input]  Port [input]
         HBox row = JfxUtil.createInputRow(new Label("Hostname"), this.hostname, "hostname", len);
         Label portLabel = new Label("Port");
         portLabel.setPadding(new Insets(0, 0, 0, JfxUtil.SPACING / 2.0));
@@ -317,6 +407,11 @@ public class LoginScreen {
         return row;
     }
 
+    /**
+     * Creates the menu bar at the top of the screen
+     *
+     * @return the menu bar
+     */
     private @NotNull MenuBar createMenuBar() {
         MenuItem create = new MenuItem("Create");
         create.setOnAction(e -> this.createAccount());
@@ -328,23 +423,9 @@ public class LoginScreen {
         export.setOnAction(e -> this.exportAccount());
         Menu file = new Menu("File", null, importAc, export);
         Menu account = new Menu("Account", null, create, edit);
-        MenuItem about = new MenuItem("About");
-        about.setOnAction(e -> this.about());
 
-        Menu help = new Menu("Help", null, about);
-        MenuBar menuBar = new MenuBar(file, account, help);
+        MenuBar menuBar = new MenuBar(file, account);
         VBox.setVgrow(menuBar, Priority.NEVER);
         return menuBar;
-    }
-
-    private void about() {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION, "Chat");
-        alert.showAndWait();
-    }
-
-    private double alignLabel(Label label) {
-        double hostname1 = JfxUtil.getTextWidth("Hostname");
-        label.setPrefWidth(hostname1);
-        return hostname1;
     }
 }

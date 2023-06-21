@@ -21,8 +21,6 @@ import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
 import io.github.marcus8448.chat.core.api.network.packet.Packet;
 import io.github.marcus8448.chat.core.api.network.packet.PacketType;
 import io.github.marcus8448.chat.core.impl.network.NetworkPacketPipeline;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
@@ -35,8 +33,6 @@ import java.net.Socket;
  * Represents a connection to some other device that exchanges packets (The way the packets are transmitted is opaque)
  */
 public interface PacketPipeline extends Closeable {
-    Logger LOGGER = LogManager.getLogger();
-
     /**
      * Creates a new packet pipeline backed by a socket connection
      *
@@ -92,11 +88,9 @@ public interface PacketPipeline extends Closeable {
         Packet<NetworkedData> packet = this.receivePacket();
         // check if it is of the desired type
         if (packet.type() != type) {
-            LOGGER.debug("Discarding packet {}", type.getDataClass().getName());
             // it is of some other type, so let's wait for another packet
             return this.receivePacket(type);
         }
-        LOGGER.debug("Received packet {}", type.getDataClass().getName());
         // the packet is of the right type, so return it
         return (Packet<Data>) packet;
     }

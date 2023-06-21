@@ -29,25 +29,28 @@ public interface ClientPacketTypes {
     /**
      * @see Hello
      */
-    PacketType<Hello> HELLO = PacketType.create(Hello.class, Hello::new);
+    PacketType<Hello> HELLO = PacketType.create(Hello::new);
     /**
      * @see Authenticate
      */
-    PacketType<Authenticate> AUTHENTICATE = PacketType.create(Authenticate.class, Authenticate::new);
+    PacketType<Authenticate> AUTHENTICATE = PacketType.create(Authenticate::new);
     /**
      * @see SendMessage
      */
-    PacketType<SendMessage> SEND_MESSAGE = PacketType.create(SendMessage.class, SendMessage::new);
-    PacketType<SendImageMessage> SEND_IMAGE_MESSAGE = PacketType.create(SendImageMessage.class, SendImageMessage::new);
+    PacketType<SendMessage> SEND_MESSAGE = PacketType.create(SendMessage::new);
+    /**
+     * @see SendImageMessage
+     */
+    PacketType<SendImageMessage> SEND_IMAGE_MESSAGE = PacketType.create(SendImageMessage::new);
 
     /**
      * @see ChannelList
      */
-    PacketType<ChannelList> JOIN_CHANNELS = PacketType.create(ChannelList.class, ChannelList::new);
+    PacketType<ChannelList> JOIN_CHANNELS = PacketType.create(ChannelList::new);
     /**
      * @see ChannelList
      */
-    PacketType<ChannelList> LEAVE_CHANNELS = PacketType.create(ChannelList.class, ChannelList::new);
+    PacketType<ChannelList> LEAVE_CHANNELS = PacketType.create(ChannelList::new);
 
     static void initialize() {
     }

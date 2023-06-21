@@ -93,7 +93,7 @@ public class EditAccountScreen {
         this.accounts.setConverter(JfxUtil.ACCOUNT_STRING_CONVERTER);
 
         VBox root = new VBox();
-        JfxUtil.initializePadding(root);
+        JfxUtil.initVbox(root);
 
         this.username.disableProperty().bind(this.accounts.getSelectionModel().selectedItemProperty().isNull());
         this.passwordField.disableProperty().bind(this.accounts.getSelectionModel().selectedItemProperty().isNull());

@@ -36,6 +36,7 @@ public class Users {
     }
 
     public boolean contains(RSAPublicKey key) {
+        // any user with the same key
         return this.users.stream().anyMatch(u -> u.key().equals(key));
     }
 

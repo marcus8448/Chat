@@ -24,8 +24,6 @@ import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
 import io.github.marcus8448.chat.core.api.network.io.GrowingBinaryOutput;
 import io.github.marcus8448.chat.core.api.network.packet.Packet;
 import io.github.marcus8448.chat.core.api.network.packet.PacketType;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import javax.crypto.BadPaddingException;
@@ -42,7 +40,6 @@ import java.security.InvalidKeyException;
  * @see io.github.marcus8448.chat.core.impl.network.NetworkPacketPipeline
  */
 public class EncryptedNetworkPipeline implements PacketPipeline {
-    private static final Logger LOGGER = LogManager.getLogger();
 
     /**
      * The packet header in use
@@ -93,7 +90,6 @@ public class EncryptedNetworkPipeline implements PacketPipeline {
 
     @Override
     public synchronized <Data extends NetworkedData> void send(PacketType<Data> type, Data networkedData) throws IOException {
-        LOGGER.debug("Sending packet {}", type.getDataClass().getName());
         this.output.writeInt(this.packetHeader); // write the packet header
         int len = networkedData.getLength(); // get the data size
         byte[] data;
@@ -140,7 +136,6 @@ public class EncryptedNetworkPipeline implements PacketPipeline {
         BinaryInput input = BinaryInput.buffer(clear);
         // get the type of packet based on the short id
         PacketType<Data> type = (PacketType<Data>) PacketType.getType(input.readShort());
-        LOGGER.debug("Received packet {}", type.getDataClass().getName());
         // create the packet
         return new Packet<>(type, type.create(input));
     }
