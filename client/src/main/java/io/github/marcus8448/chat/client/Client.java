@@ -61,7 +61,6 @@ import java.io.InputStream;
 import java.net.ConnectException;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidKeyException;
 import java.security.Signature;
@@ -398,9 +397,9 @@ public class Client extends Application implements Runnable {
                     });
                 } else if (packet.type() == ServerPacketTypes.ADD_IMAGE_MESSAGE) {
                     // add an IMAGE message to a channel
-                    AddImageMessage msg = packet.getAs(ServerPacketTypes.ADD_IMAGE_MESSAGE);
+                    AddFileMessage msg = packet.getAs(ServerPacketTypes.ADD_IMAGE_MESSAGE);
                     Platform.runLater(() -> {
-                        ImageMessage img = new ImageMessage(msg.getTimestamp(), this.users.get(msg.getAuthorId()), msg.getWidth(), msg.getHeight(), msg.getContents(), msg.getSignature());
+                        FileMessage img = new FileMessage(msg.getTimestamp(), this.users.get(msg.getAuthorId()), msg.getContents(), msg.getSignature());
                         addMessage(msg.getChannel(), img);
                     });
                 }
@@ -690,14 +689,12 @@ public class Client extends Application implements Runnable {
     /**
      * Signs the given integer array as a message
      *
-     * @param pixels the raw data
+     * @param data the raw data
      * @return the data's signature
      */
-    public byte[] signMessage(int[] pixels) {
-        byte[] arr = new byte[pixels.length * 4];
-        ByteBuffer.wrap(arr).asIntBuffer().put(pixels); // too lazy to bother with bits...
+    public byte[] signMessage(byte[] data) {
         try {
-            this.rsaSignature.update(arr);
+            this.rsaSignature.update(data);
             return this.rsaSignature.sign();
         } catch (SignatureException e) {
             throw new IllegalStateException(e);

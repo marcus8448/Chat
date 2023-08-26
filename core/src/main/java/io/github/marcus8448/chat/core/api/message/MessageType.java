@@ -25,9 +25,9 @@ public enum MessageType {
      */
     TEXT(TextMessage.class),
     /**
-     * A message containing an image
+     * A message containing a file
      */
-    IMAGE(ImageMessage.class);
+    FILE(FileMessage.class);
 
     /**
      * The class that represents this type

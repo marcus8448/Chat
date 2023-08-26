@@ -20,15 +20,16 @@ import io.github.marcus8448.chat.core.api.misc.Identifier;
 import io.github.marcus8448.chat.core.api.network.NetworkedData;
 import io.github.marcus8448.chat.core.api.network.io.BinaryInput;
 import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
+import io.github.marcus8448.chat.core.api.network.packet.client.SendFileMessage;
 
 import java.io.IOException;
 
 /**
  * Propagates a new image message to the connected client(s)
  *
- * @see io.github.marcus8448.chat.core.api.network.packet.client.SendImageMessage
+ * @see SendFileMessage
  */
-public class AddImageMessage implements NetworkedData {
+public class AddFileMessage implements NetworkedData {
     private final Identifier channel;
     /**
      * WHen the message was received on the server
@@ -38,33 +39,27 @@ public class AddImageMessage implements NetworkedData {
      * The session ID of the author
      */
     private final int authorId;
-    private final int width;
-    private final int height;
     /**
-     * The contents of the image
+     * The contents of the file
      */
-    private final int[] contents;
+    private final byte[] contents;
     /**
      * The checksum verifying the authenticity of the message (was from the author)
      */
     private final byte[] signature;
 
-    public AddImageMessage(BinaryInput input) throws IOException {
+    public AddFileMessage(BinaryInput input) throws IOException {
         this.channel = input.readIdentifier();
         this.timestamp = input.readLong();
         this.authorId = input.readInt();
-        this.width = input.readShort();
-        this.height = input.readShort();
-        this.contents = input.readIntArray(width * height);
+        this.contents = input.readByteArray(input.readInt());
         this.signature = input.readByteArray();
     }
 
-    public AddImageMessage(Identifier channel, long timestamp, int authorId, int width, int height, int[] contents, byte[] signature) {
+    public AddFileMessage(Identifier channel, long timestamp, int authorId, byte[] contents, byte[] signature) {
         this.channel = channel;
         this.timestamp = timestamp;
         this.authorId = authorId;
-        this.width = width;
-        this.height = height;
         this.contents = contents;
         this.signature = signature;
     }
@@ -74,9 +69,8 @@ public class AddImageMessage implements NetworkedData {
         output.writeIdentifier(this.channel);
         output.writeLong(this.timestamp);
         output.writeInt(this.authorId);
-        output.writeShort(this.width);
-        output.writeShort(this.height);
-        output.writeIntArray(this.width * this.height, this.contents);
+        output.writeInt(this.contents.length);
+        output.writeByteArray(this.contents.length, this.contents);
         output.writeByteArray(this.signature);
     }
 
@@ -96,15 +90,7 @@ public class AddImageMessage implements NetworkedData {
         return signature;
     }
 
-    public int getWidth() {
-        return width;
-    }
-
-    public int getHeight() {
-        return height;
-    }
-
-    public int[] getContents() {
+    public byte[] getContents() {
         return contents;
     }
 }

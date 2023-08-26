@@ -26,7 +26,7 @@ import io.github.marcus8448.chat.core.api.account.User;
 import io.github.marcus8448.chat.core.api.message.Message;
 import io.github.marcus8448.chat.core.api.misc.Identifier;
 import io.github.marcus8448.chat.core.api.network.packet.ClientPacketTypes;
-import io.github.marcus8448.chat.core.api.network.packet.client.SendImageMessage;
+import io.github.marcus8448.chat.core.api.network.packet.client.SendFileMessage;
 import io.github.marcus8448.chat.core.api.network.packet.client.SendMessage;
 import javafx.application.Platform;
 import javafx.collections.ListChangeListener;
@@ -49,10 +49,10 @@ import javafx.stage.Stage;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.Files;
 
 /**
  * The main chat window.
@@ -275,12 +275,18 @@ public class ChatView {
                 boolean anyConsumed = false;
                 for (File file : e.getDragboard().getFiles()) {
                     if (file.exists()) {
-                        Image image;
                         try {
-                            image = new Image(new FileInputStream(file)); // parse image
-                            this.sendImage(image); //send it
+                            byte[] file1 = Files.readAllBytes(file.toPath());
+                            if (file1.length > 1048576 * 16) { // 16MB limit
+                                this.leftStatus.setText("File too large");
+                                continue;
+                            }
+                            new Image(new ByteArrayInputStream(file1)); // verify image can be parsed
+                            this.sendFile(file1); // send it
                             anyConsumed = true;
-                        } catch (FileNotFoundException ignored) {
+                        } catch (IOException ignored) {
+                        } catch (Throwable t) {
+                            this.leftStatus.setText("Failed to parse image");
                         }
                     }
                 }
@@ -290,23 +296,13 @@ public class ChatView {
         });
     }
 
-    private void sendImage(Image dragView) { // todo: send raw image, not pixels
+    private void sendFile(byte[] file) {
         if (this.sendButton.isDisabled()) return; // if we can't send, don't bother
-        int width = (int) dragView.getWidth();
-        int height = (int) dragView.getHeight();
-        int[] pixels = new int[width * height];
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                // read pixels (oh no)
-                pixels[y * width + x] = dragView.getPixelReader().getArgb(x, y) | 0xFF000000;
-            }
-        }
-
         try {
-            //send the image
-            this.client.connection.send(ClientPacketTypes.SEND_IMAGE_MESSAGE, new SendImageMessage(this.channel, width, height, pixels, client.signMessage(pixels)));
+            //send the file
+            this.client.connection.send(ClientPacketTypes.SEND_FILE_MESSAGE, new SendFileMessage(this.channel, file, client.signMessage(file)));
         } catch (IOException e) {
-            LOGGER.fatal("Failed to send image message", e);
+            LOGGER.fatal("Failed to send file message", e);
         }
     }
 

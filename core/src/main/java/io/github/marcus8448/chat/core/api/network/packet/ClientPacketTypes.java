@@ -18,7 +18,7 @@ package io.github.marcus8448.chat.core.api.network.packet;
 
 import io.github.marcus8448.chat.core.api.network.packet.client.Authenticate;
 import io.github.marcus8448.chat.core.api.network.packet.client.Hello;
-import io.github.marcus8448.chat.core.api.network.packet.client.SendImageMessage;
+import io.github.marcus8448.chat.core.api.network.packet.client.SendFileMessage;
 import io.github.marcus8448.chat.core.api.network.packet.client.SendMessage;
 import io.github.marcus8448.chat.core.api.network.packet.common.ChannelList;
 
@@ -39,9 +39,9 @@ public interface ClientPacketTypes {
      */
     PacketType<SendMessage> SEND_MESSAGE = PacketType.create(SendMessage::new);
     /**
-     * @see SendImageMessage
+     * @see SendFileMessage
      */
-    PacketType<SendImageMessage> SEND_IMAGE_MESSAGE = PacketType.create(SendImageMessage::new);
+    PacketType<SendFileMessage> SEND_FILE_MESSAGE = PacketType.create(SendFileMessage::new);
 
     /**
      * @see ChannelList

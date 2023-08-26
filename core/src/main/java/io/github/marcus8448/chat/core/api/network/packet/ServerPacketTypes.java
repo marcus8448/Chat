@@ -60,7 +60,7 @@ public interface ServerPacketTypes {
      * @see io.github.marcus8448.chat.core.api.network.packet.common.ChannelList
      */
     PacketType<ChannelList> REMOVE_CHANNELS = PacketType.create(ChannelList::new);
-    PacketType<AddImageMessage> ADD_IMAGE_MESSAGE = PacketType.create(AddImageMessage::new);
+    PacketType<AddFileMessage> ADD_IMAGE_MESSAGE = PacketType.create(AddFileMessage::new);
 
     static void initialize() {
     }

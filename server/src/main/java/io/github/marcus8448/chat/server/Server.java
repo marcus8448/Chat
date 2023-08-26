@@ -402,14 +402,14 @@ public class Server implements Closeable {
      * @param user      the user that sent the image
      * @param signature the image data signature
      * @param image     the image data
-     * @param width     the width of the image
-     * @param height    the height of the image
      */
-    public void receiveImageMessage(Identifier channel, long l, User user, byte[] signature, int[] image, int width, int height) {
+    public void receiveFileMessage(Identifier channel, long l, User user, byte[] signature, byte[] image) {
         this.assertOnThread();
         if (this.getChannel(channel).contains(user)) { // verify that the user can send to the channel
-            // send the image
-            this.sendToChannel(channel, ServerPacketTypes.ADD_IMAGE_MESSAGE, new AddImageMessage(channel, l, user.sessionId(), width, height, image, signature));
+            if (image.length < 1048576 * 16) { // 16MB limit
+                // send the image
+                this.sendToChannel(channel, ServerPacketTypes.ADD_IMAGE_MESSAGE, new AddFileMessage(channel, l, user.sessionId(), image, signature));
+            }
         }
     }
 }

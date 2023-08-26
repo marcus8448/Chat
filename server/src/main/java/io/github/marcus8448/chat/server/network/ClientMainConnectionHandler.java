@@ -22,7 +22,7 @@ import io.github.marcus8448.chat.core.api.network.PacketPipeline;
 import io.github.marcus8448.chat.core.api.network.packet.ClientPacketTypes;
 import io.github.marcus8448.chat.core.api.network.packet.Packet;
 import io.github.marcus8448.chat.core.api.network.packet.PacketType;
-import io.github.marcus8448.chat.core.api.network.packet.client.SendImageMessage;
+import io.github.marcus8448.chat.core.api.network.packet.client.SendFileMessage;
 import io.github.marcus8448.chat.core.api.network.packet.client.SendMessage;
 import io.github.marcus8448.chat.core.api.network.packet.common.ChannelList;
 import io.github.marcus8448.chat.server.Server;
@@ -67,10 +67,10 @@ public class ClientMainConnectionHandler implements ClientConnectionHandler {
         } else if (type == ClientPacketTypes.LEAVE_CHANNELS) {
             ChannelList list = packet.getAs(ClientPacketTypes.LEAVE_CHANNELS);
             this.server.executor.submit(() -> this.server.leaveChannels(this, this.user, list.getChannels()));
-        } else if (type == ClientPacketTypes.SEND_IMAGE_MESSAGE) {
-            SendImageMessage imgMsg = packet.getAs(ClientPacketTypes.SEND_IMAGE_MESSAGE);
+        } else if (type == ClientPacketTypes.SEND_FILE_MESSAGE) {
+            SendFileMessage imgMsg = packet.getAs(ClientPacketTypes.SEND_FILE_MESSAGE);
             long l = System.currentTimeMillis();
-            this.server.executor.submit(() -> this.server.receiveImageMessage(imgMsg.getChannel(), l, this.user, imgMsg.getSignature(), imgMsg.getImage(), imgMsg.getWidth(), imgMsg.getHeight()));
+            this.server.executor.submit(() -> this.server.receiveFileMessage(imgMsg.getChannel(), l, this.user, imgMsg.getSignature(), imgMsg.getContents()));
         }
     }
 

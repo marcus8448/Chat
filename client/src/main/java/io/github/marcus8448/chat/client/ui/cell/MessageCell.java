@@ -20,15 +20,12 @@ import io.github.marcus8448.chat.client.Client;
 import io.github.marcus8448.chat.client.parse.MarkdownParser;
 import io.github.marcus8448.chat.client.util.JfxUtil;
 import io.github.marcus8448.chat.core.api.crypto.CryptoHelper;
-import io.github.marcus8448.chat.core.api.message.ImageMessage;
+import io.github.marcus8448.chat.core.api.message.FileMessage;
 import io.github.marcus8448.chat.core.api.message.Message;
 import io.github.marcus8448.chat.core.api.message.MessageType;
 import io.github.marcus8448.chat.core.api.message.TextMessage;
 import javafx.scene.control.*;
 import javafx.scene.image.Image;
-import javafx.scene.image.PixelBuffer;
-import javafx.scene.image.PixelFormat;
-import javafx.scene.image.WritableImage;
 import javafx.scene.input.Clipboard;
 import javafx.scene.input.DataFormat;
 import javafx.scene.input.MouseEvent;
@@ -39,7 +36,7 @@ import javafx.scene.text.FontPosture;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.TextFlow;
 
-import java.nio.IntBuffer;
+import java.io.ByteArrayInputStream;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -123,18 +120,20 @@ public class MessageCell extends ListCell<Message> {
                     this.vBox.getChildren().add(this.textMessageContents);
                 // parse the text as markdown and insert it into the flow
                 MarkdownParser.parseMarkdown(this.textMessageContents, ((TextMessage) item).getMessage());
-            } else if (item.getType() == MessageType.IMAGE) {
+            } else if (item.getType() == MessageType.FILE) {
                 this.vBox.getChildren().remove(this.textMessageContents); // remove text message contents from display
                 // delete any remaining text contents
                 this.textMessageContents.getChildren().clear();
                 // add image content if it doesn't already exist
                 if (!this.vBox.getChildren().contains(this.imageContents))
                     this.vBox.getChildren().add(this.imageContents);
-                Image image = new WritableImage(new PixelBuffer<>(((ImageMessage) item).width(), ((ImageMessage) item).height(), IntBuffer.wrap(((ImageMessage) item).image()), PixelFormat.getIntArgbPreInstance())); // load the image
-                // set the image data
-                this.imageContents.setBackground(new Background(new BackgroundImage(image, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.DEFAULT, BackgroundSize.DEFAULT)));
-                this.imageContents.setPrefWidth(image.getWidth());
-                this.imageContents.setPrefHeight(image.getHeight());
+                try {
+                    Image image = new Image(new ByteArrayInputStream(((FileMessage) item).file())); // load the image
+                    // set the image data
+                    this.imageContents.setBackground(new Background(new BackgroundImage(image, BackgroundRepeat.NO_REPEAT, BackgroundRepeat.NO_REPEAT, BackgroundPosition.DEFAULT, BackgroundSize.DEFAULT)));
+                    this.imageContents.setPrefWidth(image.getWidth());
+                    this.imageContents.setPrefHeight(image.getHeight());
+                } catch (Throwable ignored) {}
             }
             this.authorName.setText(this.client.getName(item.getAuthor())); // set the author text
             this.authorName.setOnMouseClicked(this::openAuthor); // set click handler
@@ -189,8 +188,8 @@ public class MessageCell extends ListCell<Message> {
         Map<DataFormat, Object> data = new HashMap<>();
         if (this.getItem().getType() == MessageType.TEXT) {
             data.put(DataFormat.PLAIN_TEXT, ((TextMessage) this.getItem()).getMessage());
-        } else {
-            data.put(DataFormat.IMAGE, ((ImageMessage) this.getItem()).image());
+        } else if (this.imageContents.getBackground() != null && !this.imageContents.getBackground().getImages().isEmpty()) {
+            data.put(DataFormat.IMAGE, this.imageContents.getBackground().getImages().get(0).getImage());
         }
         Clipboard.getSystemClipboard().setContent(data);
     }

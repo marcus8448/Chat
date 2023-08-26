@@ -20,50 +20,43 @@ import io.github.marcus8448.chat.core.api.misc.Identifier;
 import io.github.marcus8448.chat.core.api.network.NetworkedData;
 import io.github.marcus8448.chat.core.api.network.io.BinaryInput;
 import io.github.marcus8448.chat.core.api.network.io.BinaryOutput;
-import io.github.marcus8448.chat.core.api.network.packet.server.AddMessage;
+import io.github.marcus8448.chat.core.api.network.packet.server.AddFileMessage;
 
 import java.io.IOException;
 
 /**
- * Represents a new message sent from the client -> server
+ * Represents a new file message sent from the client -> server
  *
- * @see AddMessage The server's expected response to ALL clients
+ * @see AddFileMessage The server's expected response to ALL clients
  */
-public class SendImageMessage implements NetworkedData {
+public class SendFileMessage implements NetworkedData {
     private final Identifier channel;
-    private final int width;
-    private final int height;
     /**
      * The contents of the message
      */
-    private final int[] message;
+    private final byte[] contents;
     /**
      * The checksum verifying the contents of the message
      */
     private final byte[] signature;
 
-    public SendImageMessage(BinaryInput input) throws IOException {
+    public SendFileMessage(BinaryInput input) throws IOException {
         this.channel = input.readIdentifier();
-        this.width = input.readShort();
-        this.height = input.readShort();
-        this.message = input.readIntArray(this.width * this.height);
+        this.contents = input.readByteArray(input.readInt());
         this.signature = input.readByteArray();
     }
 
-    public SendImageMessage(Identifier channel, int width, int height, int[] message, byte[] signature) {
+    public SendFileMessage(Identifier channel, byte[] contents, byte[] signature) {
         this.channel = channel;
-        this.width = width;
-        this.height = height;
-        this.message = message;
+        this.contents = contents;
         this.signature = signature;
     }
 
     @Override
     public void write(BinaryOutput output) throws IOException {
         output.writeIdentifier(this.channel);
-        output.writeShort(this.width);
-        output.writeShort(this.height);
-        output.writeIntArray(this.width * this.height, this.message);
+        output.writeInt(this.contents.length);
+        output.writeByteArray(this.contents.length, this.contents);
         output.writeByteArray(this.signature);
     }
 
@@ -71,16 +64,8 @@ public class SendImageMessage implements NetworkedData {
         return channel;
     }
 
-    public int getWidth() {
-        return width;
-    }
-
-    public int getHeight() {
-        return height;
-    }
-
-    public int[] getImage() {
-        return message;
+    public byte[] getContents() {
+        return this.contents;
     }
 
     public byte[] getSignature() {
