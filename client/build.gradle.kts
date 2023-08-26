@@ -8,6 +8,13 @@ application {
     mainModule.set("chat.client")
 }
 
+tasks.getByName<JavaExec>("run") {
+    if (project.hasProperty("workDir")) {
+        mkdir(projectDir.resolve(project.property("workDir").toString()))
+        workingDir(projectDir.resolve(project.property("workDir").toString()))
+    }
+}
+
 dependencies {
     implementation(libs.bundles.log4j)
     implementation(project(":core"))

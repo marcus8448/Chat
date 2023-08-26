@@ -1,3 +1,2 @@
-mkdir runserver
-cd runserver
+#!/bin/bash
 ./gradlew :server:run

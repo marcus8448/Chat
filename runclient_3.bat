@@ -1,3 +1,1 @@
-mkdir run3
-cd run3
-gradlew.bat :client:run
+gradlew :client:run -PworkDir=run3

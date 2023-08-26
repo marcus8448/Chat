@@ -1,3 +1,2 @@
-mkdir run3
-cd run3
-./gradlew :client:run
+#!/bin/bash
+./gradlew :client:run -PworkDir=run3
